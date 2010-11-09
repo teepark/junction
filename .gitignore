@@ -1,0 +1,13 @@
+.*.swp
+*.pyc
+*.pyo
+.*.swp
+junction.egg-info/*
+MANIFEST.in
+build/*
+docs/build/*
+dist/*
+html/*
+
+.coverage
+coverage_annotated/*
