@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import socket
 
+from greenhouse import io, scheduler
 from . import connection, const, dispatch, errors, rpc
 
 
@@ -20,11 +21,11 @@ class Node(object):
         map(self.create_connection, self._peers)
 
     def create_connection(self, addr):
-        peer = connection.Peer(self._dispatcher, addr, socket.socket())
+        peer = connection.Peer(self._dispatcher, addr, io.Socket())
         peer.start(connect=True)
 
     def listener_coro(self):
-        server = socket.socket()
+        server = io.Socket()
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         server.bind(self.addr)
@@ -32,8 +33,15 @@ class Node(object):
 
         while not self._closing:
             client, addr = server.accept()
-            peer = connection.Peer(self._dispatcher, addr, client)
+            peer = connection.Peer(self._dispatcher, addr, client, connected=1)
             peer.start(connect=False)
+
+    def wait_on_connections(self, conns=None):
+        conns = conns or self._peers
+        if not hasattr(conns, "__iter__"):
+            conns = [conns]
+        for peer_addr in conns:
+            self._dispatcher.all_peers[peer_addr].established.wait()
 
     def accept_publish(self, service, method, mask, value, handler):
         '''Set a handler for incoming publish messages

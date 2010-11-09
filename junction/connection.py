@@ -10,7 +10,7 @@ from . import const, errors
 
 
 class Peer(object):
-    def __init__(self, dispatcher, addr, sock):
+    def __init__(self, dispatcher, addr, sock, connected=False):
         self.dispatcher = dispatcher
         self.addr = addr
         self.sock = sock
@@ -18,6 +18,8 @@ class Peer(object):
         self._sock_inited = False
         self._closing = False
         self.connected = utils.Event()
+        if connected:
+            self.connected.set()
         self.established = utils.Event()
         self.send_queue = utils.Queue()
 
@@ -45,12 +47,20 @@ class Peer(object):
             self.sock.sendall(self.dump((const.MSG_TYPE_HANDSHAKE, (
                     self.dispatcher.addr,
                     self.dispatcher.version,
-                    list(self.dispatcher._local_registrations())))))
+                    list(self.dispatcher.local_registrations())))))
         except socket.error:
             return
 
         # expect to get a similar message back from the peer
-        received = self.recv_one()
+        try:
+            received = self.recv_one()
+        except socket.error, exc:
+            return
+        except MessageCutOff, exc:
+            if not exc.args[0]:
+                return
+            raise
+
         if not isinstance(received, tuple) or \
                 received[0] != const.MSG_TYPE_HANDSHAKE or \
                 len(received) != 2 or \
@@ -58,7 +68,7 @@ class Peer(object):
             raise errors.BadHandshake()
 
         self.ident, self.version, self.regs = received[1]
-        self.dispatcher._add_peer_regs(self, self.regs)
+        self.dispatcher.add_peer_regs(self, self.regs)
 
         # hand off connection management to sender_coro and receiver_coro
         self.established.set()
@@ -73,7 +83,7 @@ class Peer(object):
         while count:
             data.append(self.sock.recv(count))
             if not data[-1]:
-                raise errors.MessageCutOff()
+                raise errors.MessageCutOff(sum(map(len, data)))
             count -= len(data[-1])
         return ''.join(data)
 
@@ -106,11 +116,14 @@ class Peer(object):
                 self.handle_incoming(self.recv_one())
         except socket.error:
             pass
+        except errors.MessageCutOff, exc:
+            if exc.args[0]:
+                raise
 
         self.on_connection_closed()
 
     def handle_incoming(self, msg):
-        self.dispatcher._incoming(self, msg)
+        self.dispatcher.incoming(self, msg)
 
     def establish_coro(self, connect):
         if connect:
@@ -122,6 +135,8 @@ class Peer(object):
         # (they'll block until self.established is set)
         scheduler.schedule(self.sender_coro)
         scheduler.schedule(self.receiver_coro)
+
+        self.dispatcher.store_peer(self)
 
         # do the connect and establish in a coro as well
         scheduler.schedule(self.establish_coro, args=(connect,))

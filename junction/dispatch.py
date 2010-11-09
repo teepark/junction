@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import sys
 
+from greenhouse import scheduler
 from . import const
 
 
@@ -36,7 +37,7 @@ class Dispatcher(object):
 
         return added
 
-    def find_local_handler(msg_type, service, method, routing_id):
+    def find_local_handler(self, msg_type, service, method, routing_id):
         route = self.local_regs
         for traversal in (msg_type, service, method):
             if traversal not in route:
@@ -56,8 +57,10 @@ class Dispatcher(object):
                     for mask, value, handler in rest:
                         yield (msg_type, service, method, mask, value)
 
+    def store_peer(self, peer):
+        self.all_peers[peer.addr] = peer
+
     def add_peer_regs(self, peer, regs):
-        self.all_peers[peer.ident] = peer
         for msg_type, service, method, mask, value in regs:
             self.peer_regs.setdefault(
                     msg_type, {}).setdefault(
@@ -132,7 +135,7 @@ class Dispatcher(object):
                         (counter, const.RPC_ERR_NOHANDLER, None)))
             return
 
-        scheduler.schedule(scheduled_rpc_handler,
+        scheduler.schedule(self.scheduled_rpc_handler,
                 args=(peer, counter, handler, args, kwargs))
 
     def incoming_rpc_response(self, peer, msg):

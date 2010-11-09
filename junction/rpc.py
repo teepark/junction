@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from greenhouse import utils
 from . import const
 
 
@@ -15,13 +16,13 @@ class Client(object):
         counter = self.counter
         self.counter += 1
 
-        msg = (MSG_TYPE_RPC_REQUEST,
+        msg = (const.MSG_TYPE_RPC_REQUEST,
                 (counter, service, method, routing_id, args, kwargs))
 
         found_one = False
         targets = set()
-        for peer in self.dispatcher._find_peer_routes(
-                MSG_TYPE_RPC_REQUEST, service, method, routing_id):
+        for peer in self.dispatcher.find_peer_routes(
+                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id):
             found_one = True
             targets.add(peer.ident)
             peer.send_queue.put(msg)
