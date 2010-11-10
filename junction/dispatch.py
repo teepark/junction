@@ -1,9 +1,10 @@
 from __future__ import absolute_import
 
 import sys
+import traceback
 
 from greenhouse import scheduler
-from . import const
+from . import const, errors
 
 
 class Dispatcher(object):
@@ -130,7 +131,7 @@ class Dispatcher(object):
         try:
             rc = 0
             result = handler(*args, **kwargs)
-        except HandledError, exc:
+        except errors.HandledError, exc:
             rc = const.RPC_ERR_KNOWN
             result = (exc.code, exc.args)
         except:
