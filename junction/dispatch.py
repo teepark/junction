@@ -67,6 +67,26 @@ class Dispatcher(object):
                             service, {}).setdefault(
                                     method, []).append((mask, value, peer))
 
+    def drop_peer_regs(self, peer):
+        for msg_type, service, method, mask, value in peer.regs:
+            item = (mask, value, peer)
+            if msg_type in self.peer_regs:
+                group1 = self.peer_regs[msg_type]
+                if service in group1:
+                    group2 = group1[service]
+                    if method in group2:
+                        group3 = group2[method]
+                        if item in group3:
+                            group3.remove(item)
+
+                        if not group3:
+                            group2.pop(method)
+                    if not group2:
+                        group1.pop(service)
+                if not group1:
+                    self.peer_regs.pop(msg_type)
+
+
     def find_peer_routes(self, msg_type, service, method, routing_id):
         route = self.peer_regs
         for traversal in (msg_type, service, method):

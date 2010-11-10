@@ -159,4 +159,7 @@ class Peer(object):
             self._closing = True
             self.send_queue.put(_END)
 
+        self.dispatcher.all_peers.pop(self.addr, None)
+        self.dispatcher.drop_peer_regs(self)
+
 _END = object()
