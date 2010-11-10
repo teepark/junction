@@ -24,8 +24,7 @@ node = Node((HOST, PORT), [(SERVICE_HOST, SERVICE_PORT)])
 
 
 def handler(x):
-    return ["forwarded %s" % r for r in
-            node.rpc(BACK_SERVICE, "echo", 0, (x,), {})]
+    return "forwarded %s" % node.rpc(BACK_SERVICE, "echo", 0, (x,), {})[0]
 
 
 def main():
