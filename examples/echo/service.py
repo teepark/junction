@@ -9,6 +9,9 @@ from junction import Node
 HOST = "127.0.0.1"
 PORT = 9000
 
+RELAY_HOST = HOST
+RELAY_PORT = 9100
+
 BACKHOST = HOST
 BACKPORT = 9001
 
@@ -22,7 +25,7 @@ def handler(x):
 
 
 def main():
-    node = Node((HOST, PORT), [])
+    node = Node((HOST, PORT), [(RELAY_HOST, RELAY_PORT)])
     node.start()
 
     node.accept_rpc(SERVICE, "echo", 0, 0, handler)
