@@ -36,7 +36,10 @@ class Peer(object):
 
     def connect(self):
         self.init_sock()
-        self.sock.connect(self.addr)
+        try:
+            self.sock.connect(self.addr)
+        except socket.error:
+            return
         self.connected.set()
 
     def establish(self):
