@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from greenhouse import utils
-from . import const
+from . import const, errors
 
 
 class Client(object):
@@ -36,17 +36,17 @@ class Client(object):
     def response(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
             # drop malformed responses
-            return False, None
+            return
         counter, rc, result = msg
 
         if counter not in self.inflight:
             # drop mistaken responses
-            return False, None
+            return
         targets, done = self.inflight[counter]
 
         if peer.ident not in targets:
             # again, drop mistaken responses
-            return False, None
+            return
         targets.remove(peer.ident)
 
         results = self.results.setdefault(counter, [])
@@ -54,16 +54,19 @@ class Client(object):
 
         if not targets:
             done.set()
-            return True, results
 
-        return False, None
-
-    def wait(self, counter):
+    def wait(self, counter, timeout=None):
         if counter not in self.inflight or counter in self.waited_upon:
             return None
 
         self.waited_upon.add(counter)
-        self.inflight[counter][1].wait()
-        self.waited_upon.remove(counter)
+        timed_out = self.inflight[counter][1].wait(timeout)
 
-        return self.results.pop(counter)
+        self.inflight.pop(counter)
+        self.waited_upon.remove(counter)
+        results = self.results.pop(counter)
+
+        if timed_out:
+            raise errors.RPCWaitTimeout()
+
+        return results

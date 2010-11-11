@@ -16,6 +16,9 @@ class RemoteException(Exception):
 class UnrecognizedRemoteProblem(Exception):
     pass
 
+class RPCWaitTimeout(Exception):
+	pass
+
 
 HANDLED_ERROR_TYPES = {}
 

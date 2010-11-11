@@ -187,23 +187,30 @@ class Node(object):
 
         return counter
 
-    def wait_rpc(self, counter):
+    def wait_rpc(self, counter, timeout=None):
         '''Wait for and return a given RPC's response
 
         This method will block until the response has been received.
 
         :param counter: an id returned by :meth:`send_rpc`
         :type counter: int
+        :param timeout:
+            maximum time to wait for a response in seconds. with None, there is
+            no timeout.
+        :tupe timeout: float or None
 
         :returns:
             a list of the objects returned by the remote RPC's targets. these
             could be of any serializable type. one or more items in the list
             may be exceptions, in which case they describe failures in the
             peers.
+
+        :raises:
+            RPCWaitTimeout if a timeout was provided and it expires
         '''
         results = []
 
-        rpc_client_results = self._rpc_client.wait(counter)
+        rpc_client_results = self._rpc_client.wait(counter, timeout)
 
         if rpc_client_results is None:
             raise ValueError("counter doesn't correspond to an in-flight RPC")
@@ -228,7 +235,7 @@ class Node(object):
 
         return results
 
-    def rpc(self, service, method, routing_id, args, kwargs):
+    def rpc(self, service, method, routing_id, args, kwargs, timeout=None):
         '''Send an RPC request and return the corresponding response
 
         This will block waiting until the response has been received.
@@ -247,10 +254,18 @@ class Node(object):
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
+        :param timeout:
+            maximum time to wait for a response in seconds. with None, there is
+            no timeout.
+        :tupe timeout: float or None
 
         :returns:
             the object returned by the remote RPC target. this could be of any
             serializable type.
+
+        :raises:
+            RPCWaitTimeout if a timeout was provided and it expires
         '''
         return self.wait_rpc(
-                self.send_rpc(service, method, routing_id, args, kwargs))
+                self.send_rpc(service, method, routing_id, args, kwargs),
+                timeout)
