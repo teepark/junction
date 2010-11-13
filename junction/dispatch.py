@@ -87,7 +87,6 @@ class Dispatcher(object):
                 if not group1:
                     self.peer_regs.pop(msg_type)
 
-
     def find_peer_routes(self, msg_type, service, method, routing_id):
         route = self.peer_regs
         for traversal in (msg_type, service, method):

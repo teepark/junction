@@ -1,12 +1,14 @@
 from __future__ import absolute_import
 
 import socket
+import time
 
 from greenhouse import io, scheduler
 from . import connection, const, dispatch, errors, rpc
 
 
 class Node(object):
+    'A node in the server graph'
     def __init__(self, addr, peer_addrs):
         self.addr = addr
         self._peers = peer_addrs
@@ -16,32 +18,30 @@ class Node(object):
         self._rpc_client = rpc.Client(self._dispatcher)
         self._dispatcher.rpc_client = self._rpc_client
 
-    def start(self):
-        scheduler.schedule(self.listener_coro)
-        map(self.create_connection, self._peers)
+    def wait_on_connections(self, conns=None, timeout=None):
+        '''Wait for connections to be made and their handshakes to finish
 
-    def create_connection(self, addr):
-        peer = connection.Peer(self._dispatcher, addr, io.Socket())
-        peer.start(connect=True)
+        :param conns:
+            a single or list of (host, port) tuples with the connections that
+            must be finished before the method will return. defaults to all the
+            peers the :class:`Node` was instantiated with.
+        :param timeout:
+            maximum time to wait in seconds. with None, there is no timeout.
+        :type timeout: float or None
 
-    def listener_coro(self):
-        server = io.Socket()
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-        server.bind(self.addr)
-        server.listen(socket.SOMAXCONN)
-
-        while not self._closing:
-            client, addr = server.accept()
-            peer = connection.Peer(self._dispatcher, addr, client, connected=1)
-            peer.start(connect=False)
-
-    def wait_on_connections(self, conns=None):
+        :returns: True if connections were made, False if it timed out.
+        '''
+        if timeout:
+            deadline = time.time() + timeout
         conns = conns or self._peers
         if not hasattr(conns, "__iter__"):
             conns = [conns]
         for peer_addr in conns:
-            self._dispatcher.all_peers[peer_addr].established.wait()
+            remaining = max(0, deadline - time.time()) if timeout else None
+            if self._dispatcher.all_peers[peer_addr].established.wait(
+                    remaining):
+                return False
+        return True
 
     def accept_publish(self, service, method, mask, value, handler):
         '''Set a handler for incoming publish messages
@@ -178,6 +178,8 @@ class Node(object):
         :returns:
             an integer counter that can be used to retrieve the RPC response
             (with :meth:`wait_rpc`)
+
+        :raises: Unroutable if no peers are registered to receive the message
         '''
         counter = self._rpc_client.request(
                 service, method, routing_id, args, kwargs)
@@ -206,7 +208,8 @@ class Node(object):
             peers.
 
         :raises:
-            RPCWaitTimeout if a timeout was provided and it expires
+            - ValueError if the counter is not an in-flight RPC's counter
+            - RPCWaitTimeout if a timeout was provided and it expires
         '''
         results = []
 
@@ -264,8 +267,30 @@ class Node(object):
             serializable type.
 
         :raises:
-            RPCWaitTimeout if a timeout was provided and it expires
+            - Unroutable if no peers are registered to receive the message
+            - RPCWaitTimeout if a timeout was provided and it expires
         '''
         return self.wait_rpc(
                 self.send_rpc(service, method, routing_id, args, kwargs),
                 timeout)
+
+    def start(self):
+        "Start up the node's server, and have it start initiating connections"
+        scheduler.schedule(self._listener_coro)
+        map(self._create_connection, self._peers)
+
+    def _create_connection(self, addr):
+        peer = connection.Peer(self._dispatcher, addr, io.Socket())
+        peer.start(connect=True)
+
+    def _listener_coro(self):
+        server = io.Socket()
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        server.bind(self.addr)
+        server.listen(socket.SOMAXCONN)
+
+        while not self._closing:
+            client, addr = server.accept()
+            peer = connection.Peer(self._dispatcher, addr, client, connected=1)
+            peer.start(connect=False)
