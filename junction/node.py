@@ -201,12 +201,12 @@ class Node(object):
         :param timeout:
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
-        :tupe timeout: float or None
+        :type timeout: float or None
 
         :returns:
             a tuple with the counter that came back (one of the provided
             counters), and a list of the objects returned by the RPC's targets.
-            these could be any serializable tupe. one or more items in the list
+            these could be any serializable type. one or more items in the list
             may be exception instances, in which case they describe failures in
             the peers.
 
@@ -263,7 +263,7 @@ class Node(object):
         :param timeout:
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
-        :tupe timeout: float or None
+        :type timeout: float or None
 
         :returns:
             the object returned by the remote RPC target. this could be of any
