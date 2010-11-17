@@ -25,15 +25,19 @@ def main():
     peer_addr = RELAY_ADDR if '-r' in sys.argv else SERVICE_ADDR
 
     node = Node((HOST, PORT), [peer_addr])
+
     node.start()
-    node.wait_on_connections()
+    if node.wait_on_connections(timeout=3):
+        raise RuntimeError("connection timeout")
 
     print node.rpc(service, "echo", 0, ('one',), {})
 
     counters = map(lambda msg: node.send_rpc(service, "echo", 0, (msg,), {}),
             ('two', 'three', 'four', 'five'))
-    print '\n'.join(map(repr, map(node.wait_rpc, counters)))
-
+    while counters:
+        counter, results = node.wait_rpc(counters)
+        counters.remove(counter)
+        print results
 
 if __name__ == '__main__':
     main()

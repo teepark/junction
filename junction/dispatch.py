@@ -8,9 +8,10 @@ from . import const, errors
 
 
 class Dispatcher(object):
-    def __init__(self, addr, version):
+    def __init__(self, addr, version, rpc_client):
         self.addr = addr
         self.version = version
+        self.rpc_client = rpc_client
         self.peer_regs = {}
         self.local_regs = {}
         self.all_peers = {}
@@ -119,7 +120,7 @@ class Dispatcher(object):
         service, method, routing_id, args, kwargs = msg
 
         handler = self.find_local_handler(
-                const.SERVICE_TYPE_PUBLISH, service, method, routing_id)
+                const.MSG_TYPE_PUBLISH, service, method, routing_id)
         if handler is None:
             # drop mis-delivered messages
             return
@@ -147,7 +148,7 @@ class Dispatcher(object):
         counter, service, method, routing_id, args, kwargs = msg
 
         handler = self.find_local_handler(
-                const.SERVICE_TYPE_RPC, service, method, routing_id)
+                const.MSG_TYPE_RPC, service, method, routing_id)
         if handler is None:
             # mis-delivered message
             peer.send_queue.put(

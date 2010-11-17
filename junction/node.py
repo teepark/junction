@@ -14,9 +14,9 @@ class Node(object):
         self._peers = peer_addrs
         self._closing = False
 
-        self._dispatcher = dispatch.Dispatcher(addr, self.VERSION)
-        self._rpc_client = rpc.Client(self._dispatcher)
-        self._dispatcher.rpc_client = self._rpc_client
+        self._rpc_client = rpc.Client()
+        self._dispatcher = dispatch.Dispatcher(
+                addr, self.VERSION, self._rpc_client)
 
     def wait_on_connections(self, conns=None, timeout=None):
         '''Wait for connections to be made and their handshakes to finish
@@ -29,7 +29,7 @@ class Node(object):
             maximum time to wait in seconds. with None, there is no timeout.
         :type timeout: float or None
 
-        :returns: True if connections were made, False if it timed out.
+        :returns: True if it timed out, False if connections were made
         '''
         if timeout:
             deadline = time.time() + timeout
@@ -40,8 +40,8 @@ class Node(object):
             remaining = max(0, deadline - time.time()) if timeout else None
             if self._dispatcher.all_peers[peer_addr].established.wait(
                     remaining):
-                return False
-        return True
+                return True
+        return False
 
     def accept_publish(self, service, method, mask, value, handler):
         '''Set a handler for incoming publish messages
@@ -69,13 +69,13 @@ class Node(object):
             an existing registration)
         '''
         added = self._dispatcher.add_local_regs(handler,
-            [(const.SERVICE_TYPE_PUBLISH, service, method, mask, value)])
+            [(const.MSG_TYPE_PUBLISH, service, method, mask, value)])
 
         if not added:
             return False
 
         msg = (const.MSG_TYPE_ANNOUNCE,
-                [(const.SERVICE_TYPE_PUBLISH, service, method, mask, value)])
+                [(const.MSG_TYPE_PUBLISH, service, method, mask, value)])
 
         for peer in self._dispatcher.peers():
             if peer.established.is_set():
@@ -143,13 +143,13 @@ class Node(object):
             an existing registration)
         '''
         added = self._dispatcher.add_local_regs(handler,
-            [(const.SERVICE_TYPE_RPC, service, method, mask, value)])
+            [(const.MSG_TYPE_RPC, service, method, mask, value)])
 
         if not added:
             return False
 
         msg = (const.MSG_TYPE_ANNOUNCE,
-                [(const.SERVICE_TYPE_RPC, service, method, mask, value)])
+                [(const.MSG_TYPE_RPC, service, method, mask, value)])
 
         for peer in self._dispatcher.peers():
             if peer.established.is_set():
@@ -182,6 +182,8 @@ class Node(object):
         :raises: Unroutable if no peers are registered to receive the message
         '''
         counter = self._rpc_client.request(
+                self._dispatcher.find_peer_routes(
+                    const.MSG_TYPE_RPC_REQUEST, service, method, routing_id),
                 service, method, routing_id, args, kwargs)
 
         if not counter:
@@ -189,31 +191,32 @@ class Node(object):
 
         return counter
 
-    def wait_rpc(self, counter, timeout=None):
+    def wait_rpc(self, counters, timeout=None):
         '''Wait for and return a given RPC's response
 
         This method will block until the response has been received.
 
-        :param counter: an id returned by :meth:`send_rpc`
-        :type counter: int
+        :param counters: an id returned by :meth:`send_rpc`
+        :type counters: int
         :param timeout:
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
         :tupe timeout: float or None
 
         :returns:
-            a list of the objects returned by the remote RPC's targets. these
-            could be of any serializable type. one or more items in the list
-            may be exceptions, in which case they describe failures in the
-            peers.
+            a tuple with the counter that came back (one of the provided
+            counters), and a list of the objects returned by the RPC's targets.
+            these could be any serializable tupe. one or more items in the list
+            may be exception instances, in which case they describe failures in
+            the peers.
 
         :raises:
-            - ValueError if the counter is not an in-flight RPC's counter
+            - ValueError if a counter is not an in-flight RPC's counter
             - RPCWaitTimeout if a timeout was provided and it expires
         '''
         results = []
 
-        rpc_client_results = self._rpc_client.wait(counter, timeout)
+        counter, rpc_client_results = self._rpc_client.wait(counters, timeout)
 
         if rpc_client_results is None:
             raise ValueError("counter doesn't correspond to an in-flight RPC")
@@ -236,7 +239,7 @@ class Node(object):
                 results.append(errors.UnrecognizedRemoteProblem(
                     peer_ident, rc, result))
 
-        return results
+        return counter, results
 
     def rpc(self, service, method, routing_id, args, kwargs, timeout=None):
         '''Send an RPC request and return the corresponding response
@@ -272,7 +275,7 @@ class Node(object):
         '''
         return self.wait_rpc(
                 self.send_rpc(service, method, routing_id, args, kwargs),
-                timeout)
+                timeout)[1]
 
     def start(self):
         "Start up the node's server, and have it start initiating connections"

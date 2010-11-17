@@ -17,7 +17,7 @@ class UnrecognizedRemoteProblem(Exception):
     pass
 
 class RPCWaitTimeout(Exception):
-	pass
+    pass
 
 
 HANDLED_ERROR_TYPES = {}
