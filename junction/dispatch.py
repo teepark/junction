@@ -148,7 +148,7 @@ class Dispatcher(object):
         counter, service, method, routing_id, args, kwargs = msg
 
         handler = self.find_local_handler(
-                const.MSG_TYPE_RPC, service, method, routing_id)
+                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
         if handler is None:
             # mis-delivered message
             peer.send_queue.put(

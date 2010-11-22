@@ -143,13 +143,13 @@ class Node(object):
             an existing registration)
         '''
         added = self._dispatcher.add_local_regs(handler,
-            [(const.MSG_TYPE_RPC, service, method, mask, value)])
+            [(const.MSG_TYPE_RPC_REQUEST, service, method, mask, value)])
 
         if not added:
             return False
 
         msg = (const.MSG_TYPE_ANNOUNCE,
-                [(const.MSG_TYPE_RPC, service, method, mask, value)])
+                [(const.MSG_TYPE_RPC_REQUEST, service, method, mask, value)])
 
         for peer in self._dispatcher.peers():
             if peer.established.is_set():
