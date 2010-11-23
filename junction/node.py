@@ -15,8 +15,7 @@ class Node(object):
         self._closing = False
 
         self._rpc_client = rpc.Client()
-        self._dispatcher = dispatch.Dispatcher(
-                addr, self.VERSION, self._rpc_client)
+        self._dispatcher = dispatch.Dispatcher(self.VERSION, self._rpc_client)
 
     def wait_on_connections(self, conns=None, timeout=None):
         '''Wait for connections to be made and their handshakes to finish
@@ -283,7 +282,7 @@ class Node(object):
         map(self._create_connection, self._peers)
 
     def _create_connection(self, addr):
-        peer = connection.Peer(self._dispatcher, addr, io.Socket())
+        peer = connection.Peer(self.addr, self._dispatcher, addr, io.Socket())
         peer.start(connect=True)
 
     def _listener_coro(self):
@@ -295,5 +294,6 @@ class Node(object):
 
         while not self._closing:
             client, addr = server.accept()
-            peer = connection.Peer(self._dispatcher, addr, client, connected=1)
+            peer = connection.Peer(
+                    self.addr, self._dispatcher, addr, client, connect=False)
             peer.start(connect=False)

@@ -88,13 +88,14 @@ class Wait(object):
         self.result_counter = counter
 
         waiters = self.client.waiters
-        for counter in self.counters:
+        for c in self.counters:
+            counter_waiters = waiters.get(c, [])
             try:
-                waiters[counter].remove(self)
-            except (ValueError, KeyError):
-                continue
+                counter_waiters.remove(self)
+            except ValueError:
+                pass
 
-            if not waiters[counter]:
-                del self.client.waiters[counter]
+            if not counter_waiters:
+                waiters.pop(c, None)
 
         self.done.set()

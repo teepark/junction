@@ -8,8 +8,7 @@ from . import const, errors
 
 
 class Dispatcher(object):
-    def __init__(self, addr, version, rpc_client):
-        self.addr = addr
+    def __init__(self, version, rpc_client):
         self.version = version
         self.rpc_client = rpc_client
         self.peer_regs = {}

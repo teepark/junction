@@ -10,15 +10,18 @@ from . import const, errors
 
 
 class Peer(object):
-    def __init__(self, dispatcher, addr, sock, connected=False):
+    def __init__(self, local_addr, dispatcher, addr, sock, connect=True):
+        self.local_addr = local_addr
         self.dispatcher = dispatcher
         self.addr = addr
         self.sock = sock
 
         self._sock_inited = False
         self._closing = False
+        self._connect_failed = False
+        self._establish_failed = False
         self.connected = utils.Event()
-        if connected:
+        if not connect:
             self.connected.set()
         self.established = utils.Event()
         self.send_queue = utils.Queue()
@@ -39,19 +42,25 @@ class Peer(object):
         try:
             self.sock.connect(self.addr)
         except socket.error:
-            return
+            self._connect_failed = True
         self.connected.set()
 
     def establish(self):
         self.connected.wait()
+        if self._connect_failed:
+            self._establish_failed = True
+            self.established.set()
+            return
 
         # send a message providing information about ourself
         try:
             self.sock.sendall(self.dump((const.MSG_TYPE_HANDSHAKE, (
-                    self.dispatcher.addr,
+                    self.local_addr,
                     self.dispatcher.version,
                     list(self.dispatcher.local_registrations())))))
         except socket.error:
+            self._establish_failed = True
+            self.established.set()
             return
 
         # expect to get a similar message back from the peer
@@ -59,7 +68,9 @@ class Peer(object):
             received = self.recv_one()
         except socket.error, exc:
             return
-        except MessageCutOff, exc:
+        except errors.MessageCutOff, exc:
+            self._establish_failed = True
+            self.established.set()
             if not exc.args[0]:
                 return
             raise
@@ -95,8 +106,9 @@ class Peer(object):
         return mummy.loads(self.read_bytes(size))
 
     def sender_coro(self):
-        self.connected.wait()
         self.established.wait()
+        if self._establish_failed:
+            return
 
         try:
             while not self._closing:
@@ -111,8 +123,9 @@ class Peer(object):
         self.on_connection_closed()
 
     def receiver_coro(self):
-        self.connected.wait()
         self.established.wait()
+        if self._establish_failed:
+            return
 
         try:
             while not self._closing:
