@@ -38,7 +38,6 @@ class Peer(object):
         self._sock_inited = True
 
     def connect(self):
-        self.init_sock()
         try:
             self.sock.connect(self.addr)
         except socket.error:
@@ -142,6 +141,7 @@ class Peer(object):
         self.dispatcher.incoming(self, msg)
 
     def establish_coro(self, connect):
+        self.init_sock()
         if connect:
             self.connect()
         self.establish()

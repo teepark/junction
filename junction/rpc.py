@@ -53,19 +53,19 @@ class Client(object):
         if not targets and counter in self.rpcs:
             self.rpcs[counter]._complete(peer.ident, rc, result)
 
-    def wait(self, rpcs, timeout=None):
-        if not hasattr(rpcs, "__iter__"):
-            rpcs = [rpcs]
+    def wait(self, rpc_list, timeout=None):
+        if not hasattr(rpc_list, "__iter__"):
+            rpc_list = [rpc_list]
         else:
-            rpcs = list(rpcs)
+            rpc_list = list(rpc_list)
 
-        for rpc in rpcs:
+        for rpc in rpc_list:
             if rpc._completed:
                 return rpc
 
-        waiter = Wait(self, [r.counter for r in rpcs])
+        waiter = Wait(self, [r.counter for r in rpc_list])
 
-        for rpc in rpcs:
+        for rpc in rpc_list:
             rpc._waiters.append(waiter)
 
         if waiter.done.wait(timeout):
@@ -75,7 +75,11 @@ class Client(object):
 
 
 class RPC(object):
-    "A representation of a single RPC request/response cycle"
+    """A representation of a single RPC request/response cycle
+
+    instances of this class shouldn't be created directly, they are returned by
+    :meth:`Node.send_rpc() <junction.node.Node.send_rpc>`.
+    """
     def __init__(self, client, counter):
         self._client = client
         self._waiters = []

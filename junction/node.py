@@ -28,18 +28,22 @@ class Node(object):
             maximum time to wait in seconds. with None, there is no timeout.
         :type timeout: float or None
 
-        :returns: True if it timed out, False if connections were made
+        :returns:
+            ``True`` if it timed out or connects or handshakes failed,
+            otherwise ``False``
         '''
         if timeout:
             deadline = time.time() + timeout
         conns = conns or self._peers
         if not hasattr(conns, "__iter__"):
             conns = [conns]
+
         for peer_addr in conns:
             remaining = max(0, deadline - time.time()) if timeout else None
-            if self._dispatcher.all_peers[peer_addr].established.wait(
-                    remaining):
+            peer = self._dispatcher.all_peers[peer_addr]
+            if peer.established.wait(remaining) or peer._establish_failed:
                 return True
+
         return False
 
     def accept_publish(
