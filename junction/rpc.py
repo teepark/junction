@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-import collections
+import weakref
 
 from greenhouse import utils
 from . import const, errors
@@ -8,15 +8,14 @@ from . import const, errors
 
 class Client(object):
     def __init__(self):
-        self.inflight = {}
-        self.waiters = {}
-        self.results = {}
         self.counter = 1
+        self.inflight = {}
+        self.rpcs = weakref.WeakValueDictionary()
 
     def request(self, targets, service, method, routing_id, args, kwargs):
         counter = self.counter
-        targets = list(targets)
-        target_set = set(peer.ident for peer in targets)
+        self.counter += 1
+        target_set = set()
 
         msg = (const.MSG_TYPE_RPC_REQUEST,
                 (counter, service, method, routing_id, args, kwargs))
@@ -26,11 +25,14 @@ class Client(object):
             peer.send_queue.put(msg)
 
         if not target_set:
-            return 0
+            return None
 
         self.inflight[counter] = target_set
-        self.counter += 1
-        return counter
+
+        rpc = RPC(self, counter)
+        self.rpcs[counter] = rpc
+
+        return rpc
 
     def response(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
@@ -46,56 +48,117 @@ class Client(object):
         if peer.ident not in targets:
             # again, drop mistaken responses
             return
-
-        self.results.setdefault(counter, []).append((peer.ident, rc, result))
-
         targets.remove(peer.ident)
-        if not targets:
-            del self.inflight[counter]
-            waiters = self.waiters.get(counter, None)
-            if waiters:
-                waiter = waiters.popleft()
-                waiter.finish(counter)
 
-    def wait(self, counters, timeout=None):
-        if not hasattr(counters, "__iter__"):
-            counters = [counters]
+        if not targets and counter in self.rpcs:
+            self.rpcs[counter]._complete(peer.ident, rc, result)
 
-        waiter = Wait(self, counters)
+    def wait(self, rpcs, timeout=None):
+        if not hasattr(rpcs, "__iter__"):
+            rpcs = [rpcs]
+        else:
+            rpcs = list(rpcs)
 
-        for counter in counters:
-            if counter in self.results:
-                waiter.finish(counter)
-                return counter, self.results.pop(counter)
+        for rpc in rpcs:
+            if rpc._completed:
+                return rpc
 
-            self.waiters.setdefault(
-                    counter, collections.deque()).append(waiter)
+        waiter = Wait(self, [r.counter for r in rpcs])
+
+        for rpc in rpcs:
+            rpc._waiters.append(waiter)
 
         if waiter.done.wait(timeout):
             raise errors.RPCWaitTimeout()
 
-        return waiter.result_counter, self.results.pop(waiter.result_counter)
+        return waiter.completed_rpc
+
+
+class RPC(object):
+    "A representation of a single RPC request/response cycle"
+    def __init__(self, client, counter):
+        self._client = client
+        self._waiters = []
+        self._completed = False
+        self._results = []
+
+        self.counter = counter
+
+    def wait(self, timeout=None):
+        """Block the current greenlet until the response arrives
+        
+        :param timeout:
+            the maximum number of seconds to wait before raising a
+            :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>`. the
+            default of None allows it to wait indefinitely.
+        :type timeout: int, float or None
+
+        :returns: a list of the responses returned by the RPC's target peers.
+
+        :raises:
+            :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>` if
+            ``timeout`` is supplied and runs out before the response arrives.
+        """
+        self._client.wait(self, timeout)
+        return self.results
+
+    @property
+    def results(self):
+        """The RPC's response, if it has arrived
+        
+        :attr:`complete` indicates whether the result is available or not, if
+        not then this attribute raises AttributeError.
+        """
+        if not self._completed:
+            raise AttributeError("incomplete response")
+        return self._results[:]
+
+    @property
+    def complete(self):
+        "Whether the RPC's response has arrived yet."
+        return self._completed
+
+    def _complete(self, peer_ident, rc, result):
+        self._completed = True
+        self._results.append(self._format_result(peer_ident, rc, result))
+        del self._client.inflight[self.counter]
+        if self._waiters:
+            self._waiters[0].finish(self)
+
+    def _format_result(self, peer_ident, rc, result):
+        if not rc:
+            return result
+
+        if rc == const.RPC_ERR_NOHANDLER:
+            return errors.NoRemoteHandler(
+                    "RPC mistakenly sent to %r" % (peer_ident,))
+
+        if rc == const.RPC_ERR_KNOWN:
+            err_code, err_args = result
+            return errors.HANDLED_ERROR_TYPES.get(
+                    err_code, errors.HandledError)(peer_ident, *err_args)
+
+        if rc == const.RPC_ERR_UNKNOWN:
+            return errors.RemoteException(peer_ident, result)
+
+        return errors.UnrecognizedRemoteProblem(peer_ident, rc, result)
 
 
 class Wait(object):
     def __init__(self, client, counters):
         self.client = client
-        self.counters = list(counters)
+        self.counters = counters
         self.done = utils.Event()
-        self.result_counter = None
+        self.completed_rpc = None
 
-    def finish(self, counter):
-        self.result_counter = counter
+    def finish(self, rpc):
+        self.completed_rpc = rpc
 
-        waiters = self.client.waiters
-        for c in self.counters:
-            counter_waiters = waiters.get(c, [])
-            try:
-                counter_waiters.remove(self)
-            except ValueError:
-                pass
-
-            if not counter_waiters:
-                waiters.pop(c, None)
+        rpcs = self.client.rpcs
+        for counter in self.counters:
+            rpc = rpcs.get(counter, None)
+            if not rpc:
+                continue
+            rpc._waiters.remove(self)
 
         self.done.set()

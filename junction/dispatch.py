@@ -17,7 +17,7 @@ class Dispatcher(object):
 
     def add_local_regs(self, handler, regs):
         added = 0
-        for msg_type, service, method, mask, value in regs:
+        for msg_type, service, method, mask, value, schedule in regs:
             # simple sanity check -- *anything* could match this
             if value & ~mask:
                 continue
@@ -28,12 +28,12 @@ class Dispatcher(object):
                                     method, [])
 
             # registrations must be mutually exclusive. that is, there cannot
-            # be more than one handler on a single node for a single message
+            # be more than one handler on a single node for any single message
             for other_mask, other_value, other_handler in previous_regs:
                 if other_mask & value == mask & other_value:
                     continue
 
-            previous_regs.append((mask, value, handler))
+            previous_regs.append((mask, value, handler, schedule))
             added += 1
 
         return added
@@ -45,9 +45,9 @@ class Dispatcher(object):
                 return None
             route = route[traversal]
 
-        for mask, value, handler in route:
+        for mask, value, handler, schedule in route:
             if mask & routing_id == value:
-                return handler
+                return handler, schedule
 
         return None
 
@@ -55,7 +55,7 @@ class Dispatcher(object):
         for msg_type, rest in self.local_regs.iteritems():
             for service, rest in rest.iteritems():
                 for method, rest in rest.iteritems():
-                    for mask, value, handler in rest:
+                    for mask, value, handler, schedule in rest:
                         yield (msg_type, service, method, mask, value)
 
     def store_peer(self, peer):
@@ -118,24 +118,32 @@ class Dispatcher(object):
             return
         service, method, routing_id, args, kwargs = msg
 
-        handler = self.find_local_handler(
+        handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_PUBLISH, service, method, routing_id)
         if handler is None:
             # drop mis-delivered messages
             return
 
-        scheduler.schedule(handler, args=args, kwargs=kwargs)
+        if schedule:
+            scheduler.schedule(handler, args=args, kwargs=kwargs)
+        else:
+            try:
+                handler(*args, **kwargs)
+            except Exception:
+                scheduler.exception(*sys.exc_info())
 
-    def scheduled_rpc_handler(self, peer, counter, handler, args, kwargs):
+    def rpc_handler(self, peer, counter, handler, args, kwargs):
         try:
             rc = 0
             result = handler(*args, **kwargs)
         except errors.HandledError, exc:
             rc = const.RPC_ERR_KNOWN
             result = (exc.code, exc.args)
+            scheduler.exception(*sys.exc_info())
         except:
             rc = const.RPC_ERR_UNKNOWN
             result = traceback.format_exception(*sys.exc_info())
+            scheduler.exception(*sys.exc_info())
 
         peer.send_queue.put(
                 (const.MSG_TYPE_RPC_RESPONSE, (counter, rc, result)))
@@ -146,7 +154,7 @@ class Dispatcher(object):
             return
         counter, service, method, routing_id, args, kwargs = msg
 
-        handler = self.find_local_handler(
+        handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
         if handler is None:
             # mis-delivered message
@@ -155,8 +163,11 @@ class Dispatcher(object):
                         (counter, const.RPC_ERR_NOHANDLER, None)))
             return
 
-        scheduler.schedule(self.scheduled_rpc_handler,
-                args=(peer, counter, handler, args, kwargs))
+        if schedule:
+            scheduler.schedule(self.rpc_handler,
+                    args=(peer, counter, handler, args, kwargs))
+        else:
+            self.rpc_handler(peer, counter, handler, args, kwargs)
 
     def incoming_rpc_response(self, peer, msg):
         self.rpc_client.response(peer, msg)

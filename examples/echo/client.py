@@ -32,12 +32,12 @@ def main():
 
     print node.rpc(service, "echo", 0, ('one',), {})
 
-    counters = map(lambda msg: node.send_rpc(service, "echo", 0, (msg,), {}),
+    rpcs = map(lambda msg: node.send_rpc(service, "echo", 0, (msg,), {}),
             ('two', 'three', 'four', 'five'))
-    while counters:
-        counter, results = node.wait_rpc(counters)
-        counters.remove(counter)
-        print results
+    while rpcs:
+        rpc = node.wait_any_rpc(rpcs)
+        rpcs.remove(rpc)
+        print rpc.results
 
 if __name__ == '__main__':
     main()

@@ -12,6 +12,8 @@ Contents:
    :maxdepth: 2
 
    junction/node
+   junction/rpc
+   junction/errors
 
 Indices and tables
 ==================

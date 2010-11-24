@@ -18,16 +18,16 @@ def main():
     print "wait 2"
     node.rpc(WAIT_SERVICE, "wait", 0, (2,), {})
 
-    counters = []
+    rpcs = []
     for i in xrange(5):
         wait = random.random() * 5
-        counters.append(node.send_rpc(WAIT_SERVICE, "wait", 0, (wait,), {}))
-        print "queued a wait %r: %r" % (counters[-1], wait)
+        rpcs.append(node.send_rpc(WAIT_SERVICE, "wait", 0, (wait,), {}))
+        print "queued a wait %r: %r" % (rpcs[-1].counter, wait)
 
-    while counters:
-        counter, result = node.wait_rpc(counters)
-        print "got back %r" % counter
-        counters.remove(counter)
+    while rpcs:
+        rpc = node.wait_any_rpc(rpcs)
+        print "got back %r" % rpc.counter
+        rpcs.remove(rpc)
 
 
 if __name__ == '__main__':

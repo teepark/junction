@@ -42,7 +42,8 @@ class Node(object):
                 return True
         return False
 
-    def accept_publish(self, service, method, mask, value, handler):
+    def accept_publish(
+            self, service, method, mask, value, handler, schedule=False):
         '''Set a handler for incoming publish messages
 
         :param service: the incoming message must have this service
@@ -60,6 +61,10 @@ class Node(object):
         :param handler:
             the function that will be called on incoming matching messages
         :type handler: callable
+        :param schedule:
+            whether to schedule a separate greenlet running ``handler`` for
+            each matching message. default ``False``.
+        :type schedule: bool
 
         :returns:
             a boolean indicating whether a new registration was stored. this
@@ -68,7 +73,7 @@ class Node(object):
             an existing registration)
         '''
         added = self._dispatcher.add_local_regs(handler,
-            [(const.MSG_TYPE_PUBLISH, service, method, mask, value)])
+            [(const.MSG_TYPE_PUBLISH, service, method, mask, value, schedule)])
 
         if not added:
             return False
@@ -102,7 +107,9 @@ class Node(object):
 
         :returns: None. use 'rpc' methods for requests with responses.
 
-        :raises: Unroutable if no peers are registered to receive the message
+        :raises:
+            :class:`Unroutable <junction.errors.Unroutable>` if no peers are
+            registered to receive the message
         '''
         msg = (const.MSG_TYPE_PUBLISH,
                 (service, method, routing_id, args, kwargs))
@@ -116,7 +123,7 @@ class Node(object):
         if not found_one:
             raise errors.Unroutable()
 
-    def accept_rpc(self, service, method, mask, value, handler):
+    def accept_rpc(self, service, method, mask, value, handler, schedule=True):
         '''Set a handler for incoming RPCs
 
         :param service: the incoming RPC must have this service
@@ -134,6 +141,10 @@ class Node(object):
         :param handler:
             the function that will be called on incoming matching RPC requests
         :type handler: callable
+        :param schedule:
+            whether to schedule a separate greenlet running ``handler`` for
+            each matching message. default ``True``.
+        :type schedule: bool
 
         :returns:
             a boolean indicating whether a new registration was stored. this
@@ -142,7 +153,8 @@ class Node(object):
             an existing registration)
         '''
         added = self._dispatcher.add_local_regs(handler,
-            [(const.MSG_TYPE_RPC_REQUEST, service, method, mask, value)])
+            [(const.MSG_TYPE_RPC_REQUEST, service, method, mask, value,
+                schedule)])
 
         if not added:
             return False
@@ -175,70 +187,48 @@ class Node(object):
         :type kwargs: dict
 
         :returns:
-            an integer counter that can be used to retrieve the RPC response
-            (with :meth:`wait_rpc`)
+            a :class:`RPC <junction.rpc.RPC>` object representing the
+            RPC and its future response.
 
-        :raises: Unroutable if no peers are registered to receive the message
+        :raises:
+            :class:`Unroutable <junction.errors.Unroutable>` if no peers are
+            registered to receive the message
         '''
-        counter = self._rpc_client.request(
+        rpc = self._rpc_client.request(
                 self._dispatcher.find_peer_routes(
                     const.MSG_TYPE_RPC_REQUEST, service, method, routing_id),
                 service, method, routing_id, args, kwargs)
 
-        if not counter:
+        if not rpc:
             raise errors.Unroutable()
 
-        return counter
+        return rpc
 
-    def wait_rpc(self, counters, timeout=None):
-        '''Wait for and return a given RPC's response
+    def wait_any_rpc(self, rpcs, timeout=None):
+        '''Wait for the response for any (the first) of multiple RPCs
 
-        This method will block until the response has been received.
+        This method will block until a response has been received.
 
-        :param counters: an id returned by :meth:`send_rpc`
-        :type counters: int
+        :param rpcs:
+            a list of rpc :class:`rpc <junction.rpc.RPC>` objects (as
+            returned by :meth:`send_rpc`)
+        :type rpcs: :class:`RPC <junction.rpc.Response>` list
         :param timeout:
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
         :type timeout: float or None
 
         :returns:
-            a tuple with the counter that came back (one of the provided
-            counters), and a list of the objects returned by the RPC's targets.
-            these could be any serializable type. one or more items in the list
-            may be exception instances, in which case they describe failures in
-            the peers.
+            one of the :class:`RPC <junction.rpc.RPC>` s from
+            ``rpcs`` -- the first one to be completed (or any of the ones
+            that were already completed) for which the ``completed`` attribute
+            is ``True``.
 
         :raises:
-            - ValueError if a counter is not an in-flight RPC's counter
-            - RPCWaitTimeout if a timeout was provided and it expires
+            - :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>` if a
+              timeout was provided and it expires
         '''
-        results = []
-
-        counter, rpc_client_results = self._rpc_client.wait(counters, timeout)
-
-        if rpc_client_results is None:
-            raise ValueError("counter doesn't correspond to an in-flight RPC")
-
-        for peer_ident, rc, result in rpc_client_results:
-            if not rc:
-                results.append(result)
-                continue
-
-            if rc == const.RPC_ERR_NOHANDLER:
-                results.append(errors.NoRemoteHandler(
-                            "RPC mistakenly sent to %r" % (peer_ident,)))
-            elif rc == const.RPC_ERR_KNOWN:
-                err_code, err_args = result
-                results.append(errors.HANDLED_ERROR_TYPES.get(
-                    err_code, errors.HandledError)(peer_ident, *err_args))
-            elif rc == const.RPC_ERR_UNKNOWN:
-                results.append(errors.RemoteException(peer_ident, result))
-            else:
-                results.append(errors.UnrecognizedRemoteProblem(
-                    peer_ident, rc, result))
-
-        return counter, results
+        return self._rpc_client.wait(rpcs, timeout)
 
     def rpc(self, service, method, routing_id, args, kwargs, timeout=None):
         '''Send an RPC request and return the corresponding response
@@ -265,16 +255,17 @@ class Node(object):
         :type timeout: float or None
 
         :returns:
-            the object returned by the remote RPC target. this could be of any
-            serializable type.
+            a list of the objects returned by the RPC's targets. these could be
+            of any serializable type.
 
         :raises:
-            - Unroutable if no peers are registered to receive the message
-            - RPCWaitTimeout if a timeout was provided and it expires
+            - :class:`Unroutable <junction.errors.Unroutable>` if no peers are
+              registered to receive the message
+            - :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>` if a
+              timeout was provided and it expires
         '''
-        return self.wait_rpc(
-                self.send_rpc(service, method, routing_id, args, kwargs),
-                timeout)[1]
+        return self.send_rpc(
+                service, method, routing_id, args, kwargs).wait(timeout)
 
     def start(self):
         "Start up the node's server, and have it start initiating connections"
