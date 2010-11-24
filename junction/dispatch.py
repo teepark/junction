@@ -130,7 +130,7 @@ class Dispatcher(object):
             try:
                 handler(*args, **kwargs)
             except Exception:
-                scheduler.exception(*sys.exc_info())
+                scheduler.handle_exception(*sys.exc_info())
 
     def rpc_handler(self, peer, counter, handler, args, kwargs):
         try:
@@ -139,11 +139,11 @@ class Dispatcher(object):
         except errors.HandledError, exc:
             rc = const.RPC_ERR_KNOWN
             result = (exc.code, exc.args)
-            scheduler.exception(*sys.exc_info())
+            scheduler.handle_exception(*sys.exc_info())
         except:
             rc = const.RPC_ERR_UNKNOWN
             result = traceback.format_exception(*sys.exc_info())
-            scheduler.exception(*sys.exc_info())
+            scheduler.handle_exception(*sys.exc_info())
 
         peer.send_queue.put(
                 (const.MSG_TYPE_RPC_RESPONSE, (counter, rc, result)))
