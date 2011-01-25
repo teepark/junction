@@ -16,7 +16,7 @@ class Dispatcher(object):
         self.all_peers = {}
 
     def add_local_regs(self, handler, regs):
-        added = 0
+        added = []
         for msg_type, service, method, mask, value, schedule in regs:
             # simple sanity check -- *anything* could match this
             if value & ~mask:
@@ -28,15 +28,22 @@ class Dispatcher(object):
                                     method, [])
 
             # registrations must be mutually exclusive. that is, there cannot
-            # be more than one handler on a single node for any single message
+            # be more than one handler on a node for any possible message
             for other_mask, other_value, other_handler in previous_regs:
                 if other_mask & value == mask & other_value:
                     continue
 
             previous_regs.append((mask, value, handler, schedule))
-            added += 1
+            added.append((msg_type, service, method, mask, value))
 
-        return added
+        # for all connections that have already gone through their handshake,
+        # send an ANNOUNCE message with the registration updates
+        if added:
+            for peer in self.peers():
+                if peer.established.is_set() and not peer._establish_failed:
+                    peer.send_queue.put((const.MSG_TYPE_ANNOUNCE, added))
+
+        return len(added)
 
     def find_local_handler(self, msg_type, service, method, routing_id):
         route = self.local_regs

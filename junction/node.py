@@ -76,20 +76,8 @@ class Node(object):
             mask/value pair could never match anything, or it overlaps with
             an existing registration)
         '''
-        added = self._dispatcher.add_local_regs(handler,
-            [(const.MSG_TYPE_PUBLISH, service, method, mask, value, schedule)])
-
-        if not added:
-            return False
-
-        msg = (const.MSG_TYPE_ANNOUNCE,
-                [(const.MSG_TYPE_PUBLISH, service, method, mask, value)])
-
-        for peer in self._dispatcher.peers():
-            if peer.established.is_set():
-                peer.send_queue.put(msg)
-
-        return True
+        return bool(self._dispatcher.add_local_regs(handler,
+            [(const.MSG_TYPE_PUBLISH, service, method, mask, value, schedule)]))
 
     def publish(self, service, method, routing_id, args, kwargs):
         '''Send a 1-way message
@@ -156,21 +144,14 @@ class Node(object):
             mask/value pair could never match anything, or it overlaps with
             an existing registration)
         '''
-        added = self._dispatcher.add_local_regs(handler,
-            [(const.MSG_TYPE_RPC_REQUEST, service, method, mask, value,
-                schedule)])
-
-        if not added:
-            return False
-
-        msg = (const.MSG_TYPE_ANNOUNCE,
-                [(const.MSG_TYPE_RPC_REQUEST, service, method, mask, value)])
-
-        for peer in self._dispatcher.peers():
-            if peer.established.is_set():
-                peer.send_queue.put(msg)
-
-        return True
+        return bool(self._dispatcher.add_local_regs(
+            handler,
+            [(const.MSG_TYPE_RPC_REQUEST,
+                service,
+                method,
+                mask,
+                value,
+                schedule)]))
 
     def send_rpc(self, service, method, routing_id, args, kwargs):
         '''Send out an RPC request
