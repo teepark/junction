@@ -14,7 +14,7 @@ class Node(object):
         self._peers = peer_addrs
         self._closing = False
 
-        self._rpc_client = rpc.Client()
+        self._rpc_client = rpc.RPCClient()
         self._dispatcher = dispatch.Dispatcher(self.VERSION, self._rpc_client)
 
     def wait_on_connections(self, conns=None, timeout=None):

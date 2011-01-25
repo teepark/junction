@@ -6,19 +6,25 @@ from greenhouse import utils
 from . import const, errors
 
 
-class Client(object):
+class RPCClient(object):
     def __init__(self):
         self.counter = 1
         self.inflight = {}
         self.rpcs = weakref.WeakValueDictionary()
+
+    def build_request_message(self, service, method, routing_id, args, kwargs):
+        counter = self.counter
+        self.counter += 1
+        return (const.MSG_TYPE_RPC_REQUEST,
+                (counter, service, method, routing_id, args, kwargs))
 
     def request(self, targets, service, method, routing_id, args, kwargs):
         counter = self.counter
         self.counter += 1
         target_set = set()
 
-        msg = (const.MSG_TYPE_RPC_REQUEST,
-                (counter, service, method, routing_id, args, kwargs))
+        msg = self.build_request_message(
+                service, method, routing_id, args, kwargs)
 
         for peer in targets:
             target_set.add(peer.ident)
@@ -50,8 +56,10 @@ class Client(object):
             return
         targets.remove(peer.ident)
 
-        if not targets and counter in self.rpcs:
-            self.rpcs[counter]._complete(peer.ident, rc, result)
+        if counter in self.rpcs:
+            self.rpcs[counter]._incoming(peer.ident, rc, result)
+            if not targets:
+                self.rpcs[counter]._complete()
 
     def wait(self, rpc_list, timeout=None):
         if not hasattr(rpc_list, "__iter__"):
@@ -63,15 +71,15 @@ class Client(object):
             if rpc._completed:
                 return rpc
 
-        waiter = Wait(self, [r.counter for r in rpc_list])
+        wait = Wait(self, [r.counter for r in rpc_list])
 
         for rpc in rpc_list:
-            rpc._waiters.append(waiter)
+            rpc._waits.append(wait)
 
-        if waiter.done.wait(timeout):
+        if wait.done.wait(timeout):
             raise errors.RPCWaitTimeout()
 
-        return waiter.completed_rpc
+        return wait.completed_rpc
 
 
 class RPC(object):
@@ -82,8 +90,8 @@ class RPC(object):
     """
     def __init__(self, client, counter):
         self._client = client
-        self._waiters = []
         self._completed = False
+        self._waits = []
         self._results = []
 
         self.counter = counter
@@ -122,12 +130,14 @@ class RPC(object):
         "Whether the RPC's response has arrived yet."
         return self._completed
 
-    def _complete(self, peer_ident, rc, result):
-        self._completed = True
+    def _incoming(self, peer_ident, rc, result)
         self._results.append(self._format_result(peer_ident, rc, result))
+
+    def _complete(self):
+        self._completed = True
         del self._client.inflight[self.counter]
-        if self._waiters:
-            self._waiters[0].finish(self)
+        if self._waits:
+            self._waits[0].finish(self)
 
     def _format_result(self, peer_ident, rc, result):
         if not rc:
@@ -163,6 +173,6 @@ class Wait(object):
             rpc = rpcs.get(counter, None)
             if not rpc:
                 continue
-            rpc._waiters.remove(self)
+            rpc._waits.remove(self)
 
         self.done.set()
