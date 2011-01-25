@@ -278,7 +278,7 @@ class Node(object):
 
     def _create_connection(self, addr):
         peer = connection.Peer(self.addr, self._dispatcher, addr, io.Socket())
-        peer.start(connect=True)
+        peer.start()
 
     def _listener_coro(self):
         server = io.Socket()
@@ -291,4 +291,4 @@ class Node(object):
             client, addr = server.accept()
             peer = connection.Peer(
                     self.addr, self._dispatcher, addr, client, connect=False)
-            peer.start(connect=False)
+            peer.start()

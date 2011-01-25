@@ -21,6 +21,7 @@ class Peer(object):
         self._connect_failed = False
         self._establish_failed = False
         self.connected = utils.Event()
+        self.initiator = connect
         if not connect:
             self.connected.set()
         self.established = utils.Event()
@@ -140,13 +141,13 @@ class Peer(object):
     def handle_incoming(self, msg):
         self.dispatcher.incoming(self, msg)
 
-    def establish_coro(self, connect):
+    def establish_coro(self):
         self.init_sock()
-        if connect:
+        if self.initiator:
             self.connect()
         self.establish()
 
-    def start(self, connect=True):
+    def start(self):
         # start up the sender/receiver coros
         # (they'll block until self.established is set)
         scheduler.schedule(self.sender_coro)
@@ -155,7 +156,7 @@ class Peer(object):
         self.dispatcher.store_peer(self)
 
         # do the connect and establish in a coro as well
-        scheduler.schedule(self.establish_coro, args=(connect,))
+        scheduler.schedule(self.establish_coro)
 
     def disconnect(self):
         self._closing = True
