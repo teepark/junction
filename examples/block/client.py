@@ -11,7 +11,7 @@ WAIT_SERVICE = 1
 
 
 def main():
-    node = junction.Node(("localhost", 12345), [("localhost", 9876)])
+    node = junction.Node(("localhost", 12345), [("localhost", SERVICE_PORT)])
     node.start()
     node.wait_on_connections()
 

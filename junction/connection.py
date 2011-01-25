@@ -79,6 +79,8 @@ class Peer(object):
                 received[0] != const.MSG_TYPE_HANDSHAKE or \
                 len(received) != 2 or \
                 len(received[1]) != 3:
+            self._establish_failed = True
+            self.established.set()
             raise errors.BadHandshake()
 
         self.ident, self.version, self.regs = received[1]

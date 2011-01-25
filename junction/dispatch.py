@@ -49,14 +49,14 @@ class Dispatcher(object):
         route = self.local_regs
         for traversal in (msg_type, service, method):
             if traversal not in route:
-                return None
+                return None, False
             route = route[traversal]
 
         for mask, value, handler, schedule in route:
             if mask & routing_id == value:
                 return handler, schedule
 
-        return None
+        return None, False
 
     def local_registrations(self):
         for msg_type, rest in self.local_regs.iteritems():
