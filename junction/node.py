@@ -103,16 +103,8 @@ class Node(object):
             :class:`Unroutable <junction.errors.Unroutable>` if no peers are
             registered to receive the message
         '''
-        msg = (const.MSG_TYPE_PUBLISH,
-                (service, method, routing_id, args, kwargs))
-
-        found_one = False
-        for peer in self._dispatcher.find_peer_routes(
-                const.MSG_TYPE_PUBLISH, service, method, routing_id):
-            found_one = True
-            peer.send_queue.put(msg)
-
-        if not found_one:
+        if not self._dispatcher.send_publish(
+                service, method, routing_id, args, kwargs):
             raise errors.Unroutable()
 
     def accept_rpc(self, service, method, mask, value, handler, schedule=True):

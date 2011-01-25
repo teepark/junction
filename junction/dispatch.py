@@ -108,6 +108,18 @@ class Dispatcher(object):
     def peers(self):
         return self.all_peers.itervalues()
 
+    def send_publish(service, method, routing_id, args, kwargs):
+        msg = (const.MSG_TYPE_PUBLISH,
+                (service, method, routing_id, args, kwargs))
+
+        found_one = False
+        for peer in self.find_peer_routes(
+                const.MSG_TYPE_PUBLISH, service, method, routing_id):
+            found_one = True
+            peer.send_queue.put(msg)
+
+        return found_one
+
     # callback for peer objects to pass up a message
     def incoming(self, peer, msg):
         msg_type, msg = msg
