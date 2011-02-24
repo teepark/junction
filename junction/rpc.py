@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import weakref
 
 from greenhouse import utils
+import mummy
 from . import const, errors
 
 
@@ -112,7 +113,7 @@ class RPC(object):
         """
         if not self._completed:
             raise AttributeError("incomplete response")
-        return self._results[:]
+        return deepcopy(self._results)
 
     @property
     def complete(self):
@@ -165,3 +166,7 @@ class Wait(object):
             rpc._waits.remove(self)
 
         self.done.set()
+
+
+def deepcopy(item):
+    return mummy.loads(mummy.dumps(item))
