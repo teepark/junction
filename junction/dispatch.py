@@ -14,6 +14,7 @@ class Dispatcher(object):
         self.peer_regs = {}
         self.local_regs = {}
         self.all_peers = {}
+        self.inflight_proxies = set()
 
     def add_local_regs(self, handler, regs):
         added = []
@@ -191,9 +192,31 @@ class Dispatcher(object):
     def incoming_rpc_response(self, peer, msg):
         self.rpc_client.response(peer, msg)
 
+    def incoming_proxy_publish(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 5:
+            # drop malformed messages
+            return
+        service, method, routing_id, args, kwargs = msg
+
+        # in case we are the publish's destination
+        # (it'll just get dropped if we have no local handler for it)
+        self.incoming_publish(peer, msg)
+
+        # in case it needs to be forwarded
+        self.send_publish(service, method, routing_id, args, kwargs)
+
+    def incoming_proxy_request(self, peer, msg):
+        pass
+
+    def incoming_proxy_response(self, peer, msg):
+        pass
+
     handlers = {
         const.MSG_TYPE_ANNOUNCE: add_peer_regs,
         const.MSG_TYPE_PUBLISH: incoming_publish,
         const.MSG_TYPE_RPC_REQUEST: incoming_rpc_request,
         const.MSG_TYPE_RPC_RESPONSE: incoming_rpc_response,
+        const.MSG_TYPE_PROXY_PUBLISH: incoming_proxy_publish,
+        const.MSG_TYPE_PROXY_REQUEST: incoming_proxy_request,
+        const.MSG_TYPE_PROXY_RESPONSE: incoming_proxy_response,
     }
