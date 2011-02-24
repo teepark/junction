@@ -170,7 +170,10 @@ class Dispatcher(object):
 
     def incoming_rpc_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
-            # drop badly formed messages
+            # badly formed messages
+            peer.send_queue.put(
+                    (const.MSG_TYPE_RPC_RESPONSE,
+                        (counter, const.RPC_ERR_MALFORMED, None)))
             return
         counter, service, method, routing_id, args, kwargs = msg
 
