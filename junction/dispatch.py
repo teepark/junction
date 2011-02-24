@@ -14,7 +14,7 @@ class Dispatcher(object):
         self.peer_regs = {}
         self.local_regs = {}
         self.all_peers = {}
-        self.inflight_proxies = set()
+        self.inflight_proxies = {}
 
     def add_local_regs(self, handler, regs):
         added = []
@@ -193,7 +193,21 @@ class Dispatcher(object):
             self.rpc_handler(peer, counter, handler, args, kwargs)
 
     def incoming_rpc_response(self, peer, msg):
-        self.rpc_client.response(peer, msg)
+        if not isinstance(msg, tuple) or len(msg) != 3:
+            # drop malformed responses
+            return
+
+        counter, rc, result = msg
+
+        if counter in self.inflight_proxies:
+            entry = self.inflight_proxies[counter]
+            entry['awaiting'] -= 1
+            if not entry['awaiting']:
+                self.inflight_proxies.pop(counter)
+            entry['peer'].send_queue.put((const.MSG_TYPE_PROXY_RESPONSE,
+                    entry['client_counter'], rc, result))
+        else:
+            self.rpc_client.response(peer, counter, rc, result)
 
     def incoming_proxy_publish(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:
@@ -209,10 +223,39 @@ class Dispatcher(object):
         self.send_publish(service, method, routing_id, args, kwargs)
 
     def incoming_proxy_request(self, peer, msg):
-        pass
+        if not isinstance(msg, tuple) or len(msg) != 6:
+            # drop badly formed messages
+            return
+        client_counter, service, method, routing_id, args, kwargs = msg
 
-    def incoming_proxy_response(self, peer, msg):
-        pass
+        # handle it locally if it's aimed at us
+        handler, schedule = self.find_local_handler(
+                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
+        if handler is not None:
+            if schedule:
+                scheduler.schedule(self.rpc_handler,
+                        args=(peer, client_counter, handler, args, kwargs))
+            else:
+                self.rpc_handler(peer, client_counter, handler, args, kwargs)
+
+        target_count = handler is not None and 1 or 0
+        targets = list(self.find_peer_routes(
+                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id))
+
+        if targets:
+            target_count += len(targets)
+
+            self.rpc_client.request(
+                    targets, service, method, routing_id, args, kwargs)
+
+            self.inflight_proxies[rpc.counter] = {
+                'awaiting': len(targets),
+                'client_counter': client_counter,
+                'peer': peer,
+            }
+
+        peer.send_queue.put(
+                (const.MSG_TYPE_PROXY_RESPONSE_COUNT, target_count))
 
     handlers = {
         const.MSG_TYPE_ANNOUNCE: add_peer_regs,
@@ -221,5 +264,4 @@ class Dispatcher(object):
         const.MSG_TYPE_RPC_RESPONSE: incoming_rpc_response,
         const.MSG_TYPE_PROXY_PUBLISH: incoming_proxy_publish,
         const.MSG_TYPE_PROXY_REQUEST: incoming_proxy_request,
-        const.MSG_TYPE_PROXY_RESPONSE: incoming_proxy_response,
     }

@@ -34,12 +34,7 @@ class RPCClient(object):
 
         return rpc
 
-    def response(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 3:
-            # drop malformed responses
-            return
-
-        counter, rc, result = msg
+    def response(self, peer, counter, rc, result):
         if counter not in self.inflight:
             # drop mistaken responses
             return
