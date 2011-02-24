@@ -108,7 +108,7 @@ class Dispatcher(object):
     def peers(self):
         return self.all_peers.itervalues()
 
-    def send_publish(service, method, routing_id, args, kwargs):
+    def send_publish(self, service, method, routing_id, args, kwargs):
         msg = (const.MSG_TYPE_PUBLISH,
                 (service, method, routing_id, args, kwargs))
 

@@ -12,19 +12,13 @@ class RPCClient(object):
         self.inflight = {}
         self.rpcs = weakref.WeakValueDictionary()
 
-    def build_request_message(self, service, method, routing_id, args, kwargs):
-        counter = self.counter
-        self.counter += 1
-        return (const.MSG_TYPE_RPC_REQUEST,
-                (counter, service, method, routing_id, args, kwargs))
-
     def request(self, targets, service, method, routing_id, args, kwargs):
         counter = self.counter
         self.counter += 1
         target_set = set()
 
-        msg = self.build_request_message(
-                service, method, routing_id, args, kwargs)
+        msg = (const.MSG_TYPE_RPC_REQUEST,
+                (counter, service, method, routing_id, args, kwargs))
 
         for peer in targets:
             target_set.add(peer.ident)
