@@ -90,9 +90,7 @@ class Node(object):
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
-        :param args:
-            the positional arguments (besides routing_id) to send along with
-            the request
+        :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
@@ -156,9 +154,7 @@ class Node(object):
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
-        :param args:
-            the positional arguments (besides routing_id) to send along with
-            the request
+        :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
@@ -189,7 +185,7 @@ class Node(object):
         :param rpcs:
             a list of rpc :class:`rpc <junction.rpc.RPC>` objects (as
             returned by :meth:`send_rpc`)
-        :type rpcs: :class:`RPC <junction.rpc.Response>` list
+        :type rpcs: list of :class:`RPCs <junction.rpc.Response>`
         :param timeout:
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
@@ -220,9 +216,7 @@ class Node(object):
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
-        :param args:
-            the positional arguments (besides routing_id) to send along with
-            the request
+        :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
@@ -247,11 +241,11 @@ class Node(object):
     def start(self):
         "Start up the node's server, and have it start initiating connections"
         scheduler.schedule(self._listener_coro)
-        map(self._create_connection, self._peers)
 
-    def _create_connection(self, addr):
-        peer = connection.Peer(self.addr, self._dispatcher, addr, io.Socket())
-        peer.start()
+        for addr in self._peers:
+            peer = connection.Peer(
+                    self.addr, self._dispatcher, addr, io.Socket())
+            peer.start()
 
     def _listener_coro(self):
         server = io.Socket()

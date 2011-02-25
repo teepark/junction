@@ -8,6 +8,8 @@ from . import const, errors
 
 
 class RPCClient(object):
+    REQUEST = const.MSG_TYPE_RPC_REQUEST
+
     def __init__(self):
         self.counter = 1
         self.inflight = {}
@@ -18,7 +20,7 @@ class RPCClient(object):
         self.counter += 1
         target_set = set()
 
-        msg = (const.MSG_TYPE_RPC_REQUEST,
+        msg = (self.REQUEST,
                 (counter, service, method, routing_id, args, kwargs))
 
         for peer in targets:
@@ -28,7 +30,7 @@ class RPCClient(object):
         if not target_set:
             return None
 
-        self.inflight[counter] = target_set
+        self.sent(counter, target_set)
 
         rpc = RPC(self, counter)
         self.rpcs[counter] = rpc
@@ -36,19 +38,11 @@ class RPCClient(object):
         return rpc
 
     def response(self, peer, counter, rc, result):
-        if counter not in self.inflight:
-            # drop mistaken responses
-            return
-
-        targets = self.inflight[counter]
-        if peer.ident not in targets:
-            # again, drop mistaken responses
-            return
-        targets.remove(peer.ident)
+        self.arrival(counter, peer)
 
         if counter in self.rpcs:
             self.rpcs[counter]._incoming(peer.ident, rc, result)
-            if not targets:
+            if not self.inflight[counter]:
                 self.rpcs[counter]._complete()
 
     def wait(self, rpc_list, timeout=None):
@@ -71,6 +65,28 @@ class RPCClient(object):
 
         return wait.completed_rpc
 
+    def sent(self, counter, targets):
+        self.inflight[counter] = targets
+
+    def arrival(self, counter, peer):
+        self.inflight[counter].remove(peer.ident)
+
+
+class ProxiedClient(RPCClient):
+    REQUEST = const.MSG_TYPE_PROXY_REQUEST
+
+    def sent(self, counter, targets):
+        self.inflight[counter] = 0
+
+    def arrival(self, counter, peer):
+        self.inflight[counter] -= 1
+
+    def expect(sef, counter, target_count):
+        self.inflight[counter] += target_count
+
+        if (not self.inflight[counter]) and counter in self.rpcs:
+            self.rpcs[counter]._complete()
+
 
 class RPC(object):
     """A representation of a single RPC request/response cycle
@@ -88,7 +104,7 @@ class RPC(object):
 
     def wait(self, timeout=None):
         """Block the current greenlet until the response arrives
-        
+
         :param timeout:
             the maximum number of seconds to wait before raising a
             :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>`. the
@@ -107,7 +123,7 @@ class RPC(object):
     @property
     def results(self):
         """The RPC's response, if it has arrived
-        
+
         :attr:`complete` indicates whether the result is available or not, if
         not then this attribute raises AttributeError.
         """
@@ -120,7 +136,7 @@ class RPC(object):
         "Whether the RPC's response has arrived yet."
         return self._completed
 
-    def _incoming(self, peer_ident, rc, result)
+    def _incoming(self, peer_ident, rc, result):
         self._results.append(self._format_result(peer_ident, rc, result))
 
     def _complete(self):

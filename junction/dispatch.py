@@ -121,6 +121,11 @@ class Dispatcher(object):
 
         return found_one
 
+    def send_proxied_publish(self, service, method, routing_id, args, kwargs):
+        self.all_peers.values()[0].send_queue.put(
+                (const.MSG_TYPE_PROXY_PUBLISH,
+                    (service, method, routing_id, args, kwargs)))
+
     # callback for peer objects to pass up a message
     def incoming(self, peer, msg):
         msg_type, msg = msg
@@ -207,6 +212,11 @@ class Dispatcher(object):
             entry['peer'].send_queue.put((const.MSG_TYPE_PROXY_RESPONSE,
                     entry['client_counter'], rc, result))
         else:
+            if (counter not in self.rpc_client.inflight or
+                    peer.ident not in self.rpc_client.inflight[counter]):
+                # drop mistaken responses
+                return
+
             self.rpc_client.response(peer, counter, rc, result)
 
     def incoming_proxy_publish(self, peer, msg):
@@ -254,8 +264,29 @@ class Dispatcher(object):
                 'peer': peer,
             }
 
-        peer.send_queue.put(
-                (const.MSG_TYPE_PROXY_RESPONSE_COUNT, target_count))
+        peer.send_queue.put((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
+                (client_counter, target_count)))
+
+    def incoming_proxy_response(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 3:
+            # drop malformed responses
+            return
+
+        counter, rc, result = msg
+
+        if (counter not in self.rpc_client.inflight or
+                peer.ident not in self.rpc_client.inflight[counter]):
+            # drop mistaken responses
+            return
+
+        self.rpc_client.response(peer, counter, rc, result)
+
+    def incoming_proxy_response_count(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 2:
+            # drop malformed responses
+            return
+        counter, target_count = msg
+        self.rpc_client.expect(counter, target_count)
 
     handlers = {
         const.MSG_TYPE_ANNOUNCE: add_peer_regs,
@@ -264,4 +295,6 @@ class Dispatcher(object):
         const.MSG_TYPE_RPC_RESPONSE: incoming_rpc_response,
         const.MSG_TYPE_PROXY_PUBLISH: incoming_proxy_publish,
         const.MSG_TYPE_PROXY_REQUEST: incoming_proxy_request,
+        const.MSG_TYPE_PROXY_RESPONSE: incoming_proxy_response,
+        const.MSG_TYPE_PROXY_RESPONSE_COUNT: incoming_proxy_response_count,
     }
