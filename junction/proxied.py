@@ -30,6 +30,7 @@ class Client(object):
         peer = self._dispatcher.all_peers[self.node_addr]
         if peer.established.wait(timeout) or peer._establish_failed:
             return True
+        return False
 
     def publish(self, service, method, routing_id, args, kwargs):
         '''Send a 1-way message

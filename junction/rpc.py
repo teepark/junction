@@ -23,16 +23,18 @@ class RPCClient(object):
         msg = (self.REQUEST,
                 (counter, service, method, routing_id, args, kwargs))
 
+        target_count = 0
         for peer in targets:
             target_set.add(peer.ident)
             peer.send_queue.put(msg)
+            target_count += 1
 
         if not target_set:
             return None
 
         self.sent(counter, target_set)
 
-        rpc = RPC(self, counter)
+        rpc = RPC(self, counter, target_count)
         self.rpcs[counter] = rpc
 
         return rpc
@@ -70,6 +72,8 @@ class RPCClient(object):
 
     def arrival(self, counter, peer):
         self.inflight[counter].remove(peer.ident)
+        if not self.inflight[counter]:
+            del self.inflight[counter]
 
 
 class ProxiedClient(RPCClient):
@@ -81,11 +85,14 @@ class ProxiedClient(RPCClient):
     def arrival(self, counter, peer):
         self.inflight[counter] -= 1
 
-    def expect(sef, counter, target_count):
+    def expect(self, counter, target_count):
         self.inflight[counter] += target_count
 
-        if (not self.inflight[counter]) and counter in self.rpcs:
-            self.rpcs[counter]._complete()
+        if counter in self.rpcs:
+            self.rpcs[counter]._target_count = target_count
+
+            if not self.inflight[counter]:
+                self.rpcs[counter]._complete()
 
 
 class RPC(object):
@@ -94,13 +101,14 @@ class RPC(object):
     instances of this class shouldn't be created directly, they are returned by
     :meth:`Node.send_rpc() <junction.node.Node.send_rpc>`.
     """
-    def __init__(self, client, counter):
+    def __init__(self, client, counter, target_count):
         self._client = client
         self._completed = False
         self._waits = []
         self._results = []
 
-        self.counter = counter
+        self._counter = counter
+        self._target_count = target_count
 
     def wait(self, timeout=None):
         """Block the current greenlet until the response arrives
@@ -119,6 +127,17 @@ class RPC(object):
         """
         self._client.wait(self, timeout)
         return self.results
+
+    @property
+    def counter(self):
+        return self._counter
+
+    @property
+    def target_count(self):
+        """The number of 
+        
+        """
+        return self._target_count
 
     @property
     def results(self):
@@ -141,7 +160,6 @@ class RPC(object):
 
     def _complete(self):
         self._completed = True
-        del self._client.inflight[self.counter]
         if self._waits:
             self._waits[0].finish(self)
 

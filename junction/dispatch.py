@@ -157,7 +157,11 @@ class Dispatcher(object):
             except Exception:
                 scheduler.handle_exception(*sys.exc_info())
 
-    def rpc_handler(self, peer, counter, handler, args, kwargs):
+    def rpc_handler(self, peer, counter, handler, args, kwargs, proxied=False):
+        response = (proxied
+                and const.MSG_TYPE_PROXY_RESPONSE
+                or const.MSG_TYPE_RPC_RESPONSE)
+
         try:
             rc = 0
             result = handler(*args, **kwargs)
@@ -170,8 +174,7 @@ class Dispatcher(object):
             result = traceback.format_exception(*sys.exc_info())
             scheduler.handle_exception(*sys.exc_info())
 
-        peer.send_queue.put(
-                (const.MSG_TYPE_RPC_RESPONSE, (counter, rc, result)))
+        peer.send_queue.put((response, (counter, rc, result)))
 
     def incoming_rpc_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
@@ -208,16 +211,15 @@ class Dispatcher(object):
             entry = self.inflight_proxies[counter]
             entry['awaiting'] -= 1
             if not entry['awaiting']:
-                self.inflight_proxies.pop(counter)
+                del self.inflight_proxies[counter]
             entry['peer'].send_queue.put((const.MSG_TYPE_PROXY_RESPONSE,
-                    entry['client_counter'], rc, result))
-        else:
-            if (counter not in self.rpc_client.inflight or
-                    peer.ident not in self.rpc_client.inflight[counter]):
-                # drop mistaken responses
-                return
+                    (entry['client_counter'], rc, result)))
+        elif (counter not in self.rpc_client.inflight or
+                peer.ident not in self.rpc_client.inflight[counter]):
+            # drop mistaken responses
+            return
 
-            self.rpc_client.response(peer, counter, rc, result)
+        self.rpc_client.response(peer, counter, rc, result)
 
     def incoming_proxy_publish(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:
@@ -243,10 +245,11 @@ class Dispatcher(object):
                 const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
         if handler is not None:
             if schedule:
-                scheduler.schedule(self.rpc_handler,
-                        args=(peer, client_counter, handler, args, kwargs))
+                scheduler.schedule(self.rpc_handler, args=(
+                    peer, client_counter, handler, args, kwargs, True))
             else:
-                self.rpc_handler(peer, client_counter, handler, args, kwargs)
+                self.rpc_handler(
+                        peer, client_counter, handler, args, kwargs, True)
 
         target_count = handler is not None and 1 or 0
         targets = list(self.find_peer_routes(
@@ -255,7 +258,7 @@ class Dispatcher(object):
         if targets:
             target_count += len(targets)
 
-            self.rpc_client.request(
+            rpc = self.rpc_client.request(
                     targets, service, method, routing_id, args, kwargs)
 
             self.inflight_proxies[rpc.counter] = {
@@ -274,8 +277,7 @@ class Dispatcher(object):
 
         counter, rc, result = msg
 
-        if (counter not in self.rpc_client.inflight or
-                peer.ident not in self.rpc_client.inflight[counter]):
+        if counter not in self.rpc_client.inflight:
             # drop mistaken responses
             return
 
