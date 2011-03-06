@@ -9,12 +9,13 @@ class Client(object):
         self.node_addr = node_address
         self._rpc_client = rpc.ProxiedClient()
         self._dispatcher = dispatch.Dispatcher(self.VERSION, self._rpc_client)
+        self._peer = None
 
     def connect(self):
         "Initiate the connection to a proxying node"
-        peer = connection.Peer(
+        self._peer = connection.Peer(
                 None, self._dispatcher, self.node_addr, io.Socket())
-        peer.start()
+        self._peer.start()
 
     def wait_on_connections(self, timeout=None):
         '''Wait for connections to be made and their handshakes to finish
@@ -27,10 +28,7 @@ class Client(object):
             ``True`` if it timed out or if the connect or handshake failed,
             otherwise ``False``
         '''
-        peer = self._dispatcher.all_peers[self.node_addr]
-        if peer.established.wait(timeout) or peer._establish_failed:
-            return True
-        return False
+        return self._peer.wait_connected(timeout)
 
     def publish(self, service, method, routing_id, args, kwargs):
         '''Send a 1-way message
@@ -49,7 +47,14 @@ class Client(object):
         :type kwargs: dict
 
         :returns: None. use 'rpc' methods for requests with responses.
+
+        :raises:
+            :class:`Unroutable <junction.errors.Unroutable>` if the client
+            doesn't have a connection to a node
         '''
+        if not self._peer.up:
+            raise Unroutable()
+
         self._dispatcher.send_proxied_publish(
                 service, method, routing_id, args, kwargs)
 
@@ -72,8 +77,15 @@ class Client(object):
         :returns:
             a :class:`RPC <junction.rpc.RPC>` object representing the
             RPC and its future response.
+
+        :raises:
+            :class:`Unroutable <junction.errors.Unroutable>` if the client
+            doesn't have a connection to a node
         '''
-        return self._rpc_client.request(self._dispatcher.peers(),
+        if not self._peer.up:
+            raise Unroutable()
+
+        return self._rpc_client.request([self._peer],
                 service, method, routing_id, args, kwargs)
 
     def wait_any_rpc(self, rpcs, timeout=None):
@@ -129,8 +141,13 @@ class Client(object):
             of any serializable type.
 
         :raises:
+            - :class:`Unroutable <junction.errors.Unroutable>` if no peers are
+              registered to receive the message
             - :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>` if a
               timeout was provided and it expires
         '''
-        return self.send_rpc(
-                service, method, routing_id, args, kwargs).wait(timeout)
+        rpc = self.send_rpc(service, method, routing_id, args, kwargs)
+        results = rpc.wait(timeout)
+        if not rpc.target_count:
+            raise errors.Unroutable()
+        return results

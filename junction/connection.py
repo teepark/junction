@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import socket
 import struct
 
-from greenhouse import scheduler, utils
+from greenhouse import io, scheduler, utils
 import mummy
 
 from . import const, errors
@@ -16,78 +16,101 @@ class Peer(object):
         self.addr = addr
         self.sock = sock
 
-        self._sock_inited = False
         self._closing = False
-        self._connect_failed = False
-        self._establish_failed = False
-        self.connected = utils.Event()
         self.initiator = connect
-        if not connect:
-            self.connected.set()
-        self.established = utils.Event()
         self.send_queue = utils.Queue()
+        self.established = utils.Event()
 
-        # will get these from the handshake
+        self.reconnect_pauses = [(i ** 2) / 2.0 for i in xrange(10)]
+
+        self._sender_coro = None
+        self._receiver_coro = None
+        self.up = False
+
+        # we'll get these from the peer on handshake
         self.ident = ()
         self.version = ()
-        self.regs = []
+        self.subscriptions = []
+
+    def start(self):
+        scheduler.schedule(self.starter_coro)
+
+    def wait_connected(self, timeout=None):
+        if self.established.wait(timeout):
+            return True
+        return not self.up
+
+    def starter_coro(self):
+        self.init_sock()
+
+        attempt = (self.attempt_connect if self.initiator
+                else self.attempt_handshake)
+        if attempt():
+            self.schedule_coros()
+        else:
+            self.connection_restarter()
 
     def init_sock(self):
-        if self._sock_inited:
-            return
         self.sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
-        self._sock_inited = True
 
-    def connect(self):
-        try:
-            self.sock.connect(self.addr)
-        except socket.error:
-            self._connect_failed = True
-        self.connected.set()
+    def reset(self):
+        self.sock.close()
+        self.sock = io.Socket()
+        self.init_sock()
+        self.initiator = True
+        self.established.clear()
+        self.up = False
 
-    def establish(self):
-        self.connected.wait()
-        if self._connect_failed:
-            self._establish_failed = True
-            self.established.set()
-            return
-
-        # send a message providing information about ourself
+    def attempt_handshake(self):
+        # send a handshake message
         try:
             self.sock.sendall(self.dump((const.MSG_TYPE_HANDSHAKE, (
                     self.local_addr,
                     self.dispatcher.version,
                     list(self.dispatcher.local_registrations())))))
         except socket.error:
-            self._establish_failed = True
-            self.established.set()
-            return
+            return False
 
-        # expect to get a similar message back from the peer
+        # receive the peer's handshake message
         try:
             received = self.recv_one()
-        except socket.error, exc:
-            return
-        except errors.MessageCutOff, exc:
-            self._establish_failed = True
-            self.established.set()
-            if not exc.args[0]:
-                return
-            raise
+        except (socket.error, errors.MessageCutOff):
+            return False
 
-        if not isinstance(received, tuple) or \
-                received[0] != const.MSG_TYPE_HANDSHAKE or \
-                len(received) != 2 or \
-                len(received[1]) != 3:
-            self._establish_failed = True
-            self.established.set()
-            raise errors.BadHandshake()
+        # validate the peer's handshake message format
+        if (not received
+                or not isinstance(received, tuple)
+                or received[0] != const.MSG_TYPE_HANDSHAKE
+                or len(received) != 2
+                or len(received[1]) != 3):
+            return False
 
-        self.ident, self.version, self.regs = received[1]
-        self.dispatcher.add_peer_regs(self, self.regs)
-
-        # hand off connection management to sender_coro and receiver_coro
+        self.ident, self.version, self.subscriptions = received[1]
+        self.up = True
+        self.dispatcher.store_peer(self)
         self.established.set()
+        return True
+
+    def attempt_connect(self):
+        try:
+            self.sock.connect(self.addr)
+        except socket.error:
+            return False
+
+        return self.attempt_handshake()
+
+    def reconnect(self):
+        for pause in self.reconnect_pauses:
+            self.reset()
+
+            scheduler.pause_for(pause)
+            if self._closing:
+                return False
+
+            if self.attempt_connect():
+                return True
+
+        return False
 
     def dump(self, msg):
         msg = mummy.dumps(msg)
@@ -108,10 +131,6 @@ class Peer(object):
         return mummy.loads(self.read_bytes(size))
 
     def sender_coro(self):
-        self.established.wait()
-        if self._establish_failed:
-            return
-
         try:
             while not self._closing:
                 msg = self.send_queue.get()
@@ -120,65 +139,44 @@ class Peer(object):
                 msg = self.dump(msg)
                 self.sock.sendall(msg)
         except socket.error:
-            pass
-
-        self.on_connection_closed()
+            self.connection_failure()
 
     def receiver_coro(self):
-        self.established.wait()
-        if self._establish_failed:
-            return
+        while not self._closing:
+            try:
+                msg = self.recv_one()
+                self.dispatcher.incoming(self, msg)
+            except (socket.error, errors.MessageCutOff):
+                self.connection_failure()
+                break
 
-        try:
-            while not self._closing:
-                self.handle_incoming(self.recv_one())
-        except socket.error:
-            pass
-        except errors.MessageCutOff, exc:
-            if exc.args[0]:
-                raise
+    def unschedule_coros(self):
+        if self._sender_coro is not None:
+            scheduler.end(self._sender_coro)
+        if self._receiver_coro is not None:
+            scheduler.end(self._receiver_coro)
 
-        self.on_connection_closed()
+    def schedule_coros(self):
+        self._sender_coro = scheduler.greenlet(self.sender_coro)
+        self._receiver_coro = scheduler.greenlet(self.receiver_coro)
 
-    def handle_incoming(self, msg):
-        self.dispatcher.incoming(self, msg)
+        scheduler.schedule(self._sender_coro)
+        scheduler.schedule(self._receiver_coro)
 
-    def establish_coro(self):
-        self.init_sock()
-        if self.initiator:
-            self.connect()
-        self.establish()
+    def connection_failure(self):
+        self.up = False
+        self.dispatcher.drop_peer(self)
+        self.unschedule_coros()
+        if self.ident is not None:
+            scheduler.schedule(self.connection_restarter)
 
-    def start(self):
-        # start up the sender/receiver coros
-        # (they'll block until self.established is set)
-        scheduler.schedule(self.sender_coro)
-        scheduler.schedule(self.receiver_coro)
+    def connection_restarter(self):
+        if not self._closing and self.reconnect():
+            self.schedule_coros()
 
-        self.dispatcher.store_peer(self)
-
-        # do the connect and establish in a coro as well
-        scheduler.schedule(self.establish_coro)
-
-    def disconnect(self):
+    def shutdown(self):
         self._closing = True
-
-        # killing sender_coro is easy as it's waiting for local input
         self.send_queue.put(_END)
 
-        # killing receiver_coro is harder, it's waiting on network activity
-        self.sock.close()
-        self.sock._readable.set()
-        self.sock._readable.clear()
-
-    def on_connection_closed(self):
-        if not self._closing:
-            # if this came from a geniune socket error then _closing is still
-            # False and the writer coro doesn't know about any problem yet
-            self._closing = True
-            self.send_queue.put(_END)
-
-        self.dispatcher.all_peers.pop(self.addr, None)
-        self.dispatcher.drop_peer_regs(self)
 
 _END = object()

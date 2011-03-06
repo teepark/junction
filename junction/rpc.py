@@ -109,6 +109,7 @@ class RPC(object):
 
         self._counter = counter
         self._target_count = target_count
+        self._peers_down = 0
 
     def wait(self, timeout=None):
         """Block the current greenlet until the response arrives
@@ -138,6 +139,14 @@ class RPC(object):
         
         """
         return self._target_count
+
+    @property
+    def partial_results(self):
+        """The results that the RPC has received so far
+
+        this may also be the complete results, if :attr:`complete` is True
+        """
+        return deepcopy(self._results)
 
     @property
     def results(self):

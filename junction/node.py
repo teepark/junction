@@ -9,9 +9,11 @@ from . import connection, const, dispatch, errors, rpc
 
 class Node(object):
     'A node in the server graph'
-    def __init__(self, addr, peer_addrs):
+    def __init__(self, addr, peer_addrs, hostname=None):
         self.addr = addr
+        self._ident = (hostname or addr[0], addr[1])
         self._peers = peer_addrs
+        self._started_peers = {}
         self._closing = False
 
         self._rpc_client = rpc.RPCClient()
@@ -40,8 +42,8 @@ class Node(object):
 
         for peer_addr in conns:
             remaining = max(0, deadline - time.time()) if timeout else None
-            peer = self._dispatcher.all_peers[peer_addr]
-            if peer.established.wait(remaining) or peer._establish_failed:
+            peer = self._started_peers[peer_addr]
+            if peer.wait_connected():
                 return True
 
         return False
@@ -244,8 +246,9 @@ class Node(object):
 
         for addr in self._peers:
             peer = connection.Peer(
-                    self.addr, self._dispatcher, addr, io.Socket())
+                    self._ident, self._dispatcher, addr, io.Socket())
             peer.start()
+            self._started_peers[addr] = peer
 
     def _listener_coro(self):
         server = io.Socket()
@@ -257,5 +260,5 @@ class Node(object):
         while not self._closing:
             client, addr = server.accept()
             peer = connection.Peer(
-                    self.addr, self._dispatcher, addr, client, connect=False)
+                    self._ident, self._dispatcher, addr, client, connect=False)
             peer.start()

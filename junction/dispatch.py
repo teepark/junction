@@ -13,13 +13,13 @@ class Dispatcher(object):
         self.rpc_client = rpc_client
         self.peer_regs = {}
         self.local_regs = {}
-        self.all_peers = {}
+        self.peers = {}
         self.inflight_proxies = {}
 
     def add_local_regs(self, handler, regs):
         added = []
         for msg_type, service, method, mask, value, schedule in regs:
-            # simple sanity check -- *anything* could match this
+            # simple sanity check: *anything* could match this
             if value & ~mask:
                 continue
 
@@ -40,8 +40,8 @@ class Dispatcher(object):
         # for all connections that have already gone through their handshake,
         # send an ANNOUNCE message with the registration updates
         if added:
-            for peer in self.peers():
-                if peer.established.is_set() and not peer._establish_failed:
+            for peer in self.peers.itervalues():
+                if peer.up:
                     peer.send_queue.put((const.MSG_TYPE_ANNOUNCE, added))
 
         return len(added)
@@ -67,7 +67,20 @@ class Dispatcher(object):
                         yield (msg_type, service, method, mask, value)
 
     def store_peer(self, peer):
-        self.all_peers[peer.addr] = peer
+        if peer.ident in self.peers:
+            other_peer = self.peers[peer.ident]
+            if other_peer.up and peer.local_addr > peer.ident:
+                return False
+            self.drop_peer_regs(other_peer)
+            other_peer.shutdown()
+
+        self.peers[peer.ident] = peer
+        self.add_peer_regs(peer, peer.subscriptions)
+        return True
+
+    def drop_peer(self, peer):
+        self.peers.pop(peer.ident, None)
+        self.drop_peer_regs(peer)
 
     def add_peer_regs(self, peer, regs):
         for msg_type, service, method, mask, value in regs:
@@ -77,7 +90,7 @@ class Dispatcher(object):
                                     method, []).append((mask, value, peer))
 
     def drop_peer_regs(self, peer):
-        for msg_type, service, method, mask, value in peer.regs:
+        for msg_type, service, method, mask, value in peer.subscriptions:
             item = (mask, value, peer)
             if msg_type in self.peer_regs:
                 group1 = self.peer_regs[msg_type]
@@ -106,9 +119,6 @@ class Dispatcher(object):
             if mask & routing_id == value:
                 yield peer
 
-    def peers(self):
-        return self.all_peers.itervalues()
-
     def send_publish(self, service, method, routing_id, args, kwargs):
         msg = (const.MSG_TYPE_PUBLISH,
                 (service, method, routing_id, args, kwargs))
@@ -122,7 +132,7 @@ class Dispatcher(object):
         return found_one
 
     def send_proxied_publish(self, service, method, routing_id, args, kwargs):
-        self.all_peers.values()[0].send_queue.put(
+        self.peers.values()[0].send_queue.put(
                 (const.MSG_TYPE_PROXY_PUBLISH,
                     (service, method, routing_id, args, kwargs)))
 
@@ -169,7 +179,7 @@ class Dispatcher(object):
             rc = const.RPC_ERR_KNOWN
             result = (exc.code, exc.args)
             scheduler.handle_exception(*sys.exc_info())
-        except:
+        except Exception:
             rc = const.RPC_ERR_UNKNOWN
             result = traceback.format_exception(*sys.exc_info())
             scheduler.handle_exception(*sys.exc_info())
