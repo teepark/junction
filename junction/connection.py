@@ -17,6 +17,7 @@ class Peer(object):
         self.sock = sock
 
         self._closing = False
+        self._started = False
         self.initiator = connect
         self.send_queue = utils.Queue()
         self.established = utils.Event()
@@ -33,6 +34,10 @@ class Peer(object):
         self.subscriptions = []
 
     def start(self):
+        if self._started:
+            return
+        self._started = True
+
         scheduler.schedule(self.starter_coro)
 
     def wait_connected(self, timeout=None):
@@ -57,7 +62,6 @@ class Peer(object):
         self.sock.close()
         self.sock = io.Socket()
         self.init_sock()
-        self.initiator = True
         self.established.clear()
         self.up = False
 
@@ -87,8 +91,12 @@ class Peer(object):
 
         self.ident, self.version, self.subscriptions = received[1]
         self.up = True
-        self.dispatcher.store_peer(self)
         self.established.set()
+
+        if not self.dispatcher.store_peer(self):
+            self.up = False
+            return False
+
         return True
 
     def attempt_connect(self):
@@ -176,6 +184,7 @@ class Peer(object):
 
     def shutdown(self):
         self._closing = True
+        self.sock.close()
         self.send_queue.put(_END)
 
 

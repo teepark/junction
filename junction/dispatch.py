@@ -69,8 +69,13 @@ class Dispatcher(object):
     def store_peer(self, peer):
         if peer.ident in self.peers:
             other_peer = self.peers[peer.ident]
-            if other_peer.up and peer.local_addr > peer.ident:
-                return False
+
+            # we keep the one that was originally initiated
+            # by the peer whose (host, port) sorts lower
+            if other_peer.up:
+                if (peer.ident > peer.local_addr) == peer.initiator:
+                    return False
+
             self.drop_peer_regs(other_peer)
             other_peer.shutdown()
 
