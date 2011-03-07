@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from .node import Node
-from .proxied import Client
+from .client import Client
 
 
 VERSION = (0, 1, 0, "")

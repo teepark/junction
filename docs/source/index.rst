@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    junction/node
+   junction/client
    junction/rpc
    junction/errors
 
