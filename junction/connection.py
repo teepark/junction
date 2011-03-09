@@ -143,6 +143,7 @@ class Peer(object):
             while not self._closing:
                 msg = self.send_queue.get()
                 if msg is _END:
+                    self.go_down()
                     break
                 msg = self.dump(msg)
                 self.sock.sendall(msg)
@@ -158,12 +159,6 @@ class Peer(object):
                 self.connection_failure()
                 break
 
-    def unschedule_coros(self):
-        if self._sender_coro is not None:
-            scheduler.end(self._sender_coro)
-        if self._receiver_coro is not None:
-            scheduler.end(self._receiver_coro)
-
     def schedule_coros(self):
         self._sender_coro = scheduler.greenlet(self.sender_coro)
         self._receiver_coro = scheduler.greenlet(self.receiver_coro)
@@ -171,10 +166,18 @@ class Peer(object):
         scheduler.schedule(self._sender_coro)
         scheduler.schedule(self._receiver_coro)
 
-    def connection_failure(self):
+    def go_down(self):
         self.up = False
+
         self.dispatcher.drop_peer(self)
-        self.unschedule_coros()
+
+        if self._sender_coro is not None:
+            scheduler.end(self._sender_coro)
+        if self._receiver_coro is not None:
+            scheduler.end(self._receiver_coro)
+
+    def connection_failure(self):
+        self.go_down()
         if self.ident is not None:
             scheduler.schedule(self.connection_restarter)
 

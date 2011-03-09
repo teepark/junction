@@ -80,19 +80,21 @@ class Dispatcher(object):
             other_peer.shutdown()
 
         self.peers[peer.ident] = peer
-        self.add_peer_regs(peer, peer.subscriptions)
+        self.add_peer_regs(peer, peer.subscriptions, extend=False)
         return True
 
     def drop_peer(self, peer):
         self.peers.pop(peer.ident, None)
         self.drop_peer_regs(peer)
 
-    def add_peer_regs(self, peer, regs):
+    def add_peer_regs(self, peer, regs, extend=True):
         for msg_type, service, method, mask, value in regs:
             self.peer_regs.setdefault(
                     msg_type, {}).setdefault(
                             service, {}).setdefault(
                                     method, []).append((mask, value, peer))
+        if extend:
+            peer.subscriptions.extend(regs)
 
     def drop_peer_regs(self, peer):
         for msg_type, service, method, mask, value in peer.subscriptions:
@@ -121,7 +123,7 @@ class Dispatcher(object):
             route = route[traversal]
 
         for mask, value, peer in route:
-            if mask & routing_id == value:
+            if peer.up and mask & routing_id == value:
                 yield peer
 
     def send_publish(self, service, method, routing_id, args, kwargs):
