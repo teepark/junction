@@ -56,7 +56,16 @@ class Peer(object):
             self.connection_restarter()
 
     def init_sock(self):
+        # disable Nagle algorithm with the nodelay option
         self.sock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+
+        # activate TCP keepalive and tweak its settings. the strategy is:
+        # after 30 seconds of inactivity, send up to 6 probes, 5 seconds apart.
+        # so dead connections are detected ~1 minute after their last activity.
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        self.sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 30)
+        self.sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT, 6)
+        self.sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 5)
 
     def reset(self):
         self.sock.close()
