@@ -73,12 +73,12 @@ class Node(object):
         :type schedule: bool
 
         :returns:
-            a boolean indicating whether a new registration was stored. this
-            can come back ``False`` if the registration is somehow invalid (the
+            a boolean indicating whether a new subscription was stored. this
+            can come back ``False`` if the subscription is somehow invalid (the
             mask/value pair could never match anything, or it overlaps with
-            an existing registration)
+            an existing subscription)
         '''
-        return bool(self._dispatcher.add_local_regs(handler,
+        return bool(self._dispatcher.add_local_subscriptions(handler,
             [(const.MSG_TYPE_PUBLISH, service, method, mask, value, schedule)]))
 
     def publish(self, service, method, routing_id, args, kwargs):
@@ -131,12 +131,12 @@ class Node(object):
         :type schedule: bool
 
         :returns:
-            a boolean indicating whether a new registration was stored. this
-            can come back ``False`` if the registration is somehow invalid (the
+            a boolean indicating whether a new subscription was stored. this
+            can come back ``False`` if the subscription is somehow invalid (the
             mask/value pair could never match anything, or it overlaps with
-            an existing registration)
+            an existing subscription)
         '''
-        return bool(self._dispatcher.add_local_regs(
+        return bool(self._dispatcher.add_local_subscriptions(
             handler,
             [(const.MSG_TYPE_RPC_REQUEST,
                 service,
@@ -259,6 +259,6 @@ class Node(object):
 
         while not self._closing:
             client, addr = server.accept()
-            peer = connection.Peer(
-                    self._ident, self._dispatcher, addr, client, connect=False)
+            peer = connection.Peer(self._ident, self._dispatcher, addr, client,
+                    initiator=False)
             peer.start()

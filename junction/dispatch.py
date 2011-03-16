@@ -4,41 +4,41 @@ import sys
 import traceback
 
 from greenhouse import scheduler
-from . import const, errors
+from . import connection, const, errors
 
 
 class Dispatcher(object):
     def __init__(self, version, rpc_client):
         self.version = version
         self.rpc_client = rpc_client
-        self.peer_regs = {}
-        self.local_regs = {}
+        self.peer_subs = {}
+        self.local_subs = {}
         self.peers = {}
         self.inflight_proxies = {}
 
-    def add_local_regs(self, handler, regs):
+    def add_local_subscriptions(self, handler, subscriptions):
         added = []
-        for msg_type, service, method, mask, value, schedule in regs:
+        for msg_type, service, method, mask, value, schedule in subscriptions:
             # simple sanity check: *anything* could match this
             if value & ~mask:
                 continue
 
-            previous_regs = self.local_regs.setdefault(
+            previous_subscriptions = self.local_subs.setdefault(
                     msg_type, {}).setdefault(
                             service, {}).setdefault(
                                     method, [])
 
-            # registrations must be mutually exclusive. that is, there cannot
+            # subscriptions must be mutually exclusive. that is, there cannot
             # be more than one handler on a node for any possible message
-            for other_mask, other_value, other_handler in previous_regs:
-                if other_mask & value == mask & other_value:
+            for mask2, value2, handler2 in previous_subscriptions:
+                if mask2 & value == mask & value2:
                     continue
 
-            previous_regs.append((mask, value, handler, schedule))
+            previous_subscriptions.append((mask, value, handler, schedule))
             added.append((msg_type, service, method, mask, value))
 
         # for all connections that have already gone through their handshake,
-        # send an ANNOUNCE message with the registration updates
+        # send an ANNOUNCE message with the subscription updates
         if added:
             for peer in self.peers.itervalues():
                 if peer.up:
@@ -47,7 +47,7 @@ class Dispatcher(object):
         return len(added)
 
     def find_local_handler(self, msg_type, service, method, routing_id):
-        route = self.local_regs
+        route = self.local_subs
         for traversal in (msg_type, service, method):
             if traversal not in route:
                 return None, False
@@ -59,8 +59,8 @@ class Dispatcher(object):
 
         return None, False
 
-    def local_registrations(self):
-        for msg_type, rest in self.local_regs.iteritems():
+    def local_subscriptions(self):
+        for msg_type, rest in self.local_subs.iteritems():
             for service, rest in rest.iteritems():
                 for method, rest in rest.iteritems():
                     for mask, value, handler, schedule in rest:
@@ -68,55 +68,47 @@ class Dispatcher(object):
 
     def store_peer(self, peer):
         if peer.ident in self.peers:
-            other_peer = self.peers[peer.ident]
-
-            # we keep the one that was originally initiated
-            # by the peer whose (host, port) sorts lower
-            if other_peer.up:
-                if (peer.ident > peer.local_addr) == peer.initiator:
-                    return False
-
-            self.drop_peer_regs(other_peer)
-            other_peer.shutdown()
+            winner, loser = connection.compare(peer, self.peers[peer.ident])
+            loser.go_down(reconnect=False)
+            self.drop_peer_subscriptions(winner)
+            peer = winner
 
         self.peers[peer.ident] = peer
-        self.add_peer_regs(peer, peer.subscriptions, extend=False)
-        return True
+        self.add_peer_subscriptions(peer, peer.subscriptions, extend=False)
 
     def drop_peer(self, peer):
         self.peers.pop(peer.ident, None)
-        self.drop_peer_regs(peer)
+        self.drop_peer_subscriptions(peer)
 
-    def add_peer_regs(self, peer, regs, extend=True):
-        for msg_type, service, method, mask, value in regs:
-            self.peer_regs.setdefault(
+    def add_peer_subscriptions(self, peer, subscriptions, extend=True):
+        for msg_type, service, method, mask, value in subscriptions:
+            self.peer_subs.setdefault(
                     msg_type, {}).setdefault(
                             service, {}).setdefault(
                                     method, []).append((mask, value, peer))
         if extend:
-            peer.subscriptions.extend(regs)
+            peer.subscriptions.extend(subscriptions)
 
-    def drop_peer_regs(self, peer):
+    def drop_peer_subscriptions(self, peer):
         for msg_type, service, method, mask, value in peer.subscriptions:
             item = (mask, value, peer)
-            if msg_type in self.peer_regs:
-                group1 = self.peer_regs[msg_type]
+            if msg_type in self.peer_subs:
+                group1 = self.peer_subs[msg_type]
                 if service in group1:
                     group2 = group1[service]
                     if method in group2:
                         group3 = group2[method]
                         if item in group3:
                             group3.remove(item)
-
                         if not group3:
                             group2.pop(method)
                     if not group2:
                         group1.pop(service)
                 if not group1:
-                    self.peer_regs.pop(msg_type)
+                    self.peer_subs.pop(msg_type)
 
     def find_peer_routes(self, msg_type, service, method, routing_id):
-        route = self.peer_regs
+        route = self.peer_subs
         for traversal in (msg_type, service, method):
             if traversal not in route:
                 return
@@ -308,7 +300,7 @@ class Dispatcher(object):
         self.rpc_client.expect(counter, target_count)
 
     handlers = {
-        const.MSG_TYPE_ANNOUNCE: add_peer_regs,
+        const.MSG_TYPE_ANNOUNCE: add_peer_subscriptions,
         const.MSG_TYPE_PUBLISH: incoming_publish,
         const.MSG_TYPE_RPC_REQUEST: incoming_rpc_request,
         const.MSG_TYPE_RPC_RESPONSE: incoming_rpc_response,
