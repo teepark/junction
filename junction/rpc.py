@@ -135,9 +135,7 @@ class RPC(object):
 
     @property
     def target_count(self):
-        """The number of 
-        
-        """
+        "The number of peer nodes that will return a response for this RPC"
         return self._target_count
 
     @property
@@ -157,7 +155,8 @@ class RPC(object):
         """
         if not self._completed:
             raise AttributeError("incomplete response")
-        return deepcopy(self._results)
+        return [type(x)(*deepcopy(x.args)) if isinstance(x, Exception)
+                else deepcopy(x) for x in self._results]
 
     @property
     def complete(self):
