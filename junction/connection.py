@@ -176,7 +176,7 @@ class Peer(object):
         self.up = True
         self.established.set()
 
-        return self.dispatcher.store_peer(self)
+        return self.ident is None or self.dispatcher.store_peer(self)
 
     def reconnect(self):
         pauses = itertools.chain(self.reconnect_pauses, itertools.repeat(30.0))
