@@ -46,6 +46,7 @@ class RPCClient(object):
             self.rpcs[counter]._incoming(peer.ident, rc, result)
             if not self.inflight[counter]:
                 self.rpcs[counter]._complete()
+                del self.inflight[counter]
 
     def wait(self, rpc_list, timeout=None):
         if not hasattr(rpc_list, "__iter__"):
@@ -72,8 +73,6 @@ class RPCClient(object):
 
     def arrival(self, counter, peer):
         self.inflight[counter].remove(peer.ident)
-        if not self.inflight[counter]:
-            del self.inflight[counter]
 
 
 class ProxiedClient(RPCClient):
@@ -144,7 +143,8 @@ class RPC(object):
 
         this may also be the complete results, if :attr:`complete` is True
         """
-        return deepcopy(self._results)
+        return [type(x)(*deepcopy(x.args)) if isinstance(x, Exception)
+                else deepcopy(x) for x in self._results]
 
     @property
     def results(self):
@@ -155,8 +155,7 @@ class RPC(object):
         """
         if not self._completed:
             raise AttributeError("incomplete response")
-        return [type(x)(*deepcopy(x.args)) if isinstance(x, Exception)
-                else deepcopy(x) for x in self._results]
+        return self.partial_results
 
     @property
     def complete(self):
