@@ -67,14 +67,17 @@ class Dispatcher(object):
                         yield (msg_type, service, method, mask, value)
 
     def store_peer(self, peer):
+        success = True
         if peer.ident in self.peers:
             winner, loser = connection.compare(peer, self.peers[peer.ident])
             loser.go_down(reconnect=False)
             self.drop_peer_subscriptions(winner)
+            success = peer is not loser
             peer = winner
 
         self.peers[peer.ident] = peer
         self.add_peer_subscriptions(peer, peer.subscriptions, extend=False)
+        return success
 
     def drop_peer(self, peer):
         self.peers.pop(peer.ident, None)

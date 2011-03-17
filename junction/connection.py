@@ -44,13 +44,13 @@ class Peer(object):
         self.up = False
         self.established.clear()
         self.end_io_coros()
-        self.sock.close()
         self.dispatcher.drop_peer(self)
 
         if not reconnect:
             self._closing = True
             self.reconnect_waiter.set()
             self.reconnect_waiter.clear()
+            scheduler.schedule_in(1.0, self.sock.close)
         elif self.initiator:
             self.schedule_restarter()
 
@@ -72,7 +72,7 @@ class Peer(object):
 
         if success:
             self.schedule_io_coros()
-        elif self.initiator:
+        elif self.initiator and not self._closing:
             self.schedule_restarter()
 
     def restarter_coro(self):
@@ -176,9 +176,7 @@ class Peer(object):
         self.up = True
         self.established.set()
 
-        self.dispatcher.store_peer(self)
-
-        return True
+        return self.dispatcher.store_peer(self)
 
     def reconnect(self):
         pauses = itertools.chain(self.reconnect_pauses, itertools.repeat(30.0))
@@ -191,8 +189,7 @@ class Peer(object):
             self.established.clear()
             self.up = False
 
-            self.reconnect_waiter.wait(timeout=pause)
-            if self._closing:
+            if not self.reconnect_waiter.wait(timeout=pause) or self._closing:
                 return False
 
             if self.attempt_connect():
