@@ -30,6 +30,10 @@ class Client(object):
         '''
         return self._peer.wait_connected(timeout)
 
+    def shutdown(self):
+        'Close the node connection'
+        self._peer.go_down(reconnect=False)
+
     def publish(self, service, method, routing_id, args, kwargs):
         '''Send a 1-way message
 
@@ -83,7 +87,7 @@ class Client(object):
             doesn't have a connection to a node
         '''
         if not self._peer.up:
-            raise Unroutable()
+            raise errors.Unroutable()
 
         return self._rpc_client.request([self._peer],
                 service, method, routing_id, args, kwargs)

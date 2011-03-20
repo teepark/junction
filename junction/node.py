@@ -48,6 +48,11 @@ class Node(object):
 
         return False
 
+    def shutdown(self):
+        'Close all peer connections'
+        for peer in self._dispatcher.peers.itervalues():
+            peer.go_down(reconnect=False)
+
     def accept_publish(
             self, service, method, mask, value, handler, schedule=False):
         '''Set a handler for incoming publish messages
