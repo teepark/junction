@@ -13,6 +13,9 @@ class NoRemoteHandler(Exception):
 class RemoteException(Exception):
     "An unexpected exception occurred in the peer handling an RPC"
 
+class LostConnection(Exception):
+    "The connection closed while waiting for a response"
+
 class UnrecognizedRemoteProblem(Exception):
     "Improperly formatted RPC error response"
 

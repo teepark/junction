@@ -13,6 +13,7 @@ class RPCClient(object):
     def __init__(self):
         self.counter = 1
         self.inflight = {}
+        self.by_peer = {}
         self.rpcs = weakref.WeakValueDictionary()
 
     def request(self, targets, service, method, routing_id, args, kwargs):
@@ -25,7 +26,7 @@ class RPCClient(object):
 
         target_count = 0
         for peer in targets:
-            target_set.add(peer.ident)
+            target_set.add(peer)
             peer.send_queue.put(msg)
             target_count += 1
 
@@ -39,6 +40,10 @@ class RPCClient(object):
 
         return rpc
 
+    def connection_down(self, peer):
+        for counter in self.by_peer.get(id(peer), []):
+            self.response(peer, counter, const.RPC_ERR_LOST_CONN, None)
+
     def response(self, peer, counter, rc, result):
         self.arrival(counter, peer)
 
@@ -47,6 +52,8 @@ class RPCClient(object):
             if not self.inflight[counter]:
                 self.rpcs[counter]._complete()
                 del self.inflight[counter]
+            if not self.by_peer[id(peer)]:
+                del self.by_peer[id(peer)]
 
     def wait(self, rpc_list, timeout=None):
         if not hasattr(rpc_list, "__iter__"):
@@ -69,10 +76,13 @@ class RPCClient(object):
         return wait.completed_rpc
 
     def sent(self, counter, targets):
-        self.inflight[counter] = targets
+        self.inflight[counter] = set(x.ident for x in targets)
+        for peer in targets:
+            self.by_peer.setdefault(id(peer), set()).add(counter)
 
     def arrival(self, counter, peer):
         self.inflight[counter].remove(peer.ident)
+        self.by_peer[id(peer)].remove(counter)
 
 
 class ProxiedClient(RPCClient):
@@ -80,9 +90,12 @@ class ProxiedClient(RPCClient):
 
     def sent(self, counter, targets):
         self.inflight[counter] = 0
+        for peer in targets:
+            self.by_peer.setdefault(id(peer), set()).add(counter)
 
     def arrival(self, counter, peer):
         self.inflight[counter] -= 1
+        self.by_peer[id(peer)].remove(counter)
 
     def expect(self, counter, target_count):
         self.inflight[counter] += target_count
@@ -108,7 +121,6 @@ class RPC(object):
 
         self._counter = counter
         self._target_count = target_count
-        self._peers_down = 0
 
     def wait(self, timeout=None):
         """Block the current greenlet until the response arrives
@@ -185,6 +197,9 @@ class RPC(object):
 
         if rc == const.RPC_ERR_UNKNOWN:
             return errors.RemoteException(peer_ident, result)
+
+        if rc == const.RPC_ERR_LOST_CONN:
+            return errors.LostConnection(peer_ident)
 
         return errors.UnrecognizedRemoteProblem(peer_ident, rc, result)
 
