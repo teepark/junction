@@ -174,9 +174,7 @@ class Node(object):
             :class:`Unroutable <junction.errors.Unroutable>` if no peers are
             registered to receive the message
         '''
-        rpc = self._rpc_client.request(
-                self._dispatcher.find_peer_routes(
-                    const.MSG_TYPE_RPC_REQUEST, service, method, routing_id),
+        rpc = self._dispatcher.send_rpc(
                 service, method, routing_id, args, kwargs)
 
         if not rpc:

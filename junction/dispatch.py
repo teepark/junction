@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import itertools
 import sys
 import traceback
 
@@ -42,7 +43,7 @@ class Dispatcher(object):
         if added:
             for peer in self.peers.itervalues():
                 if peer.up:
-                    peer.send_queue.put((const.MSG_TYPE_ANNOUNCE, added))
+                    peer.push((const.MSG_TYPE_ANNOUNCE, added))
 
         return len(added)
 
@@ -124,17 +125,46 @@ class Dispatcher(object):
     def send_publish(self, service, method, routing_id, args, kwargs):
         msg = (const.MSG_TYPE_PUBLISH,
                 (service, method, routing_id, args, kwargs))
-
         found_one = False
+
+        # handle locally if we have a hander for it
+        handler, schedule = self.find_local_handler(
+                const.MSG_TYPE_PUBLISH, service, method, routing_id)
+        if handler is not None:
+            found_one = True
+            if schedule:
+                scheduler.schedule(handler, args=args, kwargs=kwargs)
+            else:
+                try:
+                    handler(*args, **kwargs)
+                except Exception:
+                    scheduler.handle_exception(*sys.exc_info())
+
+        # send publishes to peers with handlers
         for peer in self.find_peer_routes(
                 const.MSG_TYPE_PUBLISH, service, method, routing_id):
             found_one = True
-            peer.send_queue.put(msg)
+            peer.push(msg)
 
         return found_one
 
+    def send_rpc(self, service, method, routing_id, args, kwargs):
+        routes = self.find_peer_routes(
+                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
+
+        handler, schedule = self.find_local_handler(
+                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
+        if handler is not None:
+            local_target = LocalTarget(self, handler, schedule)
+            routes = itertools.chain([local_target], routes)
+
+        rpc = self.rpc_client.request(
+                routes, service, method, routing_id, args, kwargs)
+
+        return rpc
+
     def send_proxied_publish(self, service, method, routing_id, args, kwargs):
-        self.peers.values()[0].send_queue.put(
+        self.peers.values()[0].push(
                 (const.MSG_TYPE_PROXY_PUBLISH,
                     (service, method, routing_id, args, kwargs)))
 
@@ -186,12 +216,12 @@ class Dispatcher(object):
             result = traceback.format_exception(*sys.exc_info())
             scheduler.handle_exception(*sys.exc_info())
 
-        peer.send_queue.put((response, (counter, rc, result)))
+        peer.push((response, (counter, rc, result)))
 
     def incoming_rpc_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
             # badly formed messages
-            peer.send_queue.put(
+            peer.push(
                     (const.MSG_TYPE_RPC_RESPONSE,
                         (counter, const.RPC_ERR_MALFORMED, None)))
             return
@@ -201,7 +231,7 @@ class Dispatcher(object):
                 const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
         if handler is None:
             # mis-delivered message
-            peer.send_queue.put(
+            peer.push(
                     (const.MSG_TYPE_RPC_RESPONSE,
                         (counter, const.RPC_ERR_NOHANDLER, None)))
             return
@@ -224,7 +254,7 @@ class Dispatcher(object):
             entry['awaiting'] -= 1
             if not entry['awaiting']:
                 del self.inflight_proxies[counter]
-            entry['peer'].send_queue.put((const.MSG_TYPE_PROXY_RESPONSE,
+            entry['peer'].push((const.MSG_TYPE_PROXY_RESPONSE,
                     (entry['client_counter'], rc, result)))
         elif (counter not in self.rpc_client.inflight or
                 peer.ident not in self.rpc_client.inflight[counter]):
@@ -279,7 +309,7 @@ class Dispatcher(object):
                 'peer': peer,
             }
 
-        peer.send_queue.put((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
+        peer.push((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
                 (client_counter, target_count)))
 
     def incoming_proxy_response(self, peer, msg):
@@ -300,7 +330,7 @@ class Dispatcher(object):
             # drop malformed responses
             return
         counter, target_count = msg
-        self.rpc_client.expect(counter, target_count)
+        self.rpc_client.expect(peer, counter, target_count)
 
     handlers = {
         const.MSG_TYPE_ANNOUNCE: add_peer_subscriptions,
@@ -312,3 +342,37 @@ class Dispatcher(object):
         const.MSG_TYPE_PROXY_RESPONSE: incoming_proxy_response,
         const.MSG_TYPE_PROXY_RESPONSE_COUNT: incoming_proxy_response_count,
     }
+
+
+class LocalTarget(object):
+    def __init__(self, dispatcher, handler, schedule):
+        self.dispatcher = dispatcher
+        self.handler = handler
+        self.schedule = schedule
+        self.ident = None
+
+    def push(self, msg):
+        msgtype, msg = msg
+        if msgtype == const.MSG_TYPE_PUBLISH:
+            service, method, routing_id, args, kwargs = msg
+            if self.schedule:
+                scheduler.schedule(self.handler, args=args, kwargs=kwargs)
+            else:
+                try:
+                    self.handler(*args, **kwargs)
+                except Exception:
+                    scheduler.handle_exception(*sys.exc_info())
+
+        elif msgtype == const.MSG_TYPE_RPC_REQUEST:
+            counter, service, method, routing_id, args, kwargs = msg
+            if self.schedule:
+                scheduler.schedule(self.dispatcher.rpc_handler,
+                        args=(self, counter, self.handler, args, kwargs))
+            else:
+                self.dispatcher.rpc_handler(
+                        self, counter, self.handler, args, kwargs)
+
+        elif msgtype == const.MSG_TYPE_RPC_RESPONSE:
+            # sent back here via dispatcher.rpc_handler
+            counter, rc, result = msg
+            self.dispatcher.rpc_client.response(self, counter, rc, result)

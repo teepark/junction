@@ -27,7 +27,7 @@ class RPCClient(object):
         target_count = 0
         for peer in targets:
             target_set.add(peer)
-            peer.send_queue.put(msg)
+            peer.push(msg)
             target_count += 1
 
         if not target_set:
@@ -91,14 +91,17 @@ class ProxiedClient(RPCClient):
     def sent(self, counter, targets):
         self.inflight[counter] = 0
         for peer in targets:
-            self.by_peer.setdefault(id(peer), set()).add(counter)
+            self.by_peer.setdefault(id(peer), {})[counter] = 0
 
     def arrival(self, counter, peer):
         self.inflight[counter] -= 1
-        self.by_peer[id(peer)].remove(counter)
+        self.by_peer[id(peer)][counter] -= 1
+        if not self.by_peer[id(peer)][counter]:
+            del self.by_peer[id(peer)][counter]
 
-    def expect(self, counter, target_count):
+    def expect(self, peer, counter, target_count):
         self.inflight[counter] += target_count
+        self.by_peer[id(peer)][counter] += target_count
 
         if counter in self.rpcs:
             self.rpcs[counter]._target_count = target_count

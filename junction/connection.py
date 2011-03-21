@@ -59,6 +59,9 @@ class Peer(object):
         self.established.wait(timeout)
         return not self.up
 
+    def push(self, msg):
+        self.send_queue.put(msg)
+
     ##
     ## Coroutines
     ##
