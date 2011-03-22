@@ -65,7 +65,7 @@ class RPCClient(object):
             if rpc._completed:
                 return rpc
 
-        wait = Wait(self, [r.counter for r in rpc_list])
+        wait = Wait(self, [r._counter for r in rpc_list])
 
         for rpc in rpc_list:
             rpc._waits.append(wait)
@@ -182,8 +182,9 @@ class RPC(object):
 
     def _complete(self):
         self._completed = True
-        if self._waits:
-            self._waits[0].finish(self)
+
+        for wait in self._waits:
+            wait.finish(self)
 
     def _format_result(self, peer_ident, rc, result):
         if not rc:
@@ -217,12 +218,10 @@ class Wait(object):
     def finish(self, rpc):
         self.completed_rpc = rpc
 
-        rpcs = self.client.rpcs
         for counter in self.counters:
-            rpc = rpcs.get(counter, None)
-            if not rpc:
-                continue
-            rpc._waits.remove(self)
+            rpc = self.client.rpcs.get(counter, None)
+            if rpc:
+                rpc._waits.remove(self)
 
         self.done.set()
 
