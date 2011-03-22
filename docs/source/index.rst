@@ -6,7 +6,12 @@
 Welcome to junction's documentation!
 ====================================
 
-Contents:
+Junction is a publish/subscribe and RPC system for python, geared
+towards distributing work on internal networks.
+
+
+API Reference
+-------------
 
 .. toctree::
    :maxdepth: 2
@@ -22,4 +27,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
