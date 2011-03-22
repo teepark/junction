@@ -1,6 +1,9 @@
 class MessageCutOff(Exception):
     "A peer connection terminated mid-message"
 
+class _BailOutOfListener(Exception):
+    pass
+
 class BadHandshake(Exception):
     "Unexpected message while trying to establish a peering"
 

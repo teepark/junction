@@ -15,6 +15,7 @@ class Node(object):
         self._peers = peer_addrs
         self._started_peers = {}
         self._closing = False
+        self._listener_coro = None
 
         self._rpc_client = rpc.RPCClient()
         self._dispatcher = dispatch.Dispatcher(self.VERSION, self._rpc_client)
@@ -49,9 +50,13 @@ class Node(object):
         return False
 
     def shutdown(self):
-        'Close all peer connections'
-        for peer in self._dispatcher.peers.itervalues():
+        'Close all peer connections and stop listening for new ones'
+        for peer in self._dispatcher.peers.values():
             peer.go_down(reconnect=False)
+
+        if self._listener_coro:
+            scheduler.schedule_exception(
+                    errors._BailOutOfListener(), self._listener_coro)
 
     def accept_publish(
             self, service, method, mask, value, handler, schedule=False):
@@ -245,6 +250,7 @@ class Node(object):
 
     def start(self):
         "Start up the node's server, and have it start initiating connections"
+        self._listener_coro = scheduler.greenlet(self._listener)
         scheduler.schedule(self._listener_coro)
 
         for addr in self._peers:
@@ -253,15 +259,23 @@ class Node(object):
             peer.start()
             self._started_peers[addr] = peer
 
-    def _listener_coro(self):
+    def _listener(self):
         server = io.Socket()
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         server.bind(self.addr)
         server.listen(socket.SOMAXCONN)
 
-        while not self._closing:
-            client, addr = server.accept()
-            peer = connection.Peer(self._ident, self._dispatcher, addr, client,
-                    initiator=False)
-            peer.start()
+        try:
+            while not self._closing:
+                client, addr = server.accept()
+                peer = connection.Peer(self._ident, self._dispatcher, addr, client,
+                        initiator=False)
+                peer.start()
+
+                # we may block on the accept() call for a while, and these local
+                # vars will prevent the last peer from being garbage collected if
+                # it goes down in the meantime.
+                del client, peer
+        except errors._BailOutOfListener:
+            server.close()
