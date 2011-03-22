@@ -267,14 +267,7 @@ class Dispatcher(object):
         if not isinstance(msg, tuple) or len(msg) != 5:
             # drop malformed messages
             return
-        service, method, routing_id, args, kwargs = msg
-
-        # in case we are the publish's destination
-        # (it'll just get dropped if we have no local handler for it)
-        self.incoming_publish(peer, msg)
-
-        # in case it needs to be forwarded
-        self.send_publish(service, method, routing_id, args, kwargs)
+        self.send_publish(*msg)
 
     def incoming_proxy_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
