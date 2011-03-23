@@ -58,4 +58,4 @@ def docs():
 
 @task
 def test():
-    sh("nosetests --processes=8")
+    sh("nosetests")
