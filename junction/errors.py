@@ -29,7 +29,7 @@ class RPCWaitTimeout(Exception):
 HANDLED_ERROR_TYPES = {}
 
 class _MetaHandledError(type):
-    def __Init__(cls, *args, **kwargs):
+    def __init__(cls, *args, **kwargs):
         if cls.code in HANDLED_ERROR_TYPES:
             raise Exception("HandledError subclasses need unique 'code's")
 
