@@ -86,41 +86,24 @@ class Dispatcher(object):
 
     def add_peer_subscriptions(self, peer, subscriptions, extend=True):
         for msg_type, service, method, mask, value in subscriptions:
-            self.peer_subs.setdefault(
-                    msg_type, {}).setdefault(
-                            service, {}).setdefault(
-                                    method, []).append((mask, value, peer))
+            self.peer_subs.setdefault((msg_type, service, method), []).append(
+                    (mask, value, peer))
         if extend:
             peer.subscriptions.extend(subscriptions)
 
     def drop_peer_subscriptions(self, peer):
         for msg_type, service, method, mask, value in peer.subscriptions:
+            group = (msg_type, service, method)
             item = (mask, value, peer)
-            if msg_type in self.peer_subs:
-                group1 = self.peer_subs[msg_type]
-                if service in group1:
-                    group2 = group1[service]
-                    if method in group2:
-                        group3 = group2[method]
-                        if item in group3:
-                            group3.remove(item)
-                        if not group3:
-                            group2.pop(method)
-                    if not group2:
-                        group1.pop(service)
-                if not group1:
-                    self.peer_subs.pop(msg_type)
+            if item in self.peer_subs[group]:
+                self.peer_subs[group].remove(item)
+                if not self.peer_subs[group]:
+                    del self.peer_subs[group]
 
     def find_peer_routes(self, msg_type, service, method, routing_id):
-        route = self.peer_subs
-        for traversal in (msg_type, service, method):
-            if traversal not in route:
-                return
-            route = route[traversal]
-
-        for mask, value, peer in route:
-            if peer.up and mask & routing_id == value:
-                yield peer
+        return (peer for (mask, value, peer)
+                in self.peer_subs.get((msg_type, service, method), [])
+                if peer.up and routing_id & mask == value)
 
     def send_publish(self, service, method, routing_id, args, kwargs):
         msg = (const.MSG_TYPE_PUBLISH,
