@@ -9,12 +9,14 @@ Welcome to junction's documentation!
 Junction is a publish/subscribe and RPC system for python, geared
 towards distributing work on internal networks.
 
+It uses greenhouse_ for the parallel IO across peers and for blocking
+syncronous calls, and mummy_ for fast object serialization.
+
 
 API Reference
 -------------
 
 .. toctree::
-   :maxdepth: 2
 
    junction/node
    junction/client
@@ -22,8 +24,12 @@ API Reference
    junction/errors
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+
+.. _greenhouse: http://teepark.github.com/greenhouse
+.. _mummy: http://github.com/teepark/mummy
