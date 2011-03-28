@@ -25,9 +25,7 @@ class Dispatcher(object):
                 continue
 
             previous_subscriptions = self.local_subs.setdefault(
-                    msg_type, {}).setdefault(
-                            service, {}).setdefault(
-                                    method, [])
+                    (msg_type, service, method), [])
 
             # subscriptions must be mutually exclusive. that is, there cannot
             # be more than one handler on a node for any possible message
@@ -48,24 +46,20 @@ class Dispatcher(object):
         return len(added)
 
     def find_local_handler(self, msg_type, service, method, routing_id):
-        route = self.local_subs
-        for traversal in (msg_type, service, method):
-            if traversal not in route:
-                return None, False
-            route = route[traversal]
+        group = (msg_type, service, method)
+        if group not in self.local_subs:
+            return None, False
 
-        for mask, value, handler, schedule in route:
-            if mask & routing_id == value:
+        for mask, value, handler, schedule in self.local_subs[group]:
+            if routing_id & mask == value:
                 return handler, schedule
 
         return None, False
 
     def local_subscriptions(self):
-        for msg_type, rest in self.local_subs.iteritems():
-            for service, rest in rest.iteritems():
-                for method, rest in rest.iteritems():
-                    for mask, value, handler, schedule in rest:
-                        yield (msg_type, service, method, mask, value)
+        for (msg_type, service, method), (mask, value, handler, schedule) \
+                in self.local_subs.iteritems():
+            yield (msg_type, service, method, mask, value)
 
     def store_peer(self, peer):
         success = True
