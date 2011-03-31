@@ -91,6 +91,27 @@ class Node(object):
         return bool(self._dispatcher.add_local_subscriptions(handler,
             [(const.MSG_TYPE_PUBLISH, service, method, mask, value, schedule)]))
 
+    def unsubscribe_publish(self, service, method, mask, value, handler):
+        '''Remove a publish subscription
+
+        :param service: the service of the subscription to remove
+        :type service: anything hash-able
+        :param method: the method in the subscription
+        :type method: string
+        :param mask: the mask of the subscription to remove
+        :type mask: int
+        :param value: the value in the subscription to remove
+        :type value: int
+        :param handler: the handler function of the subscription to remove
+        :type handler: callable
+
+        :returns:
+            a boolean indicating whether the subscription was there (True) and
+            removed, or not (False)
+        '''
+        return self._dispatcher.remove_local_subscription(
+                const.MSG_TYPE_PUBLISH, service, method, mask, value, handler)
+
     def publish(self, service, method, routing_id, args, kwargs):
         '''Send a 1-way message
 
@@ -154,6 +175,28 @@ class Node(object):
                 mask,
                 value,
                 schedule)]))
+
+    def unsubscribe_rpc(self, service, method, mask, value, handler):
+        '''Remove a rpc subscription
+
+        :param service: the service of the subscription to remove
+        :type service: anything hash-able
+        :param method: the method in the subscription
+        :type method: string
+        :param mask: the mask of the subscription to remove
+        :type mask: int
+        :param value: the value in the subscription to remove
+        :type value: int
+        :param handler: the handler function of the subscription to remove
+        :type handler: callable
+
+        :returns:
+            a boolean indicating whether the subscription was there (True) and
+            removed, or not (False)
+        '''
+        return self._dispatcher.remove_local_subscription(
+                const.MSG_TYPE_RPC_REQUEST, service, method, mask, value,
+                handler)
 
     def send_rpc(self, service, method, routing_id, args, kwargs):
         '''Send out an RPC request

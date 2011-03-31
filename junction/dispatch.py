@@ -45,6 +45,16 @@ class Dispatcher(object):
 
         return len(added)
 
+    def remove_local_subscription(
+            self, msg_type, service, method, mask, value, handler):
+        group = self.local_subs.get((msg_type, service, method), [])
+        for i, (mask2, value2, handler2, schedule) in enumerate(group):
+            if mask == mask2 and value == value2 and handler is handler2:
+                del group[i]
+                return True
+        return False
+                
+
     def find_local_handler(self, msg_type, service, method, routing_id):
         group = (msg_type, service, method)
         if group not in self.local_subs:
