@@ -51,9 +51,25 @@ class Dispatcher(object):
         for i, (mask2, value2, handler2, schedule) in enumerate(group):
             if mask == mask2 and value == value2 and handler is handler2:
                 del group[i]
+                for peer in self.peers.itervalues():
+                    if peer.up:
+                        peer.push((const.MSG_TYPE_UNSUBSCRIBE,
+                            (msg_type, service, method, mask, value)))
                 return True
         return False
-                
+
+    def incoming_unsubscribe(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 5:
+            # badly formatted message
+            return
+
+        msg_type, service, method, mask, value = msg
+
+        groups = self.peer_subs[(msg_type, service, method)]
+        for i, group in enumerate(groups):
+            if (mask, value, peer) == group:
+                del groups[i]
+                break
 
     def find_local_handler(self, msg_type, service, method, routing_id):
         group = (msg_type, service, method)
@@ -315,6 +331,7 @@ class Dispatcher(object):
 
     handlers = {
         const.MSG_TYPE_ANNOUNCE: add_peer_subscriptions,
+        const.MSG_TYPE_UNSUBSCRIBE: incoming_unsubscribe,
         const.MSG_TYPE_PUBLISH: incoming_publish,
         const.MSG_TYPE_RPC_REQUEST: incoming_rpc_request,
         const.MSG_TYPE_RPC_RESPONSE: incoming_rpc_response,
