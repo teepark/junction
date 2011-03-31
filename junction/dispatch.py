@@ -67,9 +67,10 @@ class Dispatcher(object):
         return None, False
 
     def local_subscriptions(self):
-        for (msg_type, service, method), (mask, value, handler, schedule) \
-                in self.local_subs.iteritems():
-            yield (msg_type, service, method, mask, value)
+        for key, value in self.local_subs.iteritems():
+            msg_type, service, method = key
+            for mask, value, handler, schedule in value:
+                yield (msg_type, service, method, mask, value)
 
     def store_peer(self, peer):
         success = True
