@@ -138,6 +138,20 @@ class Node(object):
                 service, method, routing_id, args, kwargs):
             raise errors.Unroutable()
 
+    def publish_receiver_count(self, service, method, routing_id):
+        '''Get the number of peers that would handle a particular publish
+
+        :param service: the service name
+        :type service: anything hash-able
+        :param method: the method name
+        :type method: string
+        :param routing_id:
+            the id used for narrowing within the (service, method) handlers
+        :type routing_id: int
+        '''
+        return len(list(self._dispatcher.find_peer_routes(
+            const.MSG_TYPE_PUBLISH, service, method, routing_id)))
+
     def accept_rpc(self, service, method, mask, value, handler, schedule=True):
         '''Set a handler for incoming RPCs
 
@@ -290,6 +304,20 @@ class Node(object):
         '''
         return self.send_rpc(
                 service, method, routing_id, args, kwargs).wait(timeout)
+
+    def rpc_receiver_count(self, service, method, routing_id):
+        '''Get the number of peers that would handle a particular RPC
+
+        :param service: the service name
+        :type service: anything hash-able
+        :param method: the method name
+        :type method: string
+        :param routing_id:
+            the id used for narrowing within the (service, method) handlers
+        :type routing_id: int
+        '''
+        return len(list(self._dispatcher.find_peer_routes(
+            const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)))
 
     def start(self):
         "Start up the node's server, and have it start initiating connections"

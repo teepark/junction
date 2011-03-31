@@ -36,13 +36,7 @@ class Coordinator(object):
     def handle_map_reduce(self, pickled_mapper, pickled_reducer):
         reducer = random.randrange(self._num_reducers)
 
-        # just get the count of mappers available
-        mappers = len(self._node.rpc(
-            self._service,
-            "mapper_ping",
-            0,
-            (),
-            {}))
+        mappers = self._node.publish_receiver_count(self._service, "map", 0)
 
         job_id = self._node.rpc(
             self._service,
@@ -136,14 +130,8 @@ class Mapper(object):
         self._datasource = data_source
         self._num_reducers = reducer_count
 
-        node.accept_rpc(
-                service, "mapper_ping", 0, 0, self.handle_ping, schedule=False)
-
         node.accept_publish(
                 service, "map", 0, 0, self.handle_map, schedule=True)
-
-    def handle_ping(self):
-        return None
 
     def handle_map(self, job_id, pickled_mapper, reducer_id):
         items = self._datasource()
