@@ -8,6 +8,11 @@ import greenhouse
 import junction
 
 
+def map_reduce(node, service, mapper, reducer):
+    return node.rpc(service, "map_reduce", 0,
+            (pickle.dumps(mapper), pickle.dumps(reducer)), {})[0]
+
+
 class Coordinator(object):
     def __init__(self, node, service, mask, value, num_reducers):
         self._node = node
@@ -16,16 +21,15 @@ class Coordinator(object):
         self._num_reducers = num_reducers
         self._active = {}
 
-        assert node.accept_rpc(
+        node.accept_rpc(
             service,
             "map_reduce",
             mask,
             value,
             self.handle_map_reduce,
-            schedule=True), "illegal subscription (%r, %d, %d)" % (
-                    service, mask, value)
+            schedule=True)
 
-        assert node.accept_publish(
+        node.accept_publish(
             service,
             "result",
             mask,
