@@ -361,7 +361,7 @@ class Dispatcher(object):
     def connection_down(self, peer):
         for counter in self.rpc_client.by_peer.get(id(peer), []):
             if counter in self.inflight_proxies:
-                self.proxied_resopnse(counter, const.RPC_ERR_LOST_CONN, None)
+                self.proxied_response(counter, const.RPC_ERR_LOST_CONN, None)
 
         self.rpc_client.connection_down(peer)
 
