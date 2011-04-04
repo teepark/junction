@@ -46,7 +46,7 @@ class Peer(object):
         self.established.clear()
         self.end_io_coros()
         self.dispatcher.drop_peer(self)
-        self.dispatcher.rpc_client.connection_down(self)
+        self.dispatcher.connection_down(self)
 
         if not reconnect:
             self._closing = True

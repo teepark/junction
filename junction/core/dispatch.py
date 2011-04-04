@@ -255,18 +255,21 @@ class Dispatcher(object):
         counter, rc, result = msg
 
         if counter in self.inflight_proxies:
-            entry = self.inflight_proxies[counter]
-            entry['awaiting'] -= 1
-            if not entry['awaiting']:
-                del self.inflight_proxies[counter]
-            entry['peer'].push((const.MSG_TYPE_PROXY_RESPONSE,
-                    (entry['client_counter'], rc, result)))
+            self.proxied_response(counter, rc, result)
         elif (counter not in self.rpc_client.inflight or
                 peer.ident not in self.rpc_client.inflight[counter]):
             # drop mistaken responses
             return
 
         self.rpc_client.response(peer, counter, rc, result)
+
+    def proxied_response(self, counter, rc, result):
+        entry = self.inflight_proxies[counter]
+        entry['awaiting'] -= 1
+        if not entry['awaiting']:
+            del self.inflight_proxies[counter]
+        entry['peer'].push((const.MSG_TYPE_PROXY_RESPONSE,
+                (entry['client_counter'], rc, result)))
 
     def incoming_proxy_publish(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:
@@ -354,6 +357,13 @@ class Dispatcher(object):
         const.MSG_TYPE_PROXY_RESPONSE_COUNT: incoming_proxy_response_count,
         const.MSG_TYPE_PROXY_QUERY_COUNT: incoming_proxy_query_count,
     }
+
+    def connection_down(self, peer):
+        for counter in self.rpc_client.by_peer.get(id(peer), []):
+            if counter in self.inflight_proxies:
+                self.proxied_resopnse(counter, const.RPC_ERR_LOST_CONN, None)
+
+        self.rpc_client.connection_down(peer)
 
 
 class LocalTarget(object):
