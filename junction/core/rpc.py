@@ -4,7 +4,8 @@ import weakref
 
 from greenhouse import utils
 import mummy
-from . import const, errors
+from . import const
+from .. import errors
 
 
 class RPCClient(object):
@@ -41,7 +42,7 @@ class RPCClient(object):
         return rpc
 
     def connection_down(self, peer):
-        for counter in self.by_peer.get(id(peer), []):
+        for counter in list(self.by_peer.get(id(peer), [])):
             self.response(peer, counter, const.RPC_ERR_LOST_CONN, None)
 
     def response(self, peer, counter, rc, result):
@@ -108,6 +109,22 @@ class ProxiedClient(RPCClient):
 
             if not self.inflight[counter]:
                 self.rpcs[counter]._complete()
+
+    def recipient_count(self, target, msg_type, service, method, routing_id):
+        counter = self.counter
+        self.counter += 1
+
+        target.push((const.MSG_TYPE_PROXY_QUERY_COUNT,
+                (counter, msg_type, service, method, routing_id)))
+
+        self.sent(counter, set([target]))
+
+        rpc = RPC(self, counter, 1)
+        self.rpcs[counter] = rpc
+
+        self.expect(target, counter, 1)
+
+        return rpc
 
 
 class RPC(object):

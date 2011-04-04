@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
 from greenhouse import io
-from . import connection, dispatch, errors, rpc
+from . import errors
+from .core import connection, const, dispatch, rpc
 
 
 class Client(object):
@@ -155,3 +156,29 @@ class Client(object):
         if not rpc.target_count:
             raise errors.Unroutable()
         return results
+
+    def rpc_receiver_count(self, service, method, routing_id, timeout=None):
+        '''Get the number of peers that would handle a particular RPC
+
+        This method will block until a response arrives
+
+        :param service: the service name
+        :type service: anything hash-able
+        :param method: the method name
+        :type method: string
+        :param routing_id:
+            the id used for narrowing within the (service, method) handlers
+        :type routing_id: int
+
+        :raises:
+            - :class:`Unroutable <junction.errors.Unroutable>` if no peers are
+              registered to receive the message
+            - :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>` if a
+              timeout was provided and it expires
+        '''
+        if not self._peer.up:
+            raise errors.Unroutable()
+
+        return self._rpc_client.recipient_count(self._peer,
+                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id).wait(
+                        timeout)[0]

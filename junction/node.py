@@ -4,7 +4,8 @@ import socket
 import time
 
 from greenhouse import io, scheduler
-from . import connection, const, dispatch, errors, rpc
+from . import errors
+from .core import connection, const, dispatch, rpc
 
 
 class Node(object):

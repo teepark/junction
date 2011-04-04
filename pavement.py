@@ -8,7 +8,7 @@ VERSION = (0, 1, 0, "")
 setup(
     name="junction",
     description="",
-    packages=["junction"],
+    packages=["junction", "junction.core"],
     version=".".join(filter(None, map(str, VERSION))),
     author="Travis Parker",
     author_email="travis.parker@gmail.com",

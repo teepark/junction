@@ -5,7 +5,8 @@ import sys
 import traceback
 
 from greenhouse import scheduler
-from . import connection, const, errors
+from . import connection, const
+from .. import errors
 
 
 class Dispatcher(object):
@@ -116,7 +117,7 @@ class Dispatcher(object):
         for msg_type, service, method, mask, value in peer.subscriptions:
             group = (msg_type, service, method)
             item = (mask, value, peer)
-            if item in self.peer_subs[group]:
+            if group in self.peer_subs and item in self.peer_subs[group]:
                 self.peer_subs[group].remove(item)
                 if not self.peer_subs[group]:
                     del self.peer_subs[group]
@@ -309,6 +310,18 @@ class Dispatcher(object):
         peer.push((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
                 (client_counter, target_count)))
 
+    def incoming_proxy_query_count(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 5:
+            return
+        counter, msg_type, service, method, routing_id = msg
+
+        local, scheduled = self.find_local_handler(
+                msg_type, service, method, routing_id)
+        target_count = (local is not None) + len(list(
+            self.find_peer_routes(msg_type, service, method, routing_id)))
+
+        peer.push((const.MSG_TYPE_PROXY_RESPONSE, (counter, 0, target_count)))
+
     def incoming_proxy_response(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
             # drop malformed responses
@@ -339,6 +352,7 @@ class Dispatcher(object):
         const.MSG_TYPE_PROXY_REQUEST: incoming_proxy_request,
         const.MSG_TYPE_PROXY_RESPONSE: incoming_proxy_response,
         const.MSG_TYPE_PROXY_RESPONSE_COUNT: incoming_proxy_response_count,
+        const.MSG_TYPE_PROXY_QUERY_COUNT: incoming_proxy_query_count,
     }
 
 

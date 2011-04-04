@@ -7,7 +7,8 @@ import struct
 from greenhouse import io, scheduler, utils
 import mummy
 
-from . import const, errors
+from . import const
+from .. import errors
 
 
 class Peer(object):
