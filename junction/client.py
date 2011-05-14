@@ -63,6 +63,35 @@ class Client(object):
         self._dispatcher.send_proxied_publish(
                 service, method, routing_id, args, kwargs)
 
+    def publish_receiver_count(
+            self, service, method, routing_id, timeout=None):
+        '''Get the number of peers that would handle a particular publish
+
+        This method will block until a response arrives
+
+        :param service: the service name
+        :type service: anything hash-able
+        :param method: the method name
+        :type method: string
+        :param routing_id:
+            the id used for narrowing within the (service, method) handlers
+        :type routing_id: int
+        :param timeout: maximum time to wait for the response
+        :type timeout: int, float or None
+
+        :raises:
+            - :class:`Unroutable <junction.errors.Unroutable>` if no peers are
+              registered to receive the message
+            - :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>` if a
+              timeout was provided and it expires
+        '''
+        if not self._peer.up:
+            raise errors.Unroutable()
+
+        return self._rpc_client.recipient_count(self._peer,
+                const.MSG_TYPE_PUBLISH, service, method, routing_id).wait(
+                        timeout)[0]
+
     def send_rpc(self, service, method, routing_id, args, kwargs):
         '''Send out an RPC request
 
