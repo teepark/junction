@@ -22,8 +22,8 @@ class LostConnection(Exception):
 class UnrecognizedRemoteProblem(Exception):
     "Improperly formatted RPC error response"
 
-class RPCWaitTimeout(Exception):
-    "Exception raised when an RPC response outlasts a specified timeout"
+class WaitTimeout(Exception):
+    "Exception raised when a wait outlasts a specified timeout"
 
 
 HANDLED_ERROR_TYPES = {}

@@ -1,6 +1,6 @@
-===========================================================
-:mod:`junction.rpc` -- A Representation Of An In-Flight RPC
-===========================================================
+========================================================
+:mod:`junction.rpc` -- Representations Of In-Flight RPCs
+========================================================
 
 .. automodule:: junction.core.rpc
     :members:

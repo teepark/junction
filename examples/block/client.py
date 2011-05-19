@@ -29,7 +29,7 @@ def main():
         print "queued a wait %r: %r" % (rpcs[-1].counter, wait)
 
     while rpcs:
-        rpc = client.wait_any_rpc(rpcs)
+        rpc = client.wait_any(rpcs)
         print "got back %r" % rpc.counter
         rpcs.remove(rpc)
 

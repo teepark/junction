@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # vim: fileencoding=utf8:et:sta:ai:sw=4:ts=4:sts=4
 
+import functools
 import sys
 import traceback
 
@@ -19,6 +20,13 @@ SERVICE = 1
 greenhouse.add_exception_handler(traceback.print_exception)
 
 
+def second_call(client, results):
+    return client.send_rpc(SERVICE, "echo", 0, (results[0],), {})
+
+def third_call(results):
+    return results[0][:-1]
+
+
 def main():
     peer_addr = RELAY_ADDR if '-r' in sys.argv else SERVICE_ADDR
 
@@ -32,10 +40,15 @@ def main():
 
     rpcs = map(lambda msg: client.send_rpc(SERVICE, "echo", 0, (msg,), {}),
             ('two', 'three', 'four', 'five'))
-    while rpcs:
-        rpc = client.wait_any(rpcs)
-        rpcs.remove(rpc)
-        print rpc.results
+
+    dependents = [
+            rpc.after(functools.partial(second_call, client)).after(third_call)
+            for rpc in rpcs]
+
+    while dependents:
+        dep = client.wait_any(dependents)
+        dependents.remove(dep)
+        print dep.results
 
 if __name__ == '__main__':
     main()

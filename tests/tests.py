@@ -248,7 +248,7 @@ class JunctionTests(object):
         rpcs.append(self.sender.send_rpc("service", "method", 0, (4,), {}))
 
         while rpcs:
-            rpc = self.sender.wait_any_rpc(rpcs)
+            rpc = self.sender.wait_any(rpcs)
             rpcs.remove(rpc)
             sender_results.append(rpc.results)
 

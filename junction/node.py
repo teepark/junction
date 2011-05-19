@@ -230,7 +230,7 @@ class Node(object):
         :type kwargs: dict
 
         :returns:
-            a :class:`RPC <junction.rpc.RPC>` object representing the
+            a :class:`RPC <junction.core.rpc.RPC>` object representing the
             RPC and its future response.
 
         :raises:
@@ -245,31 +245,32 @@ class Node(object):
 
         return rpc
 
-    def wait_any_rpc(self, rpcs, timeout=None):
-        '''Wait for the response for any (the first) of multiple RPCs
+    def wait_any(self, futures, timeout=None):
+        '''Wait for the response for any (the first) of multiple futures
 
         This method will block until a response has been received.
 
-        :param rpcs:
-            a list of rpc :class:`rpc <junction.rpc.RPC>` objects (as
-            returned by :meth:`send_rpc`)
-        :type rpcs: list of :class:`RPCs <junction.rpc.Response>`
+        :param futures:
+            a list made up of :class:`rpc <junction.core.rpc.RPC>` and
+            :class:`Dependent <junction.core.rpc.Dependent>` objects
+        :type futures: list
         :param timeout:
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
         :type timeout: float or None
 
         :returns:
-            one of the :class:`RPC <junction.rpc.RPC>` s from
-            ``rpcs`` -- the first one to be completed (or any of the ones
-            that were already completed) for which the ``completed`` attribute
-            is ``True``.
+            one of the :class:`RPC <junction.core.rpc.RPC>`\s or
+            :class:`Dependent <junction.core.rpc.Dependent>`\s from ``futures``
+            -- the first one to be completed (or any of the ones that were
+            already completed) for which the ``completed`` attribute is
+            ``True``.
 
         :raises:
-            - :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>` if a
-              timeout was provided and it expires
+            - :class:`WaitTimeout <junction.errors.WaitTimeout>` if a timeout
+              was provided and it expires
         '''
-        return self._rpc_client.wait(rpcs, timeout)
+        return self._rpc_client.wait(futures, timeout)
 
     def rpc(self, service, method, routing_id, args, kwargs, timeout=None):
         '''Send an RPC request and return the corresponding response
@@ -300,8 +301,8 @@ class Node(object):
         :raises:
             - :class:`Unroutable <junction.errors.Unroutable>` if no peers are
               registered to receive the message
-            - :class:`RPCWaitTimeout <junction.errors.RPCWaitTimeout>` if a
-              timeout was provided and it expires
+            - :class:`WaitTimeout <junction.errors.WaitTimeout>` if a timeout
+              was provided and it expires
         '''
         return self.send_rpc(
                 service, method, routing_id, args, kwargs).wait(timeout)
