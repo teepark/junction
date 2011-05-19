@@ -1,0 +1,436 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>junction.node – A Node In The Server Mesh &mdash; junction v0.1.0 documentation</title>
+    <link rel="stylesheet" href="../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../static/jquery.js"></script>
+    <script type="text/javascript" src="../static/underscore.js"></script>
+    <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="top" title="junction v0.1.0 documentation" href="../index.html" />
+    <link rel="next" title="junction.client – A Sender-Only Client Object" href="client.html" />
+    <link rel="prev" title="Welcome to junction’s documentation!" href="../index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="client.html" title="junction.client – A Sender-Only Client Object"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="Welcome to junction’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">junction v0.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-junction.node">
+<span id="junction-node-a-node-in-the-server-mesh"></span><h1><a class="reference internal" href="#module-junction.node" title="junction.node"><tt class="xref py py-mod docutils literal"><span class="pre">junction.node</span></tt></a> &#8211; A Node In The Server Mesh<a class="headerlink" href="#module-junction.node" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="junction.node.Node">
+<em class="property">class </em><tt class="descclassname">junction.node.</tt><tt class="descname">Node</tt><big>(</big><em>addr</em>, <em>peer_addrs</em>, <em>hostname=None</em><big>)</big><a class="headerlink" href="#junction.node.Node" title="Permalink to this definition">¶</a></dt>
+<dd><p>A node in the server graph</p>
+<dl class="method">
+<dt id="junction.node.Node.accept_publish">
+<tt class="descname">accept_publish</tt><big>(</big><em>service</em>, <em>method</em>, <em>mask</em>, <em>value</em>, <em>handler</em>, <em>schedule=False</em><big>)</big><a class="headerlink" href="#junction.node.Node.accept_publish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set a handler for incoming publish messages</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the incoming message must have this service</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method name to trigger handler</li>
+<li><strong>mask</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; value to be bitwise-and&#8217;ed against the incoming id, the result of
+which must mask the &#8216;value&#8217; param</li>
+<li><strong>value</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; the result of <cite>routing_id &amp; mask</cite> must match this in order to
+trigger the handler</li>
+<li><strong>handler</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#callable" title="(in Python v2.7)"><em>callable</em></a>) &#8211; the function that will be called on incoming matching messages</li>
+<li><strong>schedule</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; whether to schedule a separate greenlet running <tt class="docutils literal"><span class="pre">handler</span></tt> for
+each matching message. default <tt class="xref docutils literal"><span class="pre">False</span></tt>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a boolean indicating whether a new subscription was stored. this
+can come back <tt class="xref docutils literal"><span class="pre">False</span></tt> if the subscription is somehow invalid (the
+mask/value pair could never match anything, or it overlaps with
+an existing subscription)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.accept_rpc">
+<tt class="descname">accept_rpc</tt><big>(</big><em>service</em>, <em>method</em>, <em>mask</em>, <em>value</em>, <em>handler</em>, <em>schedule=True</em><big>)</big><a class="headerlink" href="#junction.node.Node.accept_rpc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set a handler for incoming RPCs</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the incoming RPC must have this service</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method name to trigger handler</li>
+<li><strong>mask</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; value to be bitwise-and&#8217;ed against the incoming id, the result of
+which must mask the &#8216;value&#8217; param</li>
+<li><strong>value</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; the result of <cite>routing_id &amp; mask</cite> must match this in order to
+trigger the handler</li>
+<li><strong>handler</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#callable" title="(in Python v2.7)"><em>callable</em></a>) &#8211; the function that will be called on incoming matching RPC requests</li>
+<li><strong>schedule</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) &#8211; whether to schedule a separate greenlet running <tt class="docutils literal"><span class="pre">handler</span></tt> for
+each matching message. default <tt class="xref docutils literal"><span class="pre">True</span></tt>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a boolean indicating whether a new subscription was stored. this
+can come back <tt class="xref docutils literal"><span class="pre">False</span></tt> if the subscription is somehow invalid (the
+mask/value pair could never match anything, or it overlaps with
+an existing subscription)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.publish">
+<tt class="descname">publish</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em>, <em>args</em>, <em>kwargs</em><big>)</big><a class="headerlink" href="#junction.node.Node.publish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send a 1-way message</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name (the routing top level)</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method name to call</li>
+<li><strong>routing_id</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; The id used for routing within the registered handlers of the
+service.</li>
+<li><strong>args</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#tuple" title="(in Python v2.7)"><em>tuple</em></a>) &#8211; the positional arguments to send along with the request</li>
+<li><strong>kwargs</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; keyword arguments to send along with the request</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">None. use &#8216;rpc&#8217; methods for requests with responses.</p>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><p class="first last"><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if no peers are
+registered to receive the message</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.publish_receiver_count">
+<tt class="descname">publish_receiver_count</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em><big>)</big><a class="headerlink" href="#junction.node.Node.publish_receiver_count" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the number of peers that would handle a particular publish</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method name</li>
+<li><strong>routing_id</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; the id used for narrowing within the (service, method) handlers</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.rpc">
+<tt class="descname">rpc</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em>, <em>args</em>, <em>kwargs</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.node.Node.rpc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send an RPC request and return the corresponding response</p>
+<p>This will block waiting until the response has been received.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name (the routing top level)</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method name to call</li>
+<li><strong>routing_id</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; The id used for routing within the registered handlers of the
+service.</li>
+<li><strong>args</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#tuple" title="(in Python v2.7)"><em>tuple</em></a>) &#8211; the positional arguments to send along with the request</li>
+<li><strong>kwargs</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; keyword arguments to send along with the request</li>
+<li><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait for a response in seconds. with None, there is
+no timeout.</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a list of the objects returned by the RPC&#8217;s targets. these could be
+of any serializable type.</p>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if no peers are
+registered to receive the message</li>
+<li><a class="reference internal" href="errors.html#junction.errors.WaitTimeout" title="junction.errors.WaitTimeout"><tt class="xref py py-class docutils literal"><span class="pre">WaitTimeout</span></tt></a> if a timeout
+was provided and it expires</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.rpc_receiver_count">
+<tt class="descname">rpc_receiver_count</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em><big>)</big><a class="headerlink" href="#junction.node.Node.rpc_receiver_count" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get the number of peers that would handle a particular RPC</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method name</li>
+<li><strong>routing_id</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; the id used for narrowing within the (service, method) handlers</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.send_rpc">
+<tt class="descname">send_rpc</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em>, <em>args</em>, <em>kwargs</em><big>)</big><a class="headerlink" href="#junction.node.Node.send_rpc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Send out an RPC request</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name (the routing top level)</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method name to call</li>
+<li><strong>routing_id</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; The id used for routing within the registered handlers of the
+service.</li>
+<li><strong>args</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#tuple" title="(in Python v2.7)"><em>tuple</em></a>) &#8211; the positional arguments to send along with the request</li>
+<li><strong>kwargs</strong> (<a class="reference external" href="http://docs.python.org/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) &#8211; keyword arguments to send along with the request</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a> object representing the
+RPC and its future response.</p>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><p class="first last"><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if no peers are
+registered to receive the message</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.shutdown">
+<tt class="descname">shutdown</tt><big>(</big><big>)</big><a class="headerlink" href="#junction.node.Node.shutdown" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close all peer connections and stop listening for new ones</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.start">
+<tt class="descname">start</tt><big>(</big><big>)</big><a class="headerlink" href="#junction.node.Node.start" title="Permalink to this definition">¶</a></dt>
+<dd><p>Start up the node&#8217;s server, and have it start initiating connections</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.unsubscribe_publish">
+<tt class="descname">unsubscribe_publish</tt><big>(</big><em>service</em>, <em>method</em>, <em>mask</em>, <em>value</em>, <em>handler</em><big>)</big><a class="headerlink" href="#junction.node.Node.unsubscribe_publish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a publish subscription</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service of the subscription to remove</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method in the subscription</li>
+<li><strong>mask</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; the mask of the subscription to remove</li>
+<li><strong>value</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; the value in the subscription to remove</li>
+<li><strong>handler</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#callable" title="(in Python v2.7)"><em>callable</em></a>) &#8211; the handler function of the subscription to remove</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a boolean indicating whether the subscription was there (True) and
+removed, or not (False)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.unsubscribe_rpc">
+<tt class="descname">unsubscribe_rpc</tt><big>(</big><em>service</em>, <em>method</em>, <em>mask</em>, <em>value</em>, <em>handler</em><big>)</big><a class="headerlink" href="#junction.node.Node.unsubscribe_rpc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove a rpc subscription</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service of the subscription to remove</li>
+<li><strong>method</strong> (<a class="reference external" href="http://docs.python.org/library/string.html#module-string" title="(in Python v2.7)"><em>string</em></a>) &#8211; the method in the subscription</li>
+<li><strong>mask</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; the mask of the subscription to remove</li>
+<li><strong>value</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) &#8211; the value in the subscription to remove</li>
+<li><strong>handler</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#callable" title="(in Python v2.7)"><em>callable</em></a>) &#8211; the handler function of the subscription to remove</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a boolean indicating whether the subscription was there (True) and
+removed, or not (False)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.wait_any">
+<tt class="descname">wait_any</tt><big>(</big><em>futures</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.node.Node.wait_any" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait for the response for any (the first) of multiple futures</p>
+<p>This method will block until a response has been received.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>futures</strong> (<a class="reference external" href="http://docs.python.org/library/functions.html#list" title="(in Python v2.7)"><em>list</em></a>) &#8211; a list made up of <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">rpc</span></tt></a> and
+<a class="reference internal" href="rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a> objects</li>
+<li><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait for a response in seconds. with None, there is
+no timeout.</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">one of the <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a>s or
+<a class="reference internal" href="rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a>s from <tt class="docutils literal"><span class="pre">futures</span></tt>
+&#8211; the first one to be completed (or any of the ones that were
+already completed) for which the <tt class="docutils literal"><span class="pre">completed</span></tt> attribute is
+<tt class="xref docutils literal"><span class="pre">True</span></tt>.</p>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
+<li><a class="reference internal" href="errors.html#junction.errors.WaitTimeout" title="junction.errors.WaitTimeout"><tt class="xref py py-class docutils literal"><span class="pre">WaitTimeout</span></tt></a> if a timeout
+was provided and it expires</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="junction.node.Node.wait_on_connections">
+<tt class="descname">wait_on_connections</tt><big>(</big><em>conns=None</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.node.Node.wait_on_connections" title="Permalink to this definition">¶</a></dt>
+<dd><p>Wait for connections to be made and their handshakes to finish</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>conns</strong> &#8211; a single or list of (host, port) tuples with the connections that
+must be finished before the method will return. defaults to all the
+peers the <a class="reference internal" href="#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a> was instantiated with.</li>
+<li><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait in seconds. with None, there is no timeout.</li>
+</ul>
+</td>
+</tr>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><tt class="xref docutils literal"><span class="pre">True</span></tt> if it timed out or connects or handshakes failed,
+otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../index.html"
+                        title="previous chapter">Welcome to junction&#8217;s documentation!</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="client.html"
+                        title="next chapter"><tt class="docutils literal docutils literal"><span class="pre">junction.client</span></tt> &#8211; A Sender-Only Client Object</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../sources/junction/node.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="client.html" title="junction.client – A Sender-Only Client Object"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="Welcome to junction’s documentation!"
+             >previous</a> |</li>
+        <li><a href="../index.html">junction v0.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2010, Travis J Parker.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>
