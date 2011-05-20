@@ -22,6 +22,9 @@ class LostConnection(Exception):
 class UnrecognizedRemoteProblem(Exception):
     "Improperly formatted RPC error response"
 
+class DependentCallbackException(Exception):
+    "An exception in a Dependent's callback function"
+
 class WaitTimeout(Exception):
     "Exception raised when a wait outlasts a specified timeout"
 

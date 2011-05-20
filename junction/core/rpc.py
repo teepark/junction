@@ -198,6 +198,30 @@ class RPC(object):
 
         return op
 
+    def abort(self, result):
+        """stop any pending action and set the result
+
+        this method will also abort all of its children and further descendents
+        with the same result
+
+        :param result: the object to which to hard-code the RPC's results
+        """
+        self._completed = True
+        self._target_count = 1
+        self._results = [result]
+
+        for wait in self._waits:
+            wait.finish(self)
+        self._waits = []
+
+        for child in self._children:
+            child = child()
+            if child is None:
+                continue
+
+            child.abort(self, result)
+        self._children = []
+
     @property
     def counter(self):
         return self._counter
@@ -327,6 +351,7 @@ class Dependent(object):
         self._completed = False
         self._waits = []
         self._result = None
+        self._errored = False
 
         complete = filter(lambda p: p.complete, self._parents)
         for parent in complete:
@@ -385,6 +410,29 @@ class Dependent(object):
 
         return op
 
+    def abort(self, result):
+        """stop any pending action and set the result
+
+        this method will also abort all of its children and further descendents
+        with the same result
+
+        :param result: the object to which to hard-code the Dependent's results
+        """
+        self._result = result
+        self._completed = True
+        self._errored = True
+
+        for wait in self._waits:
+            wait.finish(self)
+        self._waits = []
+
+        for child in self._children:
+            child = child()
+            if child is None:
+                continue
+            child.abort(result)
+        self._children = []
+
     @property
     def results(self):
         """the results of the callback, or the results of the callback's RPC
@@ -416,13 +464,16 @@ class Dependent(object):
             self._complete()
 
     def _func_runner(self):
+        if self._completed:
+            return
         self._completed = True
 
         try:
             self._result = self._func(*self._parent_results)
         except Exception:
-            #TODO: exceptions abort the depenent and all descendents
-            pass
+            self.abort(errors.DependentCallbackException(
+                    traceback.format_exception(*sys.exc_info())))
+
         self._parent_result = self._parents = None
 
         if (not isinstance(self._result, RPC)) or self._result.complete:
@@ -450,7 +501,9 @@ class Dependent(object):
         self._children = []
 
     def _complete(self):
-        # at this point we are in a connection's receive coro. if this
+        if self._completed:
+            return
+        # at this point we are in a connection's receive coro. if the
         # user-provided function is stupid and blocks, it could potentially
         # wait on something that would need to come back through the connection
         # whose receiver coro it just blocked, resulting in deadlock. so run
