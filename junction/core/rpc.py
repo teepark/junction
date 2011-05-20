@@ -260,6 +260,8 @@ class RPC(object):
         self._results.append(self._format_result(peer_ident, rc, result))
 
     def _complete(self):
+        if self._completed:
+            return
         self._completed = True
 
         for wait in self._waits:
