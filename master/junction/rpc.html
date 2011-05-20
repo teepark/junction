@@ -60,6 +60,22 @@
 <tt class="xref py py-meth docutils literal"><span class="pre">RPC.after</span></tt> and
 <tt class="xref py py-meth docutils literal"><span class="pre">Dependent.after</span></tt></p>
 <dl class="method">
+<dt id="junction.core.rpc.Dependent.abort">
+<tt class="descname">abort</tt><big>(</big><em>result</em><big>)</big><a class="headerlink" href="#junction.core.rpc.Dependent.abort" title="Permalink to this definition">¶</a></dt>
+<dd><p>stop any pending action and set the result</p>
+<p>this method will also abort all of its children and further descendents
+with the same result</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><strong>result</strong> &#8211; the object to which to hard-code the Dependent&#8217;s results</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
 <dt id="junction.core.rpc.Dependent.after">
 <tt class="descname">after</tt><big>(</big><em>func</em>, <em>other_parents=None</em><big>)</big><a class="headerlink" href="#junction.core.rpc.Dependent.after" title="Permalink to this definition">¶</a></dt>
 <dd><p>Schedule <tt class="docutils literal"><span class="pre">func</span></tt> to run after the Dependent has completed</p>
@@ -135,6 +151,22 @@ is supplied and runs out before the response arrives.</td>
 <dd><p>A representation of a single RPC request/response cycle</p>
 <p>instances of this class shouldn&#8217;t be created directly, they are returned by
 <a class="reference internal" href="node.html#junction.node.Node.send_rpc" title="junction.node.Node.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">Node.send_rpc()</span></tt></a>.</p>
+<dl class="method">
+<dt id="junction.core.rpc.RPC.abort">
+<tt class="descname">abort</tt><big>(</big><em>result</em><big>)</big><a class="headerlink" href="#junction.core.rpc.RPC.abort" title="Permalink to this definition">¶</a></dt>
+<dd><p>stop any pending action and set the result</p>
+<p>this method will also abort all of its children and further descendents
+with the same result</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><strong>result</strong> &#8211; the object to which to hard-code the RPC&#8217;s results</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 <dl class="method">
 <dt id="junction.core.rpc.RPC.after">
 <tt class="descname">after</tt><big>(</big><em>func</em>, <em>other_parents=None</em><big>)</big><a class="headerlink" href="#junction.core.rpc.RPC.after" title="Permalink to this definition">¶</a></dt>
