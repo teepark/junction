@@ -208,7 +208,14 @@ class RPC(object):
         with the same result
 
         :param result: the object to which to hard-code the RPC's results
+
+        :raises:
+            :class:`AlreadyComplete <junction.errors.AlreadyComplete>` if the
+            RPC is already complete.
         """
+        if self._completed:
+            raise errors.AlreadyComplete()
+
         self._completed = True
         self._target_count = 1
         self._results = [result]
@@ -425,7 +432,14 @@ class Dependent(object):
         with the same result
 
         :param result: the object to which to hard-code the Dependent's results
+
+        :raises:
+            :class:`AlreadyComplete <junction.errors.AlreadyComplete>` if the
+            Dependent is already complete.
         """
+        if self._completed:
+            raise errors.AlreadyComplete()
+
         self._result = result
         self._completed = True
         self._errored = True
@@ -443,7 +457,7 @@ class Dependent(object):
 
     @property
     def results(self):
-        """the results of the callback, or the results of the callback's RPC
+        """the results of the callback or of the RPC the callback produced
 
         :attr:`complete` indicates whether the result is available or not, if
         not then this attribute raises AttributeError.

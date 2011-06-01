@@ -28,6 +28,9 @@ class DependentCallbackException(Exception):
 class WaitTimeout(Exception):
     "Exception raised when a wait outlasts a specified timeout"
 
+class AlreadyComplete(Exception):
+    "Exception raised on abort() of an already-completed future"
+
 
 HANDLED_ERROR_TYPES = {}
 
