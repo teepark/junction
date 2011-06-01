@@ -165,7 +165,7 @@ class RPC(object):
         self._client.wait(self, timeout)
         return self.results
 
-    def after(self, func, other_parents=None):
+    def after(self, func=None, other_parents=None):
         """Schedule ``func`` to run after the RPC has completed
 
         :param func:
@@ -189,6 +189,9 @@ class RPC(object):
             a group of other :class:`RPC`\s and :class:`Dependent`\s with
             :meth:`Node.wait_any <junction.node.Node.wait_any>`
         """
+        if func is None:
+            return lambda f: self.after(f, other_parents)
+
         parents = [self] + (other_parents or [])
         counter = self._client.next_counter()
 
@@ -380,7 +383,7 @@ class Dependent(object):
         self._client.wait(self, timeout)
         return self.results
 
-    def after(self, func, other_parents=None):
+    def after(self, func=None, other_parents=None):
         """Schedule ``func`` to run after the Dependent has completed
 
         :param func:
@@ -403,6 +406,9 @@ class Dependent(object):
             a group of other :class:`RPC`\s and :class:`Dependent`\s with
             :meth:`Node.wait_any <junction.node.Node.wait_any>`
         """
+        if func is None:
+            return lambda f: self.after(f, other_parents)
+
         parents = [self] + (other_parents or [])
         counter = self._client.next_counter()
 
