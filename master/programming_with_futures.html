@@ -87,7 +87,7 @@ username and password:</p>
     <span class="k">return</span> <span class="n">is_valid</span>
 </pre></div>
 </div>
-<img alt="_images/single_validate.png" src="_images/single_validate.png" />
+<img alt="images/single_validate.png" src="images/single_validate.png" />
 <p>To go async and program with futures, we must use a Dependent for the
 second RPC as its arguments include the results from the first RPC.:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">):</span>
@@ -107,7 +107,7 @@ to validate a batch of username, password pairs:</p>
 <div class="highlight-python"><div class="highlight"><pre><span class="n">validations</span> <span class="o">=</span> <span class="p">[(</span><span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">validate</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">))</span> <span class="k">for</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">]</span>
 </pre></div>
 </div>
-<img alt="_images/seq_validates.png" src="_images/seq_validates.png" />
+<img alt="images/seq_validates.png" src="images/seq_validates.png" />
 <p>With just a tiny modification to the futures-based validate method, and
 a little supporting code in the batching, we can get each of the
 sequential RPC pairs happening together in parallel:</p>
@@ -124,7 +124,7 @@ sequential RPC pairs happening together in parallel:</p>
 <span class="n">validations</span> <span class="o">=</span> <span class="p">[(</span><span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">wait</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">with_futures</span><span class="p">]</span>
 </pre></div>
 </div>
-<img alt="_images/par_validates.png" src="_images/par_validates.png" />
+<img alt="images/par_validates.png" src="images/par_validates.png" />
 <p>The only change to the validate function was that it now returns the
 future pointing at the boolean result, rather than the result itself.
 Doing it this way allows us to queue up all the RPCs before we have to
