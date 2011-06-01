@@ -22,6 +22,7 @@ API Reference
    junction/client
    junction/rpc
    junction/errors
+   programming_with_futures
 
 Indices and tables
 ------------------
