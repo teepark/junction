@@ -2,11 +2,14 @@
 Programming With Futures
 ========================
 
-
 Junction's asynchronous RPC api involves a number of objects that meet
 the definition of a `"future"`_. The fit the bill because when initially
 created, their results are not yet known but will be transparently
 filled in when they arrive, or they can be explicitly waited for.
+
+
+Overview
+--------
 
 These are :class:`RPCs <junction.core.rpc.RPC>` and
 :class:`Dependents <junction.core.rpc.Dependent>`.
