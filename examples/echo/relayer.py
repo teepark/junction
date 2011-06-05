@@ -17,7 +17,7 @@ BDPORT = 9101
 
 SERVICE = 1
 
-greenhouse.add_exception_handler(traceback.print_exception)
+greenhouse.global_exception_handler(traceback.print_exception)
 
 node = Node((HOST, PORT), [(SERVICE_HOST, SERVICE_PORT)])
 

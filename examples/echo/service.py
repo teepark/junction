@@ -18,7 +18,7 @@ BACKPORT = 9001
 SERVICE = 1
 
 
-greenhouse.add_exception_handler(traceback.print_exception)
+greenhouse.global_exception_handler(traceback.print_exception)
 
 def handler(x):
     return "echo: %s" % x

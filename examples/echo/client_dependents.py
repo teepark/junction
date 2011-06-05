@@ -17,7 +17,7 @@ SERVICE_ADDR = (HOST, 9000)
 SERVICE = 1
 
 
-greenhouse.add_exception_handler(traceback.print_exception)
+greenhouse.global_exception_handler(traceback.print_exception)
 
 
 def second_call(client, results):

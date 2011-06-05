@@ -8,8 +8,6 @@ import greenhouse
 import junction
 import junction.errors
 
-#greenhouse.add_exception_handler(traceback.print_exception)
-
 
 TIMEOUT = 0.002
 PORT = 5000
