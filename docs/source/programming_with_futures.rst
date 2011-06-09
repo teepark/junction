@@ -160,13 +160,14 @@ each peer that was targeted by the RPC. In the event of an :meth:`abort
 <junction.futures.RPC.abort>`, the results list will have length 1 --
 the result passed into the abort method.
 
-RPC objects also have two additional attributes that Dependents don't:
-:attr:`target_count <junction.futures.RPC.target_count>` and
-:attr:`partial_results <junction.futures.RPC.partial_results>`. These
-aren't possible for Dependents because they don't necessarily correspond
-to a single RPC, so target_count doesn't make sense, and if its result
-is simply the return value of its callback there will be no partial
-results.
+RPC objects also have three additional attributes that Dependents don't:
+:attr:`target_count <junction.futures.RPC.target_count>`,
+:attr:`partial_results <junction.futures.RPC.partial_results>`, and
+:attr:`arrival<junction.futures.RPC.arrival>`. These aren't possible for
+Dependents because they don't necessarily correspond to a single RPC, so
+target_count doesn't make sense, it doesn't have "arrivals" in the sense
+that an RPC does, and if its result is simply the return value of its
+callback then there will be no partial results.
 
 
 Dependents

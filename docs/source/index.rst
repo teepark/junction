@@ -10,7 +10,7 @@ Junction is a publish/subscribe and RPC system for python, geared
 towards distributing work on an internal network.
 
 It uses greenhouse_ for the parallel IO across peers and for blocking
-syncronous calls, and mummy_ for fast object serialization.
+syncronous calls, and mummy_ for fast data serialization.
 
 
 API Reference
