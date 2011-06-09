@@ -1,3 +1,5 @@
+.. _programming-with-futures:
+
 ========================
 Programming With Futures
 ========================
