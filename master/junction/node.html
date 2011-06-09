@@ -23,7 +23,7 @@
     <script type="text/javascript" src="../static/doctools.js"></script>
     <link rel="top" title="junction v0.1.0 documentation" href="../index.html" />
     <link rel="next" title="junction.client – A Sender-Only Client Object" href="client.html" />
-    <link rel="prev" title="Welcome to junction’s documentation!" href="../index.html" /> 
+    <link rel="prev" title="Programming With Futures" href="../programming_with_futures.html" /> 
   </head>
   <body>
     <div class="related">
@@ -39,7 +39,7 @@
           <a href="client.html" title="junction.client – A Sender-Only Client Object"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="../index.html" title="Welcome to junction’s documentation!"
+          <a href="../programming_with_futures.html" title="Programming With Futures"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">junction v0.1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -240,7 +240,7 @@ service.</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a> object representing the
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a> object representing the
 RPC and its future response.</p>
 </td>
 </tr>
@@ -324,15 +324,15 @@ removed, or not (False)</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>futures</strong> (<em>list</em>) &#8211; a list made up of <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">rpc</span></tt></a> and
-<a class="reference internal" href="rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a> objects</li>
+<li><strong>futures</strong> (<em>list</em>) &#8211; a list made up of <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">rpc</span></tt></a> and
+<a class="reference internal" href="futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a> objects</li>
 <li><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait for a response in seconds. with None, there is
 no timeout.</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">one of the <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a>s or
-<a class="reference internal" href="rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a>s from <tt class="docutils literal"><span class="pre">futures</span></tt>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">one of the <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a>s or
+<a class="reference internal" href="futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a>s from <tt class="docutils literal"><span class="pre">futures</span></tt>
 &#8211; the first one to be completed (or any of the ones that were
 already completed) for which the <tt class="docutils literal"><span class="pre">completed</span></tt> attribute is
 <tt class="xref docutils literal"><span class="pre">True</span></tt>.</p>
@@ -383,11 +383,11 @@ otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt><
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
-  <p class="topless"><a href="../index.html"
-                        title="previous chapter">Welcome to junction&#8217;s documentation!</a></p>
+  <p class="topless"><a href="../programming_with_futures.html"
+                        title="previous chapter">Programming With Futures</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="client.html"
-                        title="next chapter"><tt class="docutils literal docutils literal"><span class="pre">junction.client</span></tt> &#8211; A Sender-Only Client Object</a></p>
+                        title="next chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">junction.client</span></tt> &#8211; A Sender-Only Client Object</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="../sources/junction/node.txt"
@@ -423,7 +423,7 @@ otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt><
           <a href="client.html" title="junction.client – A Sender-Only Client Object"
              >next</a> |</li>
         <li class="right" >
-          <a href="../index.html" title="Welcome to junction’s documentation!"
+          <a href="../programming_with_futures.html" title="Programming With Futures"
              >previous</a> |</li>
         <li><a href="../index.html">junction v0.1.0 documentation</a> &raquo;</li> 
       </ul>

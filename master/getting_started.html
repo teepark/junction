@@ -1,0 +1,324 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Getting Started &mdash; junction v0.1.0 documentation</title>
+    <link rel="stylesheet" href="static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="top" title="junction v0.1.0 documentation" href="index.html" />
+    <link rel="next" title="Programming With Futures" href="programming_with_futures.html" />
+    <link rel="prev" title="Welcome to junction’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="programming_with_futures.html" title="Programming With Futures"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to junction’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">junction v0.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="getting-started">
+<h1>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="a-simple-service">
+<h2>A Simple Service<a class="headerlink" href="#a-simple-service" title="Permalink to this headline">¶</a></h2>
+<p>As a simple exercise to demonstrate just the boilerplate that you would
+need for any junction service, we&#8217;ll implement the &#8220;hello, world&#8221; of
+service architectures, an echo server.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">greenhouse</span>
+<span class="kn">import</span> <span class="nn">junction</span>
+
+<span class="k">def</span> <span class="nf">echo</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">&quot;echoed: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">x</span><span class="p">,)</span>
+
+<span class="n">node</span> <span class="o">=</span> <span class="n">junction</span><span class="o">.</span><span class="n">Node</span><span class="p">((</span><span class="s">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">9000</span><span class="p">),</span> <span class="p">[])</span>
+<span class="n">node</span><span class="o">.</span><span class="n">accept_rpc</span><span class="p">(</span><span class="s">&quot;ECHO&quot;</span><span class="p">,</span> <span class="s">&quot;echo&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">echo</span><span class="p">)</span>
+<span class="n">node</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">greenhouse</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span><span class="o">.</span><span class="n">wait</span><span class="p">()</span>
+<span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+<p>Now let&#8217;s break this down.</p>
+<p><tt class="docutils literal"><span class="pre">echo</span></tt> is defined to just return its argument stringified and with
+&#8220;echoed: &#8221; prefixed (fairly standard echo server behavior).</p>
+<p>We&#8217;ll need a <a class="reference internal" href="junction/node.html#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a> object and since every
+node in junction can connect to any other, it needs a <tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)</span></tt>
+pair on which to run the server it use to accept peer connections from
+other nodes. The second argument is the list of nodes (items in this
+list would be <tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)</span></tt> pairs) to which it should connect. In
+this case there are no peers it needs to know about, so that list is
+empty.</p>
+<p>Next we instruct the node that it will accept RPCs on the &#8220;ECHO&#8221; service
+for the &#8220;echo&#8221; method, that the mask and value are both 0 (more on those
+in a minute), and that the function used to handle those RPCs is the
+<tt class="docutils literal"><span class="pre">echo</span></tt> function we defined earlier.</p>
+<p>Then we start the node. This will start up the server accepting
+connections on <tt class="docutils literal"><span class="pre">(&quot;127.0.0.1&quot;,</span> <span class="pre">9000)</span></tt> and initiate all of the
+connections we asked it to (none, this time).</p>
+<p>The wait at the end is just to get the main greenlet to block - nothing
+else has a reference to this <tt class="docutils literal"><span class="pre">Event</span></tt>, so nothing will be waking it
+from its wait. By catching <tt class="docutils literal"><span class="pre">KeyboardInterrupt</span></tt>, we allow it to bail
+out semi-cleanly with Ctrl-C.</p>
+</div>
+<div class="section" id="subscription-specification-and-matching">
+<h2>Subscription Specification and Matching<a class="headerlink" href="#subscription-specification-and-matching" title="Permalink to this headline">¶</a></h2>
+<p>Here&#8217;s the part where we talk about the mask and value. Every
+RPC and publish subscription in junction is made with a service name,
+method name, and mask and value integers in order to specify precisely
+which messages it should be receiving. The service and method are easy,
+they just have to match what is in the message exactly. The mask and
+value however are different. The corresponding component in an RPC
+request is an integer &#8220;routing id&#8221; which, when bitwise-ANDed against a
+subscription&#8217;s mask, must be equal to the subscription&#8217;s value to be a
+match. So in this case the mask of 0 will always produce 0 when it is
+ANDed with any routing id, meaning the <tt class="docutils literal"><span class="pre">(mask,</span> <span class="pre">value)</span></tt> pair of <tt class="docutils literal"><span class="pre">(0,</span>
+<span class="pre">0)</span></tt> will always match (in this case we don&#8217;t care to shard the ECHO
+service).</p>
+<p>One major benefit to using a mask and value is that two integers are
+easily transferable between nodes. What junction does is that when any
+connection is made between peers, they trade the information about what
+their subscriptions are. So when using a node as a client, it can
+<em>locally</em> figure out who should be receiving the message and only send
+it there.</p>
+<p>A more obvious and straightforward approach might have been that a
+subscription would take a callback function that accepts the routing id
+and returns True if the subscription matches (this would also be more
+flexible), but since the callback wouldn&#8217;t necessarily be serializable,
+every message would have to be broadcast to every peer for filtering on
+the remote end. But this approach with a mask and value allows
+nodes to raise <a class="reference internal" href="junction/errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> from
+rpc-sending client methods, or to return from <a class="reference internal" href="junction/node.html#junction.node.Node.rpc_receiver_count" title="junction.node.Node.rpc_receiver_count"><tt class="xref py py-meth docutils literal"><span class="pre">rpc_receiver_count</span></tt></a> without ever blocking.</p>
+</div>
+<div class="section" id="a-node-as-a-client">
+<h2>A Node as a Client<a class="headerlink" href="#a-node-as-a-client" title="Permalink to this headline">¶</a></h2>
+<p>First the code.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">junction</span>
+
+<span class="n">node</span> <span class="o">=</span> <span class="n">junction</span><span class="o">.</span><span class="n">Node</span><span class="p">((</span><span class="s">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">9001</span><span class="p">),</span> <span class="p">[(</span><span class="s">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">9000</span><span class="p">)])</span>
+<span class="n">node</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+<span class="n">node</span><span class="o">.</span><span class="n">wait_on_connections</span><span class="p">()</span>
+
+<span class="k">print</span> <span class="n">node</span><span class="o">.</span><span class="n">rpc</span><span class="p">(</span><span class="s">&quot;ECHO&quot;</span><span class="p">,</span> <span class="s">&quot;echo&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="s">&quot;first request&quot;</span><span class="p">,),</span> <span class="p">{})[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">rpcs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;second&quot;</span><span class="p">,</span> <span class="s">&quot;third&quot;</span><span class="p">,</span> <span class="s">&quot;fourth&quot;</span><span class="p">):</span>
+    <span class="n">rpcs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="s">&quot;ECHO&quot;</span><span class="p">,</span> <span class="s">&quot;echo&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">msg</span><span class="p">,),</span> <span class="p">{}))</span>
+
+<span class="k">for</span> <span class="n">rpc</span> <span class="ow">in</span> <span class="n">rpcs</span><span class="p">:</span>
+    <span class="k">print</span> <span class="n">rpc</span><span class="o">.</span><span class="n">wait</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>We get started in a similar way, creating a node. Even though this node
+won&#8217;t be accepting any connections from peers, it still has to start up
+a server. All <a class="reference internal" href="junction/node.html#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Nodes</span></tt></a> are created equal, and
+they all accept connections from peers. This time we do provide a peer
+for it to make a connection to; we give it the <tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)</span></tt> of the
+service we created before.</p>
+<p><a class="reference internal" href="junction/node.html#junction.node.Node.wait_on_connections" title="junction.node.Node.wait_on_connections"><tt class="xref py py-meth docutils literal"><span class="pre">wait_on_connections</span></tt></a>
+will block until it has finished connecting to the list of peers we gave
+it. This is necessary, otherwise it would raise <a class="reference internal" href="junction/errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> from the first <a class="reference internal" href="junction/node.html#junction.node.Node.rpc" title="junction.node.Node.rpc"><tt class="xref py py-meth docutils literal"><span class="pre">rpc</span></tt></a> call. Not having connected to its peer yet, it
+wouldn&#8217;t have collected its subscription information and so it wouldn&#8217;t
+know where to send the RPC (the Unroutable error effectively says &#8220;I
+haven&#8217;t met anyone that accepts RPCs to ECHO/echo/0&#8221;).</p>
+<p>Once connected, we can call <a class="reference internal" href="junction/node.html#junction.node.Node.rpc" title="junction.node.Node.rpc"><tt class="xref py py-meth docutils literal"><span class="pre">rpc</span></tt></a> with
+the service, method, routing id, positional arguments and keyword
+arguments. This method will block until all responses come back, and
+then return them. Because it is possible that more than one peer might
+have had a subscription matching the RPC, the method always returns a
+list. In this case we know it is only connected to one peer and that the
+peer accepts this message, so we safely just index the first result.</p>
+<p>You already have everything you need to know to do synchronous RPCs with
+junction. Junction nodes are coroutine-safe, so using <a class="reference external" href="https://teepark.github.com/greenhouse">greenhouse</a> you
+can always create multiple coroutines to run multiple RPCs in parallel.</p>
+<p>But there is also an async client API, and that is what is demonstrated
+next. The <a class="reference internal" href="junction/node.html#junction.node.Node.send_rpc" title="junction.node.Node.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">send_rpc</span></tt></a> method does
+just what its name says and <em>only sends</em>, so it returns immediately.
+Exactly what it returns is an <a class="reference internal" href="junction/futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a>
+instance, which represents an asynchronous in-flight RPC. The code in
+the example sends 3 RPCs at once, collecting the RPC objects in a list,
+then calls <a class="reference internal" href="junction/futures.html#junction.futures.RPC.wait" title="junction.futures.RPC.wait"><tt class="xref py py-meth docutils literal"><span class="pre">wait</span></tt></a> on them each to
+block and get the RPC results. For more advanced usage of RPC objects
+and the asynchronous API, hop over to <a class="reference internal" href="programming_with_futures.html#programming-with-futures"><em>Programming With Futures</em></a>.</p>
+<p>With the service code running in one terminal, running the client in
+another (on the same machine) should print:</p>
+<div class="highlight-python"><pre>echoed: first request
+echoed: second
+echoed: third
+echoed: fourth</pre>
+</div>
+</div>
+<div class="section" id="a-client-only-client">
+<h2>A Client-only Client<a class="headerlink" href="#a-client-only-client" title="Permalink to this headline">¶</a></h2>
+<p>In the previous client code we still had to create a full <a class="reference internal" href="junction/node.html#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a> capable of accepting peer connections, and which
+would have to be explicitly connected to any other Node to which it
+would make an RPC request. For a case like this client, where we know it
+will never accept RPCs or publishes, we can use a <a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Client</span></tt></a> which, as its name suggests, is like a
+client-only node.</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">junction</span>
+
+<span class="n">client</span> <span class="o">=</span> <span class="n">junction</span><span class="o">.</span><span class="n">Client</span><span class="p">((</span><span class="s">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">9000</span><span class="p">))</span>
+<span class="n">client</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+<span class="n">client</span><span class="o">.</span><span class="n">wait_on_connections</span><span class="p">()</span>
+
+<span class="k">print</span> <span class="n">client</span><span class="o">.</span><span class="n">rpc</span><span class="p">(</span><span class="s">&quot;ECHO&quot;</span><span class="p">,</span> <span class="s">&quot;echo&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="s">&quot;first request&quot;</span><span class="p">,),</span> <span class="p">{})[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">rpcs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">msg</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&quot;second&quot;</span><span class="p">,</span> <span class="s">&quot;third&quot;</span><span class="p">,</span> <span class="s">&quot;fourth&quot;</span><span class="p">):</span>
+    <span class="n">rpcs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="s">&quot;ECHO&quot;</span><span class="p">,</span> <span class="s">&quot;echo&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">msg</span><span class="p">,),</span> <span class="p">{}))</span>
+
+<span class="k">for</span> <span class="n">rpc</span> <span class="ow">in</span> <span class="n">rpcs</span><span class="p">:</span>
+    <span class="k">print</span> <span class="n">rpc</span><span class="o">.</span><span class="n">wait</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>The first thing that should strike you about this code is how similar it
+is to the Node-based client. <a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Client</span></tt></a>
+has <em>exactly</em> the same interface as <a class="reference internal" href="junction/node.html#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a>
+for the client side of RPCs and publishes, so that it is easy to
+substitute one for the other, or write utility methods or higher level
+APIs that will work with either.</p>
+<p>But there is a difference in how we create them. A Client doesn&#8217;t create
+a peer-accepting server, and it doesn&#8217;t connect to every Node in the
+system, rather it just connects to a single node. It can still make RPC
+requests that would resolve to any node in the system, but they will
+always be proxied by the one node to which the Client is connected.</p>
+<p>These are important differences. Making only a single connection means
+that Clients start up much quicker, but having all its communications
+into the Node network proxied adds a bit of latency, and some overhead
+to the node acting as the proxy. Generally <a class="reference internal" href="junction/node.html#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Nodes</span></tt></a> with their slower startup time, static list of
+all the Nodes in the system and ability to act as receivers of RPCs and
+publishes are more suited for long-running servers, while
+<a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Clients</span></tt></a> are more well-suited to
+scripts, interactive interpreter use, and environments that don&#8217;t have a
+long-running process (for instance a webserver that is stuck on mod_wsgi
+or something else that doesn&#8217;t allow long-lived module global state).</p>
+<p>In this very simple case the extra latency we would expect to see from
+Client usage doesn&#8217;t come into play because the node to which we are
+directly connecting is also the only one to which we will make RPC
+requests.</p>
+<p>We&#8217;ll just make one final change to the client code for the purpose of
+explaining a useful API. Replace the last two lines with the following:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">while</span> <span class="n">rpcs</span><span class="p">:</span>
+    <span class="n">rpc</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">wait_any</span><span class="p">(</span><span class="n">rpcs</span><span class="p">)</span>
+    <span class="k">print</span> <span class="n">rpc</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">rpcs</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">rpc</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="junction/node.html#junction.node.Node.wait_any" title="junction.node.Node.wait_any"><tt class="xref py py-meth docutils literal"><span class="pre">Node.wait_any</span></tt></a> and
+<a class="reference internal" href="junction/client.html#junction.client.Client.wait_any" title="junction.client.Client.wait_any"><tt class="xref py py-meth docutils literal"><span class="pre">Client.wait_any</span></tt></a> methods accept
+a list of RPCs and return one of them that is complete. If none of them
+are complete already, then it blocks until the first one completes.</p>
+<p>This way of collecting parallel RPCs will handle them in the order in
+which their resopnses come back, rather than our pre-defined order. If
+there were a little more variance in the response times than an echo
+server, and especially if we were doing CPU-intensive work on the
+response values, it would be handy to be able to deal with the fastest
+response first.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Getting Started</a><ul>
+<li><a class="reference internal" href="#a-simple-service">A Simple Service</a></li>
+<li><a class="reference internal" href="#subscription-specification-and-matching">Subscription Specification and Matching</a></li>
+<li><a class="reference internal" href="#a-node-as-a-client">A Node as a Client</a></li>
+<li><a class="reference internal" href="#a-client-only-client">A Client-only Client</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to junction&#8217;s documentation!</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="programming_with_futures.html"
+                        title="next chapter">Programming With Futures</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/getting_started.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" size="18" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="programming_with_futures.html" title="Programming With Futures"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to junction’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">junction v0.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2010, Travis J Parker.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+    </div>
+  </body>
+</html>

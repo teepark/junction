@@ -22,7 +22,7 @@
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="top" title="junction v0.1.0 documentation" href="#" />
-    <link rel="next" title="junction.node – A Node In The Server Mesh" href="junction/node.html" /> 
+    <link rel="next" title="Getting Started" href="getting_started.html" /> 
   </head>
   <body>
     <div class="related">
@@ -35,7 +35,7 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="junction/node.html" title="junction.node – A Node In The Server Mesh"
+          <a href="getting_started.html" title="Getting Started"
              accesskey="N">next</a> |</li>
         <li><a href="#">junction v0.1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -49,17 +49,20 @@
   <div class="section" id="welcome-to-junction-s-documentation">
 <h1>Welcome to junction&#8217;s documentation!<a class="headerlink" href="#welcome-to-junction-s-documentation" title="Permalink to this headline">¶</a></h1>
 <p>Junction is a publish/subscribe and RPC system for python, geared
-towards distributing work on internal networks.</p>
+towards distributing work on an internal network.</p>
 <p>It uses <a class="reference external" href="http://teepark.github.com/greenhouse">greenhouse</a> for the parallel IO across peers and for blocking
-syncronous calls, and <a class="reference external" href="http://github.com/teepark/mummy">mummy</a> for fast object serialization.</p>
+syncronous calls, and <a class="reference external" href="http://github.com/teepark/mummy">mummy</a> for fast data serialization.</p>
 <div class="section" id="api-reference">
 <h2>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="junction/node.html"><tt class="docutils literal"><span class="pre">junction.node</span></tt> &#8211; A Node In The Server Mesh</a></li>
-<li class="toctree-l1"><a class="reference internal" href="junction/client.html"><tt class="docutils literal"><span class="pre">junction.client</span></tt> &#8211; A Sender-Only Client Object</a></li>
-<li class="toctree-l1"><a class="reference internal" href="junction/rpc.html"><tt class="docutils literal"><span class="pre">junction.rpc</span></tt> &#8211; Representations Of In-Flight RPCs</a></li>
-<li class="toctree-l1"><a class="reference internal" href="junction/errors.html"><tt class="docutils literal"><span class="pre">junction.errors</span></tt> &#8211; Standard Error classes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#a-simple-service">A Simple Service</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#subscription-specification-and-matching">Subscription Specification and Matching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#a-node-as-a-client">A Node as a Client</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started.html#a-client-only-client">A Client-only Client</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="programming_with_futures.html">Programming With Futures</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="programming_with_futures.html#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="programming_with_futures.html#the-common-api-of-rpcs-and-dependents">The Common API of RPCs and Dependents</a></li>
@@ -67,6 +70,10 @@ syncronous calls, and <a class="reference external" href="http://github.com/teep
 <li class="toctree-l2"><a class="reference internal" href="programming_with_futures.html#dependents">Dependents</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="junction/node.html"><tt class="docutils literal"><span class="pre">junction.node</span></tt> &#8211; A Node In The Server Mesh</a></li>
+<li class="toctree-l1"><a class="reference internal" href="junction/client.html"><tt class="docutils literal"><span class="pre">junction.client</span></tt> &#8211; A Sender-Only Client Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="junction/futures.html"><tt class="docutils literal"><span class="pre">junction.futures</span></tt> &#8211; Representations of In-Progress Actions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="junction/errors.html"><tt class="docutils literal"><span class="pre">junction.errors</span></tt> &#8211; Standard Error classes</a></li>
 </ul>
 </div>
 </div>
@@ -98,8 +105,8 @@ syncronous calls, and <a class="reference external" href="http://github.com/teep
 </ul>
 
   <h4>Next topic</h4>
-  <p class="topless"><a href="junction/node.html"
-                        title="next chapter"><tt class="docutils literal"><span class="pre">junction.node</span></tt> &#8211; A Node In The Server Mesh</a></p>
+  <p class="topless"><a href="getting_started.html"
+                        title="next chapter">Getting Started</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="sources/index.txt"
@@ -132,7 +139,7 @@ syncronous calls, and <a class="reference external" href="http://github.com/teep
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="junction/node.html" title="junction.node – A Node In The Server Mesh"
+          <a href="getting_started.html" title="Getting Started"
              >next</a> |</li>
         <li><a href="#">junction v0.1.0 documentation</a> &raquo;</li> 
       </ul>

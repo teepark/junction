@@ -22,7 +22,8 @@
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="top" title="junction v0.1.0 documentation" href="index.html" />
-    <link rel="prev" title="junction.errors – Standard Error classes" href="junction/errors.html" /> 
+    <link rel="next" title="junction.node – A Node In The Server Mesh" href="junction/node.html" />
+    <link rel="prev" title="Getting Started" href="getting_started.html" /> 
   </head>
   <body>
     <div class="related">
@@ -35,7 +36,10 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="junction/errors.html" title="junction.errors – Standard Error classes"
+          <a href="junction/node.html" title="junction.node – A Node In The Server Mesh"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting Started"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">junction v0.1.0 documentation</a> &raquo;</li> 
       </ul>
@@ -47,15 +51,15 @@
           <div class="body">
             
   <div class="section" id="programming-with-futures">
-<h1>Programming With Futures<a class="headerlink" href="#programming-with-futures" title="Permalink to this headline">¶</a></h1>
+<span id="id1"></span><h1>Programming With Futures<a class="headerlink" href="#programming-with-futures" title="Permalink to this headline">¶</a></h1>
 <p>Junction&#8217;s asynchronous RPC api involves a number of objects that meet
 the definition of a <a class="reference external" href="http://en.wikipedia.org/wiki/Futures_and_promises">&#8220;future&#8221;</a>. The fit the bill because when initially
 created, their results are not yet known but will be transparently
 filled in when they arrive, or they can be explicitly waited for.</p>
 <div class="section" id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
-<p>These are <a class="reference internal" href="junction/rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> and
-<a class="reference internal" href="junction/rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependents</span></tt></a>.
+<p>These are <a class="reference internal" href="junction/futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> and
+<a class="reference internal" href="junction/futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependents</span></tt></a>.
 RPCs always correspond to a <a class="reference internal" href="junction/node.html#junction.node.Node.send_rpc" title="junction.node.Node.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">single</span> <span class="pre">RPC</span> <span class="pre">call</span></tt></a>. Dependents can be built to wait on any
 combination of RPCs and other Dependents, and they can either represent
 a not-yet-started RPC or the results of any callback function.Dependents
@@ -155,39 +159,40 @@ blocked waiting. Takes a single argument and sets that as the result
 of this future. Also aborts any Dependents made to depend on this
 future, passing the provided result down.</dd>
 <dt><strong>after()</strong> method</dt>
-<dd>Creates and returns a new <a class="reference internal" href="junction/rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a> that depends on this future. Also
+<dd>Creates and returns a new <a class="reference internal" href="junction/futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a> that depends on this future. Also
 optionally accepts a list of other future objects on which it should
 depend.</dd>
 <dt><strong>Node.wait_any()</strong> and <strong>Client.wait_any()</strong></dt>
 <dd>Both <a class="reference internal" href="junction/node.html#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a> and <a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Client</span></tt></a> have a method &#8220;wait_all&#8221;, which accepts a
 list of futures (these can be any mixtures of
-<a class="reference internal" href="junction/rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> and <a class="reference internal" href="junction/rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependents</span></tt></a>), and returns the first complete
+<a class="reference internal" href="junction/futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> and <a class="reference internal" href="junction/futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependents</span></tt></a>), and returns the first complete
 future from the list.</dd>
 </dl>
 </div>
 <div class="section" id="rpcs">
 <h2>RPCs<a class="headerlink" href="#rpcs" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="junction/rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> are created by calls to
+<p><a class="reference internal" href="junction/futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> are created by calls to
 <a class="reference internal" href="junction/node.html#junction.node.Node.send_rpc" title="junction.node.Node.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">Node.send_rpc</span></tt></a> and
 <a class="reference internal" href="junction/client.html#junction.client.Client.send_rpc" title="junction.client.Client.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">Client.send_rpc</span></tt></a>. These objects
 are a representation of the single in-flight RPC call.</p>
-<p>The <a class="reference internal" href="junction/rpc.html#junction.core.rpc.RPC.results" title="junction.core.rpc.RPC.results"><tt class="xref py py-attr docutils literal"><span class="pre">results</span></tt></a> attribute will
+<p>The <a class="reference internal" href="junction/futures.html#junction.futures.RPC.results" title="junction.futures.RPC.results"><tt class="xref py py-attr docutils literal"><span class="pre">results</span></tt></a> attribute will
 always be a list, and it will be filled with the returned results from
-each peer that was targeted by the RPC. In the event of an <a class="reference internal" href="junction/rpc.html#junction.core.rpc.RPC.abort" title="junction.core.rpc.RPC.abort"><tt class="xref py py-meth docutils literal"><span class="pre">abort</span></tt></a>, the results list will have length 1 &#8211;
+each peer that was targeted by the RPC. In the event of an <a class="reference internal" href="junction/futures.html#junction.futures.RPC.abort" title="junction.futures.RPC.abort"><tt class="xref py py-meth docutils literal"><span class="pre">abort</span></tt></a>, the results list will have length 1 &#8211;
 the result passed into the abort method.</p>
-<p>RPC objects also have two additional attributes that Dependents don&#8217;t:
-<a class="reference internal" href="junction/rpc.html#junction.core.rpc.RPC.target_count" title="junction.core.rpc.RPC.target_count"><tt class="xref py py-attr docutils literal"><span class="pre">target_count</span></tt></a> and
-<a class="reference internal" href="junction/rpc.html#junction.core.rpc.RPC.partial_results" title="junction.core.rpc.RPC.partial_results"><tt class="xref py py-attr docutils literal"><span class="pre">partial_results</span></tt></a>. These
-aren&#8217;t possible for Dependents because they don&#8217;t necessarily correspond
-to a single RPC, so target_count doesn&#8217;t make sense, and if its result
-is simply the return value of its callback there will be no partial
-results.</p>
+<p>RPC objects also have three additional attributes that Dependents don&#8217;t:
+<a class="reference internal" href="junction/futures.html#junction.futures.RPC.target_count" title="junction.futures.RPC.target_count"><tt class="xref py py-attr docutils literal"><span class="pre">target_count</span></tt></a>,
+<a class="reference internal" href="junction/futures.html#junction.futures.RPC.partial_results" title="junction.futures.RPC.partial_results"><tt class="xref py py-attr docutils literal"><span class="pre">partial_results</span></tt></a>, and
+<a class="reference internal" href="junction/futures.html#junction.futures.RPC.arrival" title="junction.futures.RPC.arrival"><tt class="xref py py-attr docutils literal"><span class="pre">arrival</span></tt></a>. These aren&#8217;t possible for
+Dependents because they don&#8217;t necessarily correspond to a single RPC, so
+target_count doesn&#8217;t make sense, it doesn&#8217;t have &#8220;arrivals&#8221; in the sense
+that an RPC does, and if its result is simply the return value of its
+callback then there will be no partial results.</p>
 </div>
 <div class="section" id="dependents">
 <h2>Dependents<a class="headerlink" href="#dependents" title="Permalink to this headline">¶</a></h2>
-<p><a class="reference internal" href="junction/rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependents</span></tt></a> are created by calls
-to <a class="reference internal" href="junction/rpc.html#junction.core.rpc.RPC.after" title="junction.core.rpc.RPC.after"><tt class="xref py py-meth docutils literal"><span class="pre">RPC.after</span></tt></a> and
-<a class="reference internal" href="junction/rpc.html#junction.core.rpc.Dependent.after" title="junction.core.rpc.Dependent.after"><tt class="xref py py-meth docutils literal"><span class="pre">Dependent.after</span></tt></a>. They wrap a
+<p><a class="reference internal" href="junction/futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependents</span></tt></a> are created by calls
+to <a class="reference internal" href="junction/futures.html#junction.futures.RPC.after" title="junction.futures.RPC.after"><tt class="xref py py-meth docutils literal"><span class="pre">RPC.after</span></tt></a> and
+<a class="reference internal" href="junction/futures.html#junction.futures.Dependent.after" title="junction.futures.Dependent.after"><tt class="xref py py-meth docutils literal"><span class="pre">Dependent.after</span></tt></a>. They wrap a
 callback function (passed to <cite>after()</cite>), and call it when the future(s)
 they depend on have finished.</p>
 <p>Although they are created by the <cite>after()</cite> method of a single future, a
@@ -226,8 +231,11 @@ instance), the return value is simply used as the Dependent&#8217;s result.</p>
 </ul>
 
   <h4>Previous topic</h4>
-  <p class="topless"><a href="junction/errors.html"
-                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">junction.errors</span></tt> &#8211; Standard Error classes</a></p>
+  <p class="topless"><a href="getting_started.html"
+                        title="previous chapter">Getting Started</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="junction/node.html"
+                        title="next chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">junction.node</span></tt> &#8211; A Node In The Server Mesh</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="sources/programming_with_futures.txt"
@@ -260,7 +268,10 @@ instance), the return value is simply used as the Dependent&#8217;s result.</p>
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="junction/errors.html" title="junction.errors – Standard Error classes"
+          <a href="junction/node.html" title="junction.node – A Node In The Server Mesh"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="getting_started.html" title="Getting Started"
              >previous</a> |</li>
         <li><a href="index.html">junction v0.1.0 documentation</a> &raquo;</li> 
       </ul>

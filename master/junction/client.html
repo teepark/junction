@@ -22,7 +22,7 @@
     <script type="text/javascript" src="../static/underscore.js"></script>
     <script type="text/javascript" src="../static/doctools.js"></script>
     <link rel="top" title="junction v0.1.0 documentation" href="../index.html" />
-    <link rel="next" title="junction.rpc – Representations Of In-Flight RPCs" href="rpc.html" />
+    <link rel="next" title="junction.futures – Representations of In-Progress Actions" href="futures.html" />
     <link rel="prev" title="junction.node – A Node In The Server Mesh" href="node.html" /> 
   </head>
   <body>
@@ -36,7 +36,7 @@
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="rpc.html" title="junction.rpc – Representations Of In-Flight RPCs"
+          <a href="futures.html" title="junction.futures – Representations of In-Progress Actions"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="node.html" title="junction.node – A Node In The Server Mesh"
@@ -203,7 +203,7 @@ service.</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a> object representing the
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a> object representing the
 RPC and its future response.</p>
 </td>
 </tr>
@@ -231,16 +231,16 @@ doesn&#8217;t have a connection to a node</p>
 <col class="field-body" />
 <tbody valign="top">
 <tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>futures</strong> (<em>list</em>) &#8211; a list made up of rpc <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">rpc</span></tt></a> and
-<a class="reference internal" href="rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">dependent</span></tt></a> objects on which to
+<li><strong>futures</strong> (<em>list</em>) &#8211; a list made up of rpc <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">rpc</span></tt></a> and
+<a class="reference internal" href="futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">dependent</span></tt></a> objects on which to
 wait (only for the first one)</li>
 <li><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait for a response in seconds. with None, there is
 no timeout.</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">one of the <a class="reference internal" href="rpc.html#junction.core.rpc.RPC" title="junction.core.rpc.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a>s or
-<a class="reference internal" href="rpc.html#junction.core.rpc.Dependent" title="junction.core.rpc.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a>s from <tt class="docutils literal"><span class="pre">futures</span></tt>
+<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">one of the <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a>s or
+<a class="reference internal" href="futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a>s from <tt class="docutils literal"><span class="pre">futures</span></tt>
 &#8211; the first one to be completed (or any of the ones that were
 already completed) for which <tt class="docutils literal"><span class="pre">completed</span></tt> is <tt class="xref docutils literal"><span class="pre">True</span></tt>.</p>
 </td>
@@ -284,10 +284,10 @@ otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt><
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
   <p class="topless"><a href="node.html"
-                        title="previous chapter"><tt class="docutils literal docutils literal"><span class="pre">junction.node</span></tt> &#8211; A Node In The Server Mesh</a></p>
+                        title="previous chapter"><tt class="docutils literal"><span class="pre">junction.node</span></tt> &#8211; A Node In The Server Mesh</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="rpc.html"
-                        title="next chapter"><tt class="docutils literal"><span class="pre">junction.rpc</span></tt> &#8211; Representations Of In-Flight RPCs</a></p>
+  <p class="topless"><a href="futures.html"
+                        title="next chapter"><tt class="docutils literal"><span class="pre">junction.futures</span></tt> &#8211; Representations of In-Progress Actions</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="../sources/junction/client.txt"
@@ -320,7 +320,7 @@ otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt><
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="rpc.html" title="junction.rpc – Representations Of In-Flight RPCs"
+          <a href="futures.html" title="junction.futures – Representations of In-Progress Actions"
              >next</a> |</li>
         <li class="right" >
           <a href="node.html" title="junction.node – A Node In The Server Mesh"
