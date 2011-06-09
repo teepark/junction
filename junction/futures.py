@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import weakref
 
-from greenhouse import scheduler
+from greenhouse import scheduler, utils
 import mummy
 from .core import const
 from . import errors
@@ -23,6 +23,8 @@ class RPC(object):
 
         self._counter = counter
         self._target_count = target_count
+
+        self._arrival = utils.Event()
 
     def wait(self, timeout=None):
         """Block the current greenlet until the response arrives
@@ -119,6 +121,16 @@ class RPC(object):
         return self._target_count
 
     @property
+    def arrival(self):
+        """A greenhouse.Event for waiting on partial results
+
+        this event is an instance method that is triggered whenever a response
+        arrives, so it can be used to wake a blocking greenlet whenever
+        :attr:`partial_results` gets a new item.
+        """
+        return self._arrival
+
+    @property
     def partial_results(self):
         """The results that the RPC has received so far
 
@@ -145,6 +157,8 @@ class RPC(object):
 
     def _incoming(self, peer_ident, rc, result):
         self._results.append(self._format_result(peer_ident, rc, result))
+        self._arrival.set()
+        self._arrival.clear()
 
     def _complete(self):
         if self._completed:
