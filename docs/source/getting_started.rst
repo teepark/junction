@@ -231,6 +231,11 @@ explaining a useful API. Replace the last two lines with the following:
         print rpc.results[0]
         rpcs.remove(rpc)
 
+The :meth:`Node.wait_any <junction.node.Node.wait_any>` and
+:meth:`Client.wait_any <junction.client.Client.wait_any>` methods accept
+a list of RPCs and return one of them that is complete. If none of them
+are complete already, then it blocks until the first one completes.
+
 This way of collecting parallel RPCs will handle them in the order in
 which their resopnses come back, rather than our pre-defined order. If
 there were a little more variance in the response times than an echo
