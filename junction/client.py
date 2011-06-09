@@ -110,7 +110,7 @@ class Client(object):
         :type kwargs: dict
 
         :returns:
-            a :class:`RPC <junction.core.rpc.RPC>` object representing the
+            a :class:`RPC <junction.futures.RPC>` object representing the
             RPC and its future response.
 
         :raises:
@@ -129,8 +129,8 @@ class Client(object):
         This method will block until a response has been received.
 
         :param futures:
-            a list made up of rpc :class:`rpc <junction.core.rpc.RPC>` and
-            :class:`dependent <junction.core.rpc.Dependent>` objects on which to
+            a list made up of rpc :class:`rpc <junction.futures.RPC>` and
+            :class:`dependent <junction.futures.Dependent>` objects on which to
             wait (only for the first one)
         :type futures: list
         :param timeout:
@@ -139,8 +139,8 @@ class Client(object):
         :type timeout: float or None
 
         :returns:
-            one of the :class:`RPC <junction.core.rpc.RPC>`\s or
-            :class:`Dependent <junction.core.rpc.Dependent>`\s from ``futures``
+            one of the :class:`RPC <junction.futures.RPC>`\s or
+            :class:`Dependent <junction.futures.Dependent>`\s from ``futures``
             -- the first one to be completed (or any of the ones that were
             already completed) for which ``completed`` is ``True``.
 

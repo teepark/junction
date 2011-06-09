@@ -13,8 +13,8 @@ filled in when they arrive, or they can be explicitly waited for.
 Overview
 --------
 
-These are :class:`RPCs <junction.core.rpc.RPC>` and
-:class:`Dependents <junction.core.rpc.Dependent>`.
+These are :class:`RPCs <junction.futures.RPC>` and
+:class:`Dependents <junction.futures.Dependent>`.
 RPCs always correspond to a :meth:`single RPC call
 <junction.node.Node.send_rpc>`. Dependents can be built to wait on any
 combination of RPCs and other Dependents, and they can either represent
@@ -133,7 +133,7 @@ The Common API of RPCs and Dependents
 
 **after()** method
     Creates and returns a new :class:`Dependent
-    <junction.core.rpc.Dependent>` that depends on this future. Also
+    <junction.futures.Dependent>` that depends on this future. Also
     optionally accepts a list of other future objects on which it should
     depend.
 
@@ -141,28 +141,28 @@ The Common API of RPCs and Dependents
     Both :class:`Node <junction.node.Node>` and :class:`Client
     <junction.client.Client>` have a method "wait_all", which accepts a
     list of futures (these can be any mixtures of
-    :class:`RPCs <junction.core.rpc.RPC>` and :class:`Dependents
-    <junction.core.rpc.Dependent>`), and returns the first complete
+    :class:`RPCs <junction.futures.RPC>` and :class:`Dependents
+    <junction.futures.Dependent>`), and returns the first complete
     future from the list.
 
 
 RPCs
 ----
 
-:class:`RPCs <junction.core.rpc.RPC>` are created by calls to
+:class:`RPCs <junction.futures.RPC>` are created by calls to
 :meth:`Node.send_rpc <junction.node.Node.send_rpc>` and
 :meth:`Client.send_rpc <junction.client.Client.send_rpc>`. These objects
 are a representation of the single in-flight RPC call.
 
-The :attr:`results <junction.core.rpc.RPC.results>` attribute will
+The :attr:`results <junction.futures.RPC.results>` attribute will
 always be a list, and it will be filled with the returned results from
 each peer that was targeted by the RPC. In the event of an :meth:`abort
-<junction.core.rpc.RPC.abort>`, the results list will have length 1 --
+<junction.futures.RPC.abort>`, the results list will have length 1 --
 the result passed into the abort method.
 
 RPC objects also have two additional attributes that Dependents don't:
-:attr:`target_count <junction.core.rpc.RPC.target_count>` and
-:attr:`partial_results <junction.core.rpc.RPC.partial_results>`. These
+:attr:`target_count <junction.futures.RPC.target_count>` and
+:attr:`partial_results <junction.futures.RPC.partial_results>`. These
 aren't possible for Dependents because they don't necessarily correspond
 to a single RPC, so target_count doesn't make sense, and if its result
 is simply the return value of its callback there will be no partial
@@ -172,9 +172,9 @@ results.
 Dependents
 ----------
 
-:class:`Dependents <junction.core.rpc.Dependent>` are created by calls
-to :meth:`RPC.after <junction.core.rpc.RPC.after>` and
-:meth:`Dependent.after <junction.core.rpc.Dependent.after>`. They wrap a
+:class:`Dependents <junction.futures.Dependent>` are created by calls
+to :meth:`RPC.after <junction.futures.RPC.after>` and
+:meth:`Dependent.after <junction.futures.Dependent.after>`. They wrap a
 callback function (passed to `after()`), and call it when the future(s)
 they depend on have finished.
 

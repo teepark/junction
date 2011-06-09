@@ -22,7 +22,7 @@ API Reference
    programming_with_futures
    junction/node
    junction/client
-   junction/rpc
+   junction/futures
    junction/errors
 
 Indices and tables

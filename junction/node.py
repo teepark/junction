@@ -230,7 +230,7 @@ class Node(object):
         :type kwargs: dict
 
         :returns:
-            a :class:`RPC <junction.core.rpc.RPC>` object representing the
+            a :class:`RPC <junction.futures.RPC>` object representing the
             RPC and its future response.
 
         :raises:
@@ -251,8 +251,8 @@ class Node(object):
         This method will block until a response has been received.
 
         :param futures:
-            a list made up of :class:`rpc <junction.core.rpc.RPC>` and
-            :class:`Dependent <junction.core.rpc.Dependent>` objects
+            a list made up of :class:`rpc <junction.futures.RPC>` and
+            :class:`Dependent <junction.futures.Dependent>` objects
         :type futures: list
         :param timeout:
             maximum time to wait for a response in seconds. with None, there is
@@ -260,8 +260,8 @@ class Node(object):
         :type timeout: float or None
 
         :returns:
-            one of the :class:`RPC <junction.core.rpc.RPC>`\s or
-            :class:`Dependent <junction.core.rpc.Dependent>`\s from ``futures``
+            one of the :class:`RPC <junction.futures.RPC>`\s or
+            :class:`Dependent <junction.futures.Dependent>`\s from ``futures``
             -- the first one to be completed (or any of the ones that were
             already completed) for which the ``completed`` attribute is
             ``True``.

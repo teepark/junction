@@ -145,10 +145,10 @@ can always create multiple coroutines to run multiple RPCs in parallel.
 But there is also an async client API, and that is what is demonstrated
 next. The :meth:`send_rpc <junction.node.Node.send_rpc>` method does
 just what its name says and *only sends*, so it returns immediately.
-Exactly what it returns is an :class:`RPC <junction.core.rpc.RPC>`
+Exactly what it returns is an :class:`RPC <junction.futures.RPC>`
 instance, which represents an asynchronous in-flight RPC. The code in
 the example sends 3 RPCs at once, collecting the RPC objects in a list,
-then calls :meth:`wait <junction.core.rpc.RPC.wait>` on them each to
+then calls :meth:`wait <junction.futures.RPC.wait>` on them each to
 block and get the RPC results. For more advanced usage of RPC objects
 and the asynchronous API, hop over to :ref:`Programming With Futures
 <programming-with-futures>`.
