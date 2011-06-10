@@ -127,6 +127,11 @@ class RPC(object):
         this event is is triggered whenever a response arrives, so it can be
         used to wake a blocking greenlet whenever :attr:`partial_results` gets
         a new item.
+
+        it is possible that a coroutine awoken from blocking on this event will
+        find that more than one result has arrived since the last time it was
+        awoken, but that should only occur when they arrive in very rapid
+        succession.
         """
         return self._arrival
 
