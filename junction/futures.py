@@ -124,9 +124,9 @@ class RPC(object):
     def arrival(self):
         """A greenhouse.Event for waiting on partial results
 
-        this event is an instance method that is triggered whenever a response
-        arrives, so it can be used to wake a blocking greenlet whenever
-        :attr:`partial_results` gets a new item.
+        this event is is triggered whenever a response arrives, so it can be
+        used to wake a blocking greenlet whenever :attr:`partial_results` gets
+        a new item.
         """
         return self._arrival
 
