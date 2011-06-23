@@ -4,7 +4,7 @@ import socket
 import time
 
 from greenhouse import io, scheduler
-from . import errors
+from . import errors, futures
 from .core import connection, const, dispatch, rpc
 
 
@@ -317,9 +317,33 @@ class Node(object):
         :param routing_id:
             the id used for narrowing within the (service, method) handlers
         :type routing_id: int
+
+        :returns:
+            the integer number of peers that would receive the described RPC
         '''
         return len(list(self._dispatcher.find_peer_routes(
             const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)))
+
+    def dependency_root(self, func):
+        '''Create a parent-less :class:`Dependent <junction.futures.Dependent>`
+
+        This is like :meth:`RPC.after <junction.futures.RPC.after>` or
+        :meth:`Dependent.after <junction.futures.Dependent.after>` in that it
+        wraps a callback with a new :class:`Dependent
+        <junction.futures.Dependent>`, but this one has no parents (so the
+        callback should take no arguments).
+
+        :param func:
+            the callback function for the dependent (this will be started
+            immediately in a separate coroutine)
+        :type func: callable
+
+        :returns: a new :class:`Dependent <junction.futures.Dependent>`
+        '''
+        client = self._rpc_client
+        dep = futures.Dependent(client, client.next_counter(), [], func)
+        dep._complete()
+        return dep
 
     def start(self):
         "Start up the node's server, and have it start initiating connections"

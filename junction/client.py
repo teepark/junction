@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from greenhouse import io
-from . import errors
+from . import errors, futures
 from .core import connection, const, dispatch, rpc
 
 
@@ -201,6 +201,9 @@ class Client(object):
             the id used for narrowing within the (service, method) handlers
         :type routing_id: int
 
+        :returns:
+            the integer number of peers that would receive the described RPC
+
         :raises:
             - :class:`Unroutable <junction.errors.Unroutable>` if no peers are
               registered to receive the message
@@ -213,3 +216,24 @@ class Client(object):
         return self._rpc_client.recipient_count(self._peer,
                 const.MSG_TYPE_RPC_REQUEST, service, method, routing_id).wait(
                         timeout)[0]
+
+    def dependency_root(self, func):
+        '''Create a parent-less :class:`Dependent <junction.futures.Dependent>`
+
+        This is like :meth:`RPC.after <junction.futures.RPC.after>` or
+        :meth:`Dependent.after <junction.futures.Dependent.after>` in that it
+        wraps a callback with a new :class:`Dependent
+        <junction.futures.Dependent>`, but this one has no parents (so the
+        callback should take no arguments).
+
+        :param func:
+            the callback function for the dependent (this will be started
+            immediately in a separate coroutine)
+        :type func: callable
+
+        :returns: a new :class:`Dependent <junction.futures.Dependent>`
+        '''
+        client = self._rpc_client
+        dep = futures.Dependent(client, client.next_counter(), [], func)
+        dep._complete()
+        return dep
