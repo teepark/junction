@@ -288,5 +288,17 @@ class RelayedClientTests(JunctionTests, StateClearingTestCase):
         super(RelayedClientTests, self).tearDown()
 
 
+class NetworklessDependentTests(StateClearingTestCase):
+    def test_some_math(self):
+        client = junction.Client(())
+        dep = client.dependency_root(
+                lambda: 4).after(
+                lambda x: x * 3).after(
+                lambda x: x - 7).after(
+                lambda x: x ** 3).after(
+                lambda x: x // 2)
+        self.assertEqual(dep.wait(), 62)
+
+
 if __name__ == '__main__':
     unittest.main()
