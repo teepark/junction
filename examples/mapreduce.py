@@ -1,16 +1,12 @@
 import random
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
 
 import greenhouse
-import junction
+import mummy
 
 
 def map_reduce(node, service, mapper, reducer):
     return node.rpc(service, "map_reduce", 0,
-            (pickle.dumps(mapper), pickle.dumps(reducer)), {})[0]
+            (dump_func(mapper), dump_func(reducer)), {})[0]
 
 
 class Coordinator(object):
@@ -37,7 +33,7 @@ class Coordinator(object):
             self.handle_result,
             schedule=False)
 
-    def handle_map_reduce(self, pickled_mapper, pickled_reducer):
+    def handle_map_reduce(self, dumped_mapper, dumped_reducer):
         reducer = random.randrange(self._num_reducers)
 
         mappers = self._node.publish_receiver_count(self._service, "map", 0)
@@ -46,14 +42,14 @@ class Coordinator(object):
             self._service,
             "setup",
             reducer,
-            (pickled_reducer, mappers, self._value),
+            (dumped_reducer, mappers, self._value),
             {})[0]
 
         self._node.publish(
             self._service,
             "map",
             0,
-            (job_id, pickled_mapper, reducer),
+            (job_id, dumped_mapper, reducer),
             {})
 
         self._active[(reducer, job_id)] = waiter = greenhouse.Event()
@@ -93,19 +89,19 @@ class Reducer(object):
                 self.handle_reduce,
                 schedule=True)
 
-    def handle_setup(self, pickled_reducer, mapper_count, coordinator_id):
+    def handle_setup(self, dumped_reducer, mapper_count, coordinator_id):
         counter = self._counter
         self._counter += 1
 
-        self._setup_data[counter] = (coordinator_id, pickled_reducer)
+        self._setup_data[counter] = (coordinator_id, dumped_reducer)
         self._active[counter] = mapper_count
 
         return counter
 
     def handle_reduce(self, job_id, results, final):
-        coordinator, pickled_reducer = self._setup_data[job_id]
+        coordinator, dumped_reducer = self._setup_data[job_id]
 
-        args = [pickle.loads(pickled_reducer), results]
+        args = [load_func(dumped_reducer), results]
         if job_id in self._results:
             args.append(self._results[job_id])
 
@@ -128,18 +124,17 @@ class Reducer(object):
 class Mapper(object):
     page_size = 64
 
-    def __init__(self, node, service, data_source, reducer_count):
+    def __init__(self, node, service, data_source):
         self._node = node
         self._service = service
         self._datasource = data_source
-        self._num_reducers = reducer_count
 
         node.accept_publish(
                 service, "map", 0, 0, self.handle_map, schedule=True)
 
-    def handle_map(self, job_id, pickled_mapper, reducer_id):
+    def handle_map(self, job_id, dumped_mapper, reducer_id):
         items = self._datasource()
-        map_func = pickle.loads(pickled_mapper)
+        map_func = load_func(dumped_mapper)
         results = []
 
         for i, item in enumerate(items):
@@ -161,3 +156,29 @@ class Mapper(object):
             reducer_id,
             (job_id, results, True),
             {})
+
+
+def dump_func(f):
+    code = f.func_code
+    return mummy.dumps((
+            code.co_argcount,
+            code.co_nlocals,
+            code.co_stacksize,
+            code.co_flags,
+            code.co_code,
+            code.co_consts,
+            code.co_names,
+            code.co_varnames,
+            code.co_filename,
+            code.co_name,
+            code.co_firstlineno,
+            code.co_lnotab,
+            code.co_freevars,
+            code.co_cellvars))
+
+def load_func(s):
+    def func():
+        pass
+    code = type(load_func.func_code)(*mummy.loads(s))
+    func.func_code = code
+    return func
