@@ -106,6 +106,12 @@ class Dispatcher(object):
         self.peers.pop(peer.ident, None)
         self.drop_peer_subscriptions(peer)
 
+        for counter in self.rpc_client.by_peer.get(id(peer), []):
+            if counter in self.inflight_proxies:
+                self.proxied_response(counter, const.RPC_ERR_LOST_CONN, None)
+
+        self.rpc_client.connection_down(peer)
+
     def add_peer_subscriptions(self, peer, subscriptions, extend=True):
         for msg_type, service, method, mask, value in subscriptions:
             self.peer_subs.setdefault((msg_type, service, method), []).append(
@@ -357,13 +363,6 @@ class Dispatcher(object):
         const.MSG_TYPE_PROXY_RESPONSE_COUNT: incoming_proxy_response_count,
         const.MSG_TYPE_PROXY_QUERY_COUNT: incoming_proxy_query_count,
     }
-
-    def connection_down(self, peer):
-        for counter in self.rpc_client.by_peer.get(id(peer), []):
-            if counter in self.inflight_proxies:
-                self.proxied_response(counter, const.RPC_ERR_LOST_CONN, None)
-
-        self.rpc_client.connection_down(peer)
 
 
 class LocalTarget(object):
