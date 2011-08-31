@@ -92,6 +92,10 @@ class RPCClient(object):
 class ProxiedClient(RPCClient):
     REQUEST = const.MSG_TYPE_PROXY_REQUEST
 
+    def __init__(self, client):
+        super(ProxiedClient, self).__init__()
+        self._client = weakref.ref(client)
+
     def sent(self, counter, targets):
         self.inflight[counter] = 0
         for peer in targets:
@@ -128,6 +132,13 @@ class ProxiedClient(RPCClient):
         self.expect(target, counter, 1)
 
         return rpc
+
+    def connection_down(self, peer):
+        super(ProxiedClient, self).connection_down(peer)
+
+        client = self._client()
+        if client:
+            client._reset()
 
 
 class Wait(object):

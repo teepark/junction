@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import collections
+
 from greenhouse import io
 from . import errors, futures
 from .core import connection, const, dispatch, rpc
@@ -7,16 +9,23 @@ from .core import connection, const, dispatch, rpc
 
 class Client(object):
     "A junction client without the server"
-    def __init__(self, node_address):
-        self.node_addr = node_address
-        self._rpc_client = rpc.ProxiedClient()
+    def __init__(self, addrs):
+        self._rpc_client = rpc.ProxiedClient(self)
         self._dispatcher = dispatch.Dispatcher(self.VERSION, self._rpc_client)
         self._peer = None
+
+        # allow just a single (host, port) pair
+        if (isinstance(addrs, tuple) and
+                len(addrs) == 2 and
+                isinstance(addrs[0], str) and
+                isinstance(addrs[1], int)):
+            addrs = [addrs]
+        self._addrs = collections.deque(addrs)
 
     def connect(self):
         "Initiate the connection to a proxying node"
         self._peer = connection.Peer(
-                None, self._dispatcher, self.node_addr, io.Socket())
+                None, self._dispatcher, self._addrs.popleft(), io.Socket())
         self._peer.start()
 
     def wait_on_connections(self, timeout=None):
@@ -237,3 +246,8 @@ class Client(object):
         dep = futures.Dependent(client, client.next_counter(), [], func)
         dep._complete()
         return dep
+
+    def _reset(self):
+        rpc_client = self._rpc_client
+        self._addrs.append(self._peer.addr)
+        self.__init__(self._addrs)
