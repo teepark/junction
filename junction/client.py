@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import collections
+import weakref
 
 from greenhouse import io
 from . import errors, futures
@@ -24,8 +25,11 @@ class Client(object):
 
     def connect(self):
         "Initiate the connection to a proxying node"
+        # don't have the connection attempt reconnects, because when it goes
+        # down we are going to cycle to the next potential peer from the Client
         self._peer = connection.Peer(
-                None, self._dispatcher, self._addrs.popleft(), io.Socket())
+                None, self._dispatcher, self._addrs.popleft(),
+                io.Socket(), reconnect=False)
         self._peer.start()
 
     def wait_on_connections(self, timeout=None):
@@ -40,6 +44,15 @@ class Client(object):
             otherwise ``False``
         '''
         return self._peer.wait_connected(timeout)
+
+    def reset(self):
+        "Close the current failed connection and prepare for a new one"
+        rpc_client = self._rpc_client
+        self._addrs.append(self._peer.addr)
+        self.__init__(self._addrs)
+        self._rpc_client = rpc_client
+        self._dispatcher.rpc_client = rpc_client
+        rpc_client._client = weakref.ref(self)
 
     def shutdown(self):
         'Close the node connection'
@@ -246,8 +259,3 @@ class Client(object):
         dep = futures.Dependent(client, client.next_counter(), [], func)
         dep._complete()
         return dep
-
-    def _reset(self):
-        rpc_client = self._rpc_client
-        self._addrs.append(self._peer.addr)
-        self.__init__(self._addrs)

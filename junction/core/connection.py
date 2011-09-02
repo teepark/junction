@@ -12,7 +12,8 @@ from .. import errors
 
 
 class Peer(object):
-    def __init__(self, local_addr, dispatcher, addr, sock, initiator=True):
+    def __init__(self, local_addr, dispatcher, addr, sock, initiator=True,
+            reconnect=True):
         self.local_addr = local_addr
         self.dispatcher = dispatcher
         self.addr = addr
@@ -21,6 +22,7 @@ class Peer(object):
         self.up = False
         self._closing = False
 
+        self.attempt_reconnects = reconnect
         self.reconnect_pauses = [0] + [(2 ** i) / 10.0 for i in xrange(9)]
         self.send_queue = utils.Queue()
         self.established = utils.Event()
@@ -82,6 +84,8 @@ class Peer(object):
     def restarter_coro(self):
         if self.reconnect():
             self.schedule_io_coros()
+        else:
+            self.established.set()
 
     def sender_coro(self):
         try:
@@ -183,6 +187,9 @@ class Peer(object):
         return self.ident is None or self.dispatcher.store_peer(self)
 
     def reconnect(self):
+        if not self.attempt_reconnects:
+            return False
+
         pauses = itertools.chain(self.reconnect_pauses, itertools.repeat(30.0))
 
         for pause in pauses:

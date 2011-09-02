@@ -108,7 +108,10 @@ class ProxiedClient(RPCClient):
             del self.by_peer[id(peer)][counter]
 
     def expect(self, peer, counter, target_count):
-        self.inflight[counter] += target_count
+        try:
+            self.inflight[counter] += target_count
+        except KeyError:
+            raise
         self.by_peer[id(peer)][counter] += target_count
 
         if counter in self.rpcs:
@@ -138,7 +141,7 @@ class ProxiedClient(RPCClient):
 
         client = self._client()
         if client:
-            client._reset()
+            client.reset()
 
 
 class Wait(object):
