@@ -4,7 +4,7 @@ import itertools
 import socket
 import struct
 
-from greenhouse import io, scheduler, utils
+from greenhouse import io, scheduler, util
 import mummy
 
 from . import const
@@ -24,9 +24,9 @@ class Peer(object):
 
         self.attempt_reconnects = reconnect
         self.reconnect_pauses = [0] + [(2 ** i) / 10.0 for i in xrange(9)]
-        self.send_queue = utils.Queue()
-        self.established = utils.Event()
-        self.reconnect_waiter = utils.Event()
+        self.send_queue = util.Queue()
+        self.established = util.Event()
+        self.reconnect_waiter = util.Event()
 
         self._sender_coro = None
         self._receiver_coro = None

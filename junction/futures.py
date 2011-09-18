@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import weakref
 
-from greenhouse import scheduler, utils
+from greenhouse import scheduler, util
 import mummy
 from .core import const
 from . import errors
@@ -24,7 +24,7 @@ class RPC(object):
         self._counter = counter
         self._target_count = target_count
 
-        self._arrival = utils.Event()
+        self._arrival = util.Event()
 
     def wait(self, timeout=None):
         """Block the current greenlet until the response arrives

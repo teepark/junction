@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import weakref
 
-from greenhouse import utils
+from greenhouse import util
 from . import const
 from .. import errors, futures
 
@@ -148,7 +148,7 @@ class Wait(object):
     def __init__(self, client, counters):
         self.client = client
         self.counters = counters
-        self.done = utils.Event()
+        self.done = util.Event()
         self.transfers = {}
         self.completed_rpc = None
         self.finished = False
