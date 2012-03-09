@@ -10,8 +10,7 @@ from .. import errors
 
 
 class Dispatcher(object):
-    def __init__(self, version, rpc_client):
-        self.version = version
+    def __init__(self, rpc_client):
         self.rpc_client = rpc_client
         self.peer_subs = {}
         self.local_subs = {}

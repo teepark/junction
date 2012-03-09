@@ -12,7 +12,7 @@ class Client(object):
     "A junction client without the server"
     def __init__(self, addrs):
         self._rpc_client = rpc.ProxiedClient(self)
-        self._dispatcher = dispatch.Dispatcher(self.VERSION, self._rpc_client)
+        self._dispatcher = dispatch.Dispatcher(self._rpc_client)
         self._peer = None
 
         # allow just a single (host, port) pair
@@ -81,7 +81,7 @@ class Client(object):
             doesn't have a connection to a node
         '''
         if not self._peer.up:
-            raise Unroutable()
+            raise errors.Unroutable()
 
         self._dispatcher.send_proxied_publish(
                 service, method, routing_id, args, kwargs)

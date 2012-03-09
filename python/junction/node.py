@@ -19,7 +19,7 @@ class Node(object):
         self._listener_coro = None
 
         self._rpc_client = rpc.RPCClient()
-        self._dispatcher = dispatch.Dispatcher(self.VERSION, self._rpc_client)
+        self._dispatcher = dispatch.Dispatcher(self._rpc_client)
 
     def wait_on_connections(self, conns=None, timeout=None):
         '''Wait for connections to be made and their handshakes to finish

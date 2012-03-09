@@ -33,7 +33,6 @@ class Peer(object):
 
         # we'll get these from the peer on handshake
         self.ident = ()
-        self.version = ()
         self.subscriptions = []
 
     ##
@@ -158,7 +157,6 @@ class Peer(object):
         try:
             self.sock.sendall(self.dump((const.MSG_TYPE_HANDSHAKE, (
                 self.local_addr,
-                self.dispatcher.version,
                 list(self.dispatcher.local_subscriptions())))))
         except socket.error:
             return False
@@ -174,13 +172,12 @@ class Peer(object):
                 or not isinstance(received, tuple)
                 or received[0] != const.MSG_TYPE_HANDSHAKE
                 or len(received) != 2
-                or len(received[1]) != 3
+                or len(received[1]) != 2
                 or not isinstance(received[1][0], (tuple, type(None)))
-                or not isinstance(received[1][1], tuple)
-                or not isinstance(received[1][2], list)):
+                or not isinstance(received[1][1], list)):
             return False
 
-        self.ident, self.version, self.subscriptions = received[1]
+        self.ident, self.subscriptions = received[1]
         self.up = True
         self.established.set()
 
