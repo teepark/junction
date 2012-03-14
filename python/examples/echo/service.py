@@ -4,7 +4,7 @@
 import traceback
 
 import greenhouse
-from junction import Node
+from junction import Hub
 
 HOST = "127.0.0.1"
 PORT = 9000
@@ -25,13 +25,13 @@ def handler(x):
 
 
 def main():
-    node = Node((HOST, PORT), [(RELAY_HOST, RELAY_PORT)])
-    node.start()
+    hub = Hub((HOST, PORT), [(RELAY_HOST, RELAY_PORT)])
+    hub.start()
 
-    node.accept_rpc(SERVICE, "echo", 0, 0, handler)
+    hub.accept_rpc(SERVICE, "echo", 0, 0, handler)
 
     greenhouse.schedule(greenhouse.run_backdoor,
-            args=((BACKHOST, BACKPORT), {'node': node}))
+            args=((BACKHOST, BACKPORT), {'hub': hub}))
 
     try:
         greenhouse.Event().wait()

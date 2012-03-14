@@ -20,7 +20,7 @@ API Reference
 
    getting_started
    programming_with_futures
-   junction/node
+   junction/hub
    junction/client
    junction/futures
    junction/errors

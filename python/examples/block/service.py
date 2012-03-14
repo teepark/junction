@@ -17,13 +17,13 @@ def wait(seconds):
 
 
 def main():
-    node = junction.Node(("localhost", PORT), [("localhost", MIDDLEMAN_PORT)])
-    node.start()
+    hub = junction.Hub(("localhost", PORT), [("localhost", MIDDLEMAN_PORT)])
+    hub.start()
 
-    node.accept_rpc(WAIT_SERVICE, "wait", 0, 0, wait)
+    hub.accept_rpc(WAIT_SERVICE, "wait", 0, 0, wait)
 
     greenhouse.schedule(greenhouse.run_backdoor,
-            args=(("localhost", PORT + 1), {'node': node}))
+            args=(("localhost", PORT + 1), {'hub': hub}))
 
     try:
         greenhouse.Event().wait()

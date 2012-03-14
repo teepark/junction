@@ -12,7 +12,7 @@ class RPC(object):
     """A representation of a single RPC request/response cycle
 
     instances of this class shouldn't be created directly, they are returned by
-    :meth:`Node.send_rpc() <junction.node.Node.send_rpc>`.
+    :meth:`Hub.send_rpc() <junction.hub.Hub.send_rpc>`.
     """
     def __init__(self, client, counter, target_count):
         self._client = client
@@ -66,7 +66,7 @@ class RPC(object):
         :returns:
             a :class:`Dependent`, which can be waited on, waited on as part of
             a group of other :class:`RPC`\s and :class:`Dependent`\s with
-            :meth:`Node.wait_any <junction.node.Node.wait_any>`
+            :meth:`Hub.wait_any <junction.hub.Hub.wait_any>`
         """
         if func is None:
             return lambda f: self.after(f, other_parents)
@@ -117,7 +117,7 @@ class RPC(object):
 
     @property
     def target_count(self):
-        "The number of peer nodes that will return a response for this RPC"
+        "The number of peer hubs that will return a response for this RPC"
         return self._target_count
 
     @property
@@ -268,7 +268,7 @@ class Dependent(object):
         :returns:
             a :class:`Dependent`, which can be waited on, waited on as part of
             a group of other :class:`RPC`\s and :class:`Dependent`\s with
-            :meth:`Node.wait_any <junction.node.Node.wait_any>`
+            :meth:`Hub.wait_any <junction.hub.Hub.wait_any>`
         """
         if func is None:
             return lambda f: self.after(f, other_parents)

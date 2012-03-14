@@ -4,7 +4,7 @@
 import traceback
 
 import greenhouse
-from junction import Node
+from junction import Hub
 
 HOST = "127.0.0.1"
 PORT = 9100
@@ -19,15 +19,15 @@ SERVICE = 1
 
 greenhouse.global_exception_handler(traceback.print_exception)
 
-node = Node((HOST, PORT), [(SERVICE_HOST, SERVICE_PORT)])
+hub = Hub((HOST, PORT), [(SERVICE_HOST, SERVICE_PORT)])
 
 
 def main():
-    node.start()
-    node.wait_on_connections()
+    hub.start()
+    hub.wait_on_connections()
 
     greenhouse.schedule(greenhouse.run_backdoor,
-            args=((BDHOST, BDPORT), {'node': node}))
+            args=((BDHOST, BDPORT), {'hub': hub}))
 
     try:
         greenhouse.Event().wait()

@@ -4,20 +4,20 @@ import greenhouse
 import mummy
 
 
-def map_reduce(node, service, mapper, reducer):
-    return node.rpc(service, "map_reduce", 0,
+def map_reduce(hub, service, mapper, reducer):
+    return hub.rpc(service, "map_reduce", 0,
             (dump_func(mapper), dump_func(reducer)), {})[0]
 
 
 class Coordinator(object):
-    def __init__(self, node, service, mask, value, num_reducers):
-        self._node = node
+    def __init__(self, hub, service, mask, value, num_reducers):
+        self._hub = hub
         self._service = service
         self._value = value
         self._num_reducers = num_reducers
         self._active = {}
 
-        node.accept_rpc(
+        hub.accept_rpc(
             service,
             "map_reduce",
             mask,
@@ -25,7 +25,7 @@ class Coordinator(object):
             self.handle_map_reduce,
             schedule=True)
 
-        node.accept_publish(
+        hub.accept_publish(
             service,
             "result",
             mask,
@@ -36,16 +36,16 @@ class Coordinator(object):
     def handle_map_reduce(self, dumped_mapper, dumped_reducer):
         reducer = random.randrange(self._num_reducers)
 
-        mappers = self._node.publish_receiver_count(self._service, "map", 0)
+        mappers = self._hub.publish_receiver_count(self._service, "map", 0)
 
-        job_id = self._node.rpc(
+        job_id = self._hub.rpc(
             self._service,
             "setup",
             reducer,
             (dumped_reducer, mappers, self._value),
             {})[0]
 
-        self._node.publish(
+        self._hub.publish(
             self._service,
             "map",
             0,
@@ -64,8 +64,8 @@ class Coordinator(object):
 
 
 class Reducer(object):
-    def __init__(self, node, service, mask, value):
-        self._node = node
+    def __init__(self, hub, service, mask, value):
+        self._hub = hub
         self._service = service
         self._value = value
         self._active = {}
@@ -73,7 +73,7 @@ class Reducer(object):
         self._setup_data = {}
         self._counter = 1
 
-        node.accept_rpc(
+        hub.accept_rpc(
                 service,
                 "setup",
                 mask,
@@ -81,7 +81,7 @@ class Reducer(object):
                 self.handle_setup,
                 schedule=False)
 
-        node.accept_publish(
+        hub.accept_publish(
                 service,
                 "reduce",
                 mask,
@@ -113,7 +113,7 @@ class Reducer(object):
                 del self._active[job_id]
                 del self._setup_data[job_id]
 
-                self._node.publish(
+                self._hub.publish(
                         self._service,
                         "result",
                         coordinator,
@@ -124,12 +124,12 @@ class Reducer(object):
 class Mapper(object):
     page_size = 64
 
-    def __init__(self, node, service, data_source):
-        self._node = node
+    def __init__(self, hub, service, data_source):
+        self._hub = hub
         self._service = service
         self._datasource = data_source
 
-        node.accept_publish(
+        hub.accept_publish(
                 service, "map", 0, 0, self.handle_map, schedule=True)
 
     def handle_map(self, job_id, dumped_mapper, reducer_id):
@@ -141,7 +141,7 @@ class Mapper(object):
             results.append(map_func(item))
 
             if i and not i % self.page_size:
-                self._node.publish(
+                self._hub.publish(
                     self._service,
                     "reduce",
                     reducer_id,
@@ -150,7 +150,7 @@ class Mapper(object):
                 results = []
                 greenhouse.pause()
 
-        self._node.publish(
+        self._hub.publish(
             self._service,
             "reduce",
             reducer_id,

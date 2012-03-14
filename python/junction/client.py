@@ -24,7 +24,7 @@ class Client(object):
         self._addrs = collections.deque(addrs)
 
     def connect(self):
-        "Initiate the connection to a proxying node"
+        "Initiate the connection to a proxying hub"
         # don't have the connection attempt reconnects, because when it goes
         # down we are going to cycle to the next potential peer from the Client
         self._peer = connection.Peer(
@@ -55,7 +55,7 @@ class Client(object):
         rpc_client._client = weakref.ref(self)
 
     def shutdown(self):
-        'Close the node connection'
+        'Close the hub connection'
         self._peer.go_down(reconnect=False)
 
     def publish(self, service, method, routing_id, args, kwargs):
@@ -78,7 +78,7 @@ class Client(object):
 
         :raises:
             :class:`Unroutable <junction.errors.Unroutable>` if the client
-            doesn't have a connection to a node
+            doesn't have a connection to a hub
         '''
         if not self._peer.up:
             raise errors.Unroutable()
@@ -137,7 +137,7 @@ class Client(object):
 
         :raises:
             :class:`Unroutable <junction.errors.Unroutable>` if the client
-            doesn't have a connection to a node
+            doesn't have a connection to a hub
         '''
         if not self._peer.up:
             raise errors.Unroutable()

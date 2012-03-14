@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from .node import Node
+from .hub import Hub
 from .client import Client
 
 

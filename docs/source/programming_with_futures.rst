@@ -16,7 +16,7 @@ Overview
 These are :class:`RPCs <junction.futures.RPC>` and
 :class:`Dependents <junction.futures.Dependent>`.
 RPCs always correspond to a :meth:`single RPC call
-<junction.node.Node.send_rpc>`. Dependents can be built to wait on any
+<junction.hub.Hub.send_rpc>`. Dependents can be built to wait on any
 combination of RPCs and other Dependents, and they can either represent
 a not-yet-started RPC or the results of any callback function.Dependents
 wrap a callback that isn't fired until all its parent futures are
@@ -29,7 +29,7 @@ Both objects share a common API, so in some circumstances can be used
 interchangeably.
 
 Using RPC instances with the **send_rpc()** and **wait_any()** methods
-of :class:`Node <junction.node.Node>` and :class:`Client
+of :class:`Hub <junction.hub.Hub>` and :class:`Client
 <junction.client.Client>` objects is a great way to parallelize RPCs
 within a single coroutine, and Dependents are a natural extension of
 that for when one needs to make RPC calls whose arguments are taken from
@@ -54,9 +54,9 @@ than end up with choke points scattered throughout the process.
 Consider the simple example below of pseudocode validating an entered
 username and password::
 
-    def validate(node, username, passwd):
-        userid = node.rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})[0]
-        is_valid = node.rpc(PASSWORD_SERVICE, "validate", 0, (userid, passwd), {})[0]
+    def validate(hub, username, passwd):
+        userid = hub.rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})[0]
+        is_valid = hub.rpc(PASSWORD_SERVICE, "validate", 0, (userid, passwd), {})[0]
         return is_valid
 
 .. image:: imgs/single_validate.png
@@ -64,12 +64,12 @@ username and password::
 To go async and program with futures, we must use a Dependent for the
 second RPC as its arguments include the results from the first RPC.::
 
-    def validate(node, username, passwd):
-        userid = node.send_rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})
+    def validate(hub, username, passwd):
+        userid = hub.send_rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})
 
         @userid.after
         def is_valid(userid):
-            return node.send_rpc(PASSWORD_SERVICE, "validate", 0, (userid[0], passwd))
+            return hub.send_rpc(PASSWORD_SERVICE, "validate", 0, (userid[0], passwd))
 
         return is_valid.wait()[0]
 
@@ -78,7 +78,7 @@ second *must* wait for the first, and the method still blocks until both
 RPCs have completed. Where the approach really helps us is when we need
 to validate a batch of username, password pairs::
 
-    validations = [(un, pw, validate(node, un, pw)) for un, pw in groups]
+    validations = [(un, pw, validate(hub, un, pw)) for un, pw in groups]
 
 .. image:: imgs/seq_validates.png
 
@@ -86,16 +86,16 @@ With just a tiny modification to the futures-based validate method, and
 a little supporting code in the batching, we can get each of the
 sequential RPC pairs happening together in parallel::
 
-    def validate(node, username, passwd):
-        userid = node.send_rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})
+    def validate(hub, username, passwd):
+        userid = hub.send_rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})
 
         @userid.after
         def is_valid(userid):
-            return node.send_rpc(PASSWORD_SERVICE, "validate", 0, (userid[0], passwd))
+            return hub.send_rpc(PASSWORD_SERVICE, "validate", 0, (userid[0], passwd))
 
         return is_valid
 
-    with_futures = [(un, pw, validate(node, un, pw)) for un, pw in groups]
+    with_futures = [(un, pw, validate(hub, un, pw)) for un, pw in groups]
     validations = [(un, pw, f.wait()[0]) for un, pw, f in with_futures]
 
 .. image:: imgs/par_validates.png
@@ -137,8 +137,8 @@ The Common API of RPCs and Dependents
     optionally accepts a list of other future objects on which it should
     depend.
 
-**Node.wait_any()** and **Client.wait_any()**
-    Both :class:`Node <junction.node.Node>` and :class:`Client
+**Hub.wait_any()** and **Client.wait_any()**
+    Both :class:`Hub <junction.hub.Hub>` and :class:`Client
     <junction.client.Client>` have a method "wait_all", which accepts a
     list of futures (these can be any mixtures of
     :class:`RPCs <junction.futures.RPC>` and :class:`Dependents
@@ -150,7 +150,7 @@ RPCs
 ----
 
 :class:`RPCs <junction.futures.RPC>` are created by calls to
-:meth:`Node.send_rpc <junction.node.Node.send_rpc>` and
+:meth:`Hub.send_rpc <junction.hub.Hub.send_rpc>` and
 :meth:`Client.send_rpc <junction.client.Client.send_rpc>`. These objects
 are a representation of the single in-flight RPC call.
 

@@ -8,8 +8,8 @@ from . import errors, futures
 from .core import connection, const, dispatch, rpc
 
 
-class Node(object):
-    'A node in the server graph'
+class Hub(object):
+    'A hub in the server graph'
     def __init__(self, addr, peer_addrs, hostname=None):
         self.addr = addr
         self._ident = (hostname or addr[0], addr[1])
@@ -27,7 +27,7 @@ class Node(object):
         :param conns:
             a single or list of (host, port) tuples with the connections that
             must be finished before the method will return. defaults to all the
-            peers the :class:`Node` was instantiated with.
+            peers the :class:`Hub` was instantiated with.
         :param timeout:
             maximum time to wait in seconds. with None, there is no timeout.
         :type timeout: float or None
@@ -345,7 +345,7 @@ class Node(object):
         return dep
 
     def start(self):
-        "Start up the node's server, and have it start initiating connections"
+        "Start up the hub's server, and have it start initiating connections"
         self._listener_coro = scheduler.greenlet(self._listener)
         scheduler.schedule(self._listener_coro)
 

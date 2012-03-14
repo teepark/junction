@@ -28,7 +28,7 @@ class Dispatcher(object):
                     (msg_type, service, method), [])
 
             # subscriptions must be mutually exclusive. that is, there cannot
-            # be more than one handler on a node for any possible message
+            # be more than one handler on a hub for any possible message
             for mask2, value2, handler2, schedule2 in previous_subscriptions:
                 if mask2 & value == mask & value2:
                     continue

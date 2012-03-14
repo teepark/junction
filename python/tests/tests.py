@@ -33,9 +33,9 @@ class StateClearingTestCase(unittest.TestCase):
 
 
 class JunctionTests(object):
-    def create_node(self, peers=None):
+    def create_hub(self, peers=None):
         global PORT
-        peer = junction.Node(("127.0.0.1", PORT), peers or [])
+        peer = junction.Hub(("127.0.0.1", PORT), peers or [])
         PORT += 2
         peer.start()
         return peer
@@ -43,7 +43,7 @@ class JunctionTests(object):
     def setUp(self):
         super(JunctionTests, self).setUp()
 
-        self.peer = self.create_node()
+        self.peer = self.create_hub()
         self.connection = self.peer
 
         self.build_sender()
@@ -86,7 +86,7 @@ class JunctionTests(object):
         try:
             self.sender.publish("service2", "method", 0, (), {})
         except junction.errors.Unroutable:
-            # eat this as Clients don't get this raised, only Nodes
+            # eat this as Clients don't get this raised, only Hubs
             pass
 
         greenhouse.pause_for(TIMEOUT)
@@ -103,7 +103,7 @@ class JunctionTests(object):
         try:
             self.sender.publish("service", "method2", 0, (), {})
         except junction.errors.Unroutable:
-            # eat this as Clients don't get this raised, only Nodes
+            # eat this as Clients don't get this raised, only Hubs
             pass
 
         greenhouse.pause_for(TIMEOUT)
@@ -121,7 +121,7 @@ class JunctionTests(object):
         try:
             self.sender.publish("service", "method", 1, (), {})
         except junction.errors.Unroutable:
-            # eat this as Clients don't get this raised, only Nodes
+            # eat this as Clients don't get this raised, only Hubs
             pass
 
         greenhouse.pause_for(TIMEOUT)
@@ -254,9 +254,9 @@ class JunctionTests(object):
         self.assertEqual(sender_results, [[1], [4], [9], [16]])
 
 
-class NodeTests(JunctionTests, StateClearingTestCase):
+class HubTests(JunctionTests, StateClearingTestCase):
     def build_sender(self):
-        self.sender = junction.Node(("127.0.0.1", 8000), [self.peer.addr])
+        self.sender = junction.Hub(("127.0.0.1", 8000), [self.peer.addr])
         self.sender.start()
         self.sender.wait_on_connections()
 
@@ -274,7 +274,7 @@ class ClientTests(JunctionTests, StateClearingTestCase):
 
 class RelayedClientTests(JunctionTests, StateClearingTestCase):
     def build_sender(self):
-        self.relayer = junction.Node(
+        self.relayer = junction.Hub(
                 ("127.0.0.1", self.peer.addr[1] + 1), [self.peer.addr])
         self.relayer.start()
         self.connection = self.relayer

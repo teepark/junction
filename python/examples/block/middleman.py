@@ -14,11 +14,11 @@ SERVICE_PORT = 9876
 
 
 def main():
-    node = junction.Node(("localhost", PORT), [("localhost", SERVICE_PORT)])
-    node.start()
+    hub = junction.Hub(("localhost", PORT), [("localhost", SERVICE_PORT)])
+    hub.start()
 
     greenhouse.schedule(greenhouse.run_backdoor,
-            args=(("localhost", PORT + 1), {'node': node}))
+            args=(("localhost", PORT + 1), {'hub': hub}))
 
     try:
         greenhouse.Event().wait()
