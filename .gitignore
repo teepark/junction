@@ -1,7 +1,7 @@
 .*.swp
 *.pyc
 *.pyo
-.*.swp
+.*.swo
 python/junction.egg-info/*
 python/MANIFEST.in
 python/build/*
