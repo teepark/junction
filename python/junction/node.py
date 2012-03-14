@@ -44,8 +44,7 @@ class Node(object):
 
         for peer_addr in conns:
             remaining = max(0, deadline - time.time()) if timeout else None
-            peer = self._started_peers[peer_addr]
-            if peer.wait_connected():
+            if self._started_peers[peer_addr].wait_connected(remaining):
                 return True
 
         return False
