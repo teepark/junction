@@ -186,9 +186,16 @@ class RPC(object):
         if not rc:
             return result
 
+        if rc == const.RPC_ERR_MALFORMED:
+            return errors.JunctionSystemError("malformed rpc request")
+
         if rc == const.RPC_ERR_NOHANDLER:
             return errors.NoRemoteHandler(
                     "RPC mistakenly sent to %r" % (peer_ident,))
+
+        if rc == const.RPC_ERR_NOMETHOD:
+            return errors.UnsupportedRemoteMethod(
+                    "peer at %r doesn't support the method" % (peer_ident,))
 
         if rc == const.RPC_ERR_KNOWN:
             err_code, err_args = result

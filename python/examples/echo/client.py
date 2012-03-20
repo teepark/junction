@@ -28,9 +28,9 @@ def main():
     if client.wait_on_connections(timeout=3):
         raise RuntimeError("connection timeout")
 
-    print client.rpc(SERVICE, "echo", 0, ('one',), {})
+    print client.rpc(SERVICE, 0, "echo", ('one',), {})
 
-    rpcs = map(lambda msg: client.send_rpc(SERVICE, "echo", 0, (msg,), {}),
+    rpcs = map(lambda msg: client.send_rpc(SERVICE, 0, "echo", (msg,), {}),
             ('two', 'three', 'four', 'five'))
     while rpcs:
         rpc = client.wait_any(rpcs)

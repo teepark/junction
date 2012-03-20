@@ -5,7 +5,7 @@ import mummy
 
 
 def map_reduce(hub, service, mapper, reducer):
-    return hub.rpc(service, "map_reduce", 0,
+    return hub.rpc(service, 0, "map_reduce",
             (dump_func(mapper), dump_func(reducer)), {})[0]
 
 
@@ -19,17 +19,17 @@ class Coordinator(object):
 
         hub.accept_rpc(
             service,
-            "map_reduce",
             mask,
             value,
+            "map_reduce",
             self.handle_map_reduce,
             schedule=True)
 
         hub.accept_publish(
             service,
-            "result",
             mask,
             value,
+            "result",
             self.handle_result,
             schedule=False)
 
@@ -40,15 +40,15 @@ class Coordinator(object):
 
         job_id = self._hub.rpc(
             self._service,
-            "setup",
             reducer,
+            "setup",
             (dumped_reducer, mappers, self._value),
             {})[0]
 
         self._hub.publish(
             self._service,
-            "map",
             0,
+            "map",
             (job_id, dumped_mapper, reducer),
             {})
 
@@ -75,17 +75,17 @@ class Reducer(object):
 
         hub.accept_rpc(
                 service,
-                "setup",
                 mask,
                 value,
+                "setup",
                 self.handle_setup,
                 schedule=False)
 
         hub.accept_publish(
                 service,
-                "reduce",
                 mask,
                 value,
+                "reduce",
                 self.handle_reduce,
                 schedule=True)
 
@@ -115,8 +115,8 @@ class Reducer(object):
 
                 self._hub.publish(
                         self._service,
-                        "result",
                         coordinator,
+                        "result",
                         (self._value, job_id, self._results.pop(job_id),),
                         {})
 
@@ -130,7 +130,7 @@ class Mapper(object):
         self._datasource = data_source
 
         hub.accept_publish(
-                service, "map", 0, 0, self.handle_map, schedule=True)
+                service, 0, 0, "map", self.handle_map, schedule=True)
 
     def handle_map(self, job_id, dumped_mapper, reducer_id):
         items = self._datasource()
@@ -143,8 +143,8 @@ class Mapper(object):
             if i and not i % self.page_size:
                 self._hub.publish(
                     self._service,
-                    "reduce",
                     reducer_id,
+                    "reduce",
                     (job_id, results, False),
                     {})
                 results = []
@@ -152,8 +152,8 @@ class Mapper(object):
 
         self._hub.publish(
             self._service,
-            "reduce",
             reducer_id,
+            "reduce",
             (job_id, results, True),
             {})
 

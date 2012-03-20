@@ -58,17 +58,17 @@ class Client(object):
         'Close the hub connection'
         self._peer.go_down(reconnect=False)
 
-    def publish(self, service, method, routing_id, args, kwargs):
+    def publish(self, service, routing_id, method, args, kwargs):
         '''Send a 1-way message
 
         :param service: the service name (the routing top level)
         :type service: anything hash-able
-        :param method: the method name to call
-        :type method: string
         :param routing_id:
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
+        :param method: the method name to call
+        :type method: string
         :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
@@ -84,21 +84,21 @@ class Client(object):
             raise errors.Unroutable()
 
         self._dispatcher.send_proxied_publish(
-                service, method, routing_id, args, kwargs)
+                service, routing_id, method, args, kwargs)
 
     def publish_receiver_count(
-            self, service, method, routing_id, timeout=None):
+            self, service, routing_id, method, timeout=None):
         '''Get the number of peers that would handle a particular publish
 
         This method will block until a response arrives
 
         :param service: the service name
         :type service: anything hash-able
+        :param routing_id:
+            the id used for narrowing within the service handlers
+        :type routing_id: int
         :param method: the method name
         :type method: string
-        :param routing_id:
-            the id used for narrowing within the (service, method) handlers
-        :type routing_id: int
         :param timeout: maximum time to wait for the response
         :type timeout: int, float or None
 
@@ -112,20 +112,20 @@ class Client(object):
             raise errors.Unroutable()
 
         return self._rpc_client.recipient_count(self._peer,
-                const.MSG_TYPE_PUBLISH, service, method, routing_id).wait(
+                const.MSG_TYPE_PUBLISH, service, routing_id, method).wait(
                         timeout)[0]
 
-    def send_rpc(self, service, method, routing_id, args, kwargs):
+    def send_rpc(self, service, routing_id, method, args, kwargs):
         '''Send out an RPC request
 
         :param service: the service name (the routing top level)
         :type service: anything hash-able
-        :param method: the method name to call
-        :type method: string
         :param routing_id:
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
+        :param method: the method name to call
+        :type method: string
         :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
@@ -143,7 +143,7 @@ class Client(object):
             raise errors.Unroutable()
 
         return self._rpc_client.request([self._peer],
-                service, method, routing_id, args, kwargs)
+                service, routing_id, method, args, kwargs)
 
     def wait_any(self, futures, timeout=None):
         '''Wait for the response for any (the first) of multiple futures
@@ -172,19 +172,19 @@ class Client(object):
         '''
         return self._rpc_client.wait(futures, timeout)
 
-    def rpc(self, service, method, routing_id, args, kwargs, timeout=None):
+    def rpc(self, service, routing_id, method, args, kwargs, timeout=None):
         '''Send an RPC request and return the corresponding response
 
         This will block waiting until the response has been received.
 
         :param service: the service name (the routing top level)
         :type service: anything hash-able
-        :param method: the method name to call
-        :type method: string
         :param routing_id:
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
+        :param method: the method name to call
+        :type method: string
         :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
@@ -204,24 +204,24 @@ class Client(object):
             - :class:`WaitTimeout <junction.errors.WaitTimeout>` if a timeout
               was provided and it expires
         '''
-        rpc = self.send_rpc(service, method, routing_id, args, kwargs)
+        rpc = self.send_rpc(service, routing_id, method, args, kwargs)
         results = rpc.wait(timeout)
         if not rpc.target_count:
             raise errors.Unroutable()
         return results
 
-    def rpc_receiver_count(self, service, method, routing_id, timeout=None):
+    def rpc_receiver_count(self, service, routing_id, method, timeout=None):
         '''Get the number of peers that would handle a particular RPC
 
         This method will block until a response arrives
 
         :param service: the service name
         :type service: anything hash-able
+        :param routing_id:
+            the id used for narrowing within the service handlers
+        :type routing_id: int
         :param method: the method name
         :type method: string
-        :param routing_id:
-            the id used for narrowing within the (service, method) handlers
-        :type routing_id: int
 
         :returns:
             the integer number of peers that would receive the described RPC
@@ -236,7 +236,7 @@ class Client(object):
             raise errors.Unroutable()
 
         return self._rpc_client.recipient_count(self._peer,
-                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id).wait(
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id, method).wait(
                         timeout)[0]
 
     def dependency_root(self, func):

@@ -21,10 +21,10 @@ greenhouse.global_exception_handler(traceback.print_exception)
 
 
 def second_call(client, results):
-    return client.send_rpc(SERVICE, "echo", 0, (results[0],), {})
+    return client.send_rpc(SERVICE, 0, "echo", (results[0],), {})
 
 def third_call(results):
-    return results[0][:-1]
+    return results[0]
 
 
 def main():
@@ -36,9 +36,9 @@ def main():
     if client.wait_on_connections(timeout=3):
         raise RuntimeError("connection timeout")
 
-    print client.rpc(SERVICE, "echo", 0, ('one',), {})
+    print client.rpc(SERVICE, 0, "echo", ('one',), {})
 
-    rpcs = map(lambda msg: client.send_rpc(SERVICE, "echo", 0, (msg,), {}),
+    rpcs = map(lambda msg: client.send_rpc(SERVICE, 0, "echo", (msg,), {}),
             ('two', 'three', 'four', 'five'))
 
     dependents = [

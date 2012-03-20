@@ -172,11 +172,14 @@ class Peer(object):
                 or not isinstance(received, tuple)
                 or received[0] != const.MSG_TYPE_HANDSHAKE
                 or len(received) != 2
+                or not isinstance(received[1], tuple)
                 or len(received[1]) != 2
                 or not isinstance(received[1][0], (tuple, type(None)))
                 or not isinstance(received[1][1], list)):
             return False
 
+        #FIXME: stop storing subscriptions on the peer, the one source of
+        #      truth is on the dispatcher
         self.ident, self.subscriptions = received[1]
         self.up = True
         self.established.set()

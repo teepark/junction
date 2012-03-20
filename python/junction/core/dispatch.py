@@ -17,44 +17,48 @@ class Dispatcher(object):
         self.peers = {}
         self.inflight_proxies = {}
 
-    def add_local_subscriptions(self, handler, subscriptions):
-        added = []
-        for msg_type, service, method, mask, value, schedule in subscriptions:
-            # simple sanity check: *anything* could match this
-            if value & ~mask:
+    def add_local_subscription(self, msg_type, service, mask, value, method,
+            handler, schedule):
+        # storage in local_subs is shaped like so:
+        # {(msg_type, service): [
+        #     (mask, value, {method: (handler, schedule), ...}), ...], ...}
+        if value & ~mask:
+            raise errors.ImpossibleSubscription(msg_type, service, mask, value)
+
+        existing = self.local_subs.setdefault((msg_type, service), [])
+        for pmask, pvalue, phandlers in existing:
+            if pmask & value == mask & pvalue:
+                if method in phandlers:
+                    raise errors.OverlappingSubscription(
+                            (msg_type, service, mask, value, method),
+                            (msg_type, service, pmask, pvalue, method))
+                elif (mask, value) == (pmask, pvalue):
+                    phandlers[method] = (handler, schedule)
+                    return
+        else:
+            existing.append((mask, value, {method: (handler, schedule)}))
+
+        for peer in self.peers.itervalues():
+            if not peer.up:
                 continue
-
-            previous_subscriptions = self.local_subs.setdefault(
-                    (msg_type, service, method), [])
-
-            # subscriptions must be mutually exclusive. that is, there cannot
-            # be more than one handler on a hub for any possible message
-            for mask2, value2, handler2, schedule2 in previous_subscriptions:
-                if mask2 & value == mask & value2:
-                    continue
-
-            previous_subscriptions.append((mask, value, handler, schedule))
-            added.append((msg_type, service, method, mask, value))
-
-        # for all connections that have already gone through their handshake,
-        # send an ANNOUNCE message with the subscription updates
-        if added:
-            for peer in self.peers.itervalues():
-                if peer.up:
-                    peer.push((const.MSG_TYPE_ANNOUNCE, added))
-
-        return len(added)
+            peer.push((const.MSG_TYPE_ANNOUNCE,
+                    [(msg_type, service, mask, value)]))
 
     def remove_local_subscription(
-            self, msg_type, service, method, mask, value, handler):
-        group = self.local_subs.get((msg_type, service, method), [])
-        for i, (mask2, value2, handler2, schedule) in enumerate(group):
-            if mask == mask2 and value == value2 and handler is handler2:
+            self, msg_type, service, mask, value):
+        group = self.local_subs.get((msg_type, service), 0)
+        if not group:
+            return False
+        for i, (pmask, pvalue, phandlers) in enumerate(group):
+            if (mask, value) == (pmask, pvalue):
                 del group[i]
+                if not group:
+                    del self.local_subs[(msg_type, service)]
                 for peer in self.peers.itervalues():
-                    if peer.up:
-                        peer.push((const.MSG_TYPE_UNSUBSCRIBE,
-                            (msg_type, service, method, mask, value)))
+                    if not peer.up:
+                        continue
+                    peer.push((const.MSG_TYPE_UNSUBSCRIBE,
+                        (msg_type, service, mask, value)))
                 return True
         return False
 
@@ -63,30 +67,32 @@ class Dispatcher(object):
             # badly formatted message
             return
 
-        msg_type, service, method, mask, value = msg
+        msg_type, service, mask, value = msg
 
-        groups = self.peer_subs[(msg_type, service, method)]
+        groups = self.peer_subs.get((msg_type, service), 0)
+        if not groups:
+            return
         for i, group in enumerate(groups):
             if (mask, value, peer) == group:
                 del groups[i]
+                if not groups:
+                    del self.peer_subs[(msg_type, service)]
                 break
 
-    def find_local_handler(self, msg_type, service, method, routing_id):
-        group = (msg_type, service, method)
-        if group not in self.local_subs:
+    def find_local_handler(self, msg_type, service, routing_id, method):
+        group = self.local_subs.get((msg_type, service), 0)
+        if not group:
             return None, False
-
-        for mask, value, handler, schedule in self.local_subs[group]:
-            if routing_id & mask == value:
-                return handler, schedule
-
+        for mask, value, handlers in group:
+            if routing_id & mask == value and method in handlers:
+                return handlers[method]
         return None, False
 
     def local_subscriptions(self):
         for key, value in self.local_subs.iteritems():
-            msg_type, service, method = key
-            for mask, value, handler, schedule in value:
-                yield (msg_type, service, method, mask, value)
+            msg_type, service = key
+            for mask, value, handlers in value:
+                yield (msg_type, service, mask, value)
 
     def store_peer(self, peer):
         success = True
@@ -105,6 +111,8 @@ class Dispatcher(object):
         self.peers.pop(peer.ident, None)
         self.drop_peer_subscriptions(peer)
 
+        # reply to all in-flight proxied RPCs to the dropped peer
+        # with the "lost connection" error
         for counter in self.rpc_client.by_peer.get(id(peer), []):
             if counter in self.inflight_proxies:
                 self.proxied_response(counter, const.RPC_ERR_LOST_CONN, None)
@@ -112,34 +120,40 @@ class Dispatcher(object):
         self.rpc_client.connection_down(peer)
 
     def add_peer_subscriptions(self, peer, subscriptions, extend=True):
-        for msg_type, service, method, mask, value in subscriptions:
-            self.peer_subs.setdefault((msg_type, service, method), []).append(
+        # format for peer_subs:
+        # {(msg_type, service): [(mask, value, connection)]}
+        for msg_type, service, mask, value in subscriptions:
+            self.peer_subs.setdefault((msg_type, service), []).append(
                     (mask, value, peer))
         if extend:
             peer.subscriptions.extend(subscriptions)
 
     def drop_peer_subscriptions(self, peer):
-        for msg_type, service, method, mask, value in peer.subscriptions:
-            group = (msg_type, service, method)
-            item = (mask, value, peer)
-            if group in self.peer_subs and item in self.peer_subs[group]:
-                self.peer_subs[group].remove(item)
-                if not self.peer_subs[group]:
-                    del self.peer_subs[group]
+        for msg_type, service, mask, value in peer.subscriptions:
+            group = self.peer_subs.get((msg_type, service), 0)
+            if not group:
+                continue
+            try:
+                i = group.index((mask, value, peer))
+            except ValueError:
+                continue
+            del group[i]
+            if not group:
+                del self.peer_subs[(msg_type, service)]
 
-    def find_peer_routes(self, msg_type, service, method, routing_id):
-        return (peer for (mask, value, peer)
-                in self.peer_subs.get((msg_type, service, method), [])
-                if peer.up and routing_id & mask == value)
+    def find_peer_routes(self, msg_type, service, routing_id):
+        for mask, value, peer in self.peer_subs.get((msg_type, service), []):
+            if peer.up and routing_id & mask == value:
+                yield peer
 
-    def send_publish(self, service, method, routing_id, args, kwargs):
+    def send_publish(self, service, routing_id, method, args, kwargs):
         msg = (const.MSG_TYPE_PUBLISH,
-                (service, method, routing_id, args, kwargs))
+                (service, routing_id, method, args, kwargs))
         found_one = False
 
         # handle locally if we have a hander for it
         handler, schedule = self.find_local_handler(
-                const.MSG_TYPE_PUBLISH, service, method, routing_id)
+                const.MSG_TYPE_PUBLISH, service, routing_id, method)
         if handler is not None:
             found_one = True
             if schedule:
@@ -152,31 +166,48 @@ class Dispatcher(object):
 
         # send publishes to peers with handlers
         for peer in self.find_peer_routes(
-                const.MSG_TYPE_PUBLISH, service, method, routing_id):
+                const.MSG_TYPE_PUBLISH, service, routing_id):
             found_one = True
             peer.push(msg)
 
         return found_one
 
-    def send_rpc(self, service, method, routing_id, args, kwargs):
-        routes = self.find_peer_routes(
-                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
-
+    def send_rpc(self, service, routing_id, method, args, kwargs):
         handler, schedule = self.find_local_handler(
-                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
+        routes = []
         if handler is not None:
-            local_target = LocalTarget(self, handler, schedule)
-            routes = itertools.chain([local_target], routes)
+            routes.append(LocalTarget(self, handler, schedule))
+        routes.extend(self.find_peer_routes(
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id))
+        return self.rpc_client.request(
+                routes, service, routing_id, method, args, kwargs)
 
-        rpc = self.rpc_client.request(
-                routes, service, method, routing_id, args, kwargs)
-
-        return rpc
-
-    def send_proxied_publish(self, service, method, routing_id, args, kwargs):
+    def send_proxied_publish(self, service, routing_id, method, args, kwargs):
         self.peers.values()[0].push(
                 (const.MSG_TYPE_PROXY_PUBLISH,
-                    (service, method, routing_id, args, kwargs)))
+                    (service, routing_id, method, args, kwargs)))
+
+    def rpc_handler(self, peer, counter, handler, args, kwargs, proxied=False):
+        response = (proxied and const.MSG_TYPE_PROXY_RESPONSE
+                or const.MSG_TYPE_RPC_RESPONSE)
+
+        try:
+            rc = 0
+            result = handler(*args, **kwargs)
+        except errors.HandledError, exc:
+            rc = const.RPC_ERR_KNOWN
+            # FIXME: if there are un-serializable exception arguments, the
+            #        error will be handled as a connection error and the TCP
+            #        connection torn down and re-built
+            result = (exc.code, exc.args)
+            scheduler.handle_exception(*sys.exc_info())
+        except Exception:
+            rc = const.RPC_ERR_UNKNOWN
+            result = traceback.format_exception(*sys.exc_info())
+            scheduler.handle_exception(*sys.exc_info())
+
+        peer.push((response, (counter, rc, result)))
 
     # callback for peer objects to pass up a message
     def incoming(self, peer, msg):
@@ -193,10 +224,10 @@ class Dispatcher(object):
         if not isinstance(msg, tuple) or len(msg) != 5:
             # drop malformed messages
             return
-        service, method, routing_id, args, kwargs = msg
+        service, routing_id, method, args, kwargs = msg
 
         handler, schedule = self.find_local_handler(
-                const.MSG_TYPE_PUBLISH, service, method, routing_id)
+                const.MSG_TYPE_PUBLISH, service, routing_id, method)
         if handler is None:
             # drop mis-delivered messages
             return
@@ -209,44 +240,29 @@ class Dispatcher(object):
             except Exception:
                 scheduler.handle_exception(*sys.exc_info())
 
-    def rpc_handler(self, peer, counter, handler, args, kwargs, proxied=False):
-        response = (proxied
-                and const.MSG_TYPE_PROXY_RESPONSE
-                or const.MSG_TYPE_RPC_RESPONSE)
-
-        try:
-            rc = 0
-            result = handler(*args, **kwargs)
-        except errors.HandledError, exc:
-            rc = const.RPC_ERR_KNOWN
-            result = (exc.code, exc.args)
-            scheduler.handle_exception(*sys.exc_info())
-        except Exception:
-            rc = const.RPC_ERR_UNKNOWN
-            result = traceback.format_exception(*sys.exc_info())
-            scheduler.handle_exception(*sys.exc_info())
-
-        peer.push((response, (counter, rc, result)))
-
     def incoming_rpc_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
-            # badly formed messages
-            peer.push(
-                    (const.MSG_TYPE_RPC_RESPONSE,
-                        (counter, const.RPC_ERR_MALFORMED, None)))
+            # badly formed message, but it *was* identified as an RPC request,
+            # so we can send an error response instead of just dropping it
+            peer.push((const.MSG_TYPE_RPC_RESPONSE,
+                    (counter, const.RPC_ERR_MALFORMED, None)))
             return
-        counter, service, method, routing_id, args, kwargs = msg
+        counter, service, routing_id, method, args, kwargs = msg
 
         handler, schedule = self.find_local_handler(
-                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
         if handler is None:
-            # mis-delivered message
-            peer.push(
-                    (const.MSG_TYPE_RPC_RESPONSE,
-                        (counter, const.RPC_ERR_NOHANDLER, None)))
-            return
+            if any(routing_id & mask == value
+                    for mask, value, handlers in self.local_subs.get(
+                            (const.MSG_TYPE_RPC_REQUEST, service), [])):
+                rc = const.RPC_ERR_NOMETHOD
+            else:
+                rc = const.RPC_ERR_NOHANDLER
 
-        if schedule:
+            # mis-delivered message
+            peer.push((const.MSG_TYPE_RPC_RESPONSE,
+                    (counter, rc, None)))
+        elif schedule:
             scheduler.schedule(self.rpc_handler,
                     args=(peer, counter, handler, args, kwargs))
         else:
@@ -286,11 +302,11 @@ class Dispatcher(object):
         if not isinstance(msg, tuple) or len(msg) != 6:
             # drop badly formed messages
             return
-        client_counter, service, method, routing_id, args, kwargs = msg
+        client_counter, service, routing_id, method, args, kwargs = msg
 
         # handle it locally if it's aimed at us
         handler, schedule = self.find_local_handler(
-                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
         if handler is not None:
             if schedule:
                 scheduler.schedule(self.rpc_handler, args=(
@@ -301,13 +317,13 @@ class Dispatcher(object):
 
         target_count = handler is not None and 1 or 0
         targets = list(self.find_peer_routes(
-                const.MSG_TYPE_RPC_REQUEST, service, method, routing_id))
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id))
 
         if targets:
             target_count += len(targets)
 
             rpc = self.rpc_client.request(
-                    targets, service, method, routing_id, args, kwargs)
+                    targets, service, routing_id, method, args, kwargs)
 
             self.inflight_proxies[rpc.counter] = {
                 'awaiting': len(targets),
@@ -315,18 +331,30 @@ class Dispatcher(object):
                 'peer': peer,
             }
 
+        if handler is None and not targets:
+            target_count = int(any(routing_id & mask == value
+                    for mask, value, handlers in self.local_subs.get(
+                        (const.MSG_TYPE_RPC_REQUEST, service), [])))
+            target_count += sum(1 for mask, value, conn
+                    in self.peer_subs.get(
+                        (const.MSG_TYPE_RPC_REQUEST, service), [])
+                    if routing_id & mask == value and conn.up)
+            for i in xrange(target_count):
+                peer.push((const.MSG_TYPE_PROXY_RESPONSE,
+                    (client_counter, const.RPC_ERR_NOMETHOD, None)))
+
         peer.push((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
                 (client_counter, target_count)))
 
     def incoming_proxy_query_count(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:
             return
-        counter, msg_type, service, method, routing_id = msg
+        counter, msg_type, service, routing_id, method = msg
 
         local, scheduled = self.find_local_handler(
-                msg_type, service, method, routing_id)
+                msg_type, service, routing_id, method)
         target_count = (local is not None) + len(list(
-            self.find_peer_routes(msg_type, service, method, routing_id)))
+            self.find_peer_routes(msg_type, service, routing_id)))
 
         peer.push((const.MSG_TYPE_PROXY_RESPONSE, (counter, 0, target_count)))
 
@@ -374,7 +402,7 @@ class LocalTarget(object):
     def push(self, msg):
         msgtype, msg = msg
         if msgtype == const.MSG_TYPE_PUBLISH:
-            service, method, routing_id, args, kwargs = msg
+            service, routing_id, method, args, kwargs = msg
             if self.schedule:
                 scheduler.schedule(self.handler, args=args, kwargs=kwargs)
             else:
@@ -384,7 +412,7 @@ class LocalTarget(object):
                     scheduler.handle_exception(*sys.exc_info())
 
         elif msgtype == const.MSG_TYPE_RPC_REQUEST:
-            counter, service, method, routing_id, args, kwargs = msg
+            counter, service, routing_id, method, args, kwargs = msg
             if self.schedule:
                 scheduler.schedule(self.dispatcher.rpc_handler,
                         args=(self, counter, self.handler, args, kwargs))

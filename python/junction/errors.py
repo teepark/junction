@@ -4,6 +4,13 @@ class MessageCutOff(Exception):
 class _BailOutOfListener(Exception):
     pass
 
+class ImpossibleSubscription(Exception):
+    "Tried to make a subscription whose mask/value could never be matched"
+    pass
+
+class OverlappingSubscription(Exception):
+    "Tried to make a subscription that overlaps with a prior one"
+
 class BadHandshake(Exception):
     "Unexpected message while trying to establish a peering"
 
@@ -30,6 +37,12 @@ class WaitTimeout(Exception):
 
 class AlreadyComplete(Exception):
     "Exception raised on abort() of an already-completed future"
+
+class JunctionSystemError(Exception):
+    "Internal error to junction"
+
+class UnsupportedRemoteMethod(Exception):
+    "Service doesn't know about the method called"
 
 
 HANDLED_ERROR_TYPES = {}

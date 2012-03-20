@@ -21,12 +21,12 @@ class RPCClient(object):
         self.counter += 1
         return counter
 
-    def request(self, targets, service, method, routing_id, args, kwargs):
+    def request(self, targets, service, routing_id, method, args, kwargs):
         counter = self.next_counter()
         target_set = set()
 
         msg = (self.REQUEST,
-                (counter, service, method, routing_id, args, kwargs))
+                (counter, service, routing_id, method, args, kwargs))
 
         target_count = 0
         for peer in targets:
@@ -120,12 +120,11 @@ class ProxiedClient(RPCClient):
             if not self.inflight[counter]:
                 self.rpcs[counter]._complete()
 
-    def recipient_count(self, target, msg_type, service, method, routing_id):
-        counter = self.counter
-        self.counter += 1
+    def recipient_count(self, target, msg_type, service, routing_id, method):
+        counter = self.next_counter()
 
         target.push((const.MSG_TYPE_PROXY_QUERY_COUNT,
-                (counter, msg_type, service, method, routing_id)))
+                (counter, msg_type, service, routing_id, method)))
 
         self.sent(counter, set([target]))
 

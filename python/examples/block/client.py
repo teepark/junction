@@ -20,12 +20,12 @@ def main():
     client.wait_on_connections()
 
     print "wait 2"
-    client.rpc(WAIT_SERVICE, "wait", 0, (2,), {})
+    client.rpc(WAIT_SERVICE, 0, "wait", (2,), {})
 
     rpcs = []
     for i in xrange(5):
         wait = random.random() * 5
-        rpcs.append(client.send_rpc(WAIT_SERVICE, "wait", 0, (wait,), {}))
+        rpcs.append(client.send_rpc(WAIT_SERVICE, 0, "wait", (wait,), {}))
         print "queued a wait %r: %r" % (rpcs[-1].counter, wait)
 
     while rpcs:

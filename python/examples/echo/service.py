@@ -28,7 +28,7 @@ def main():
     hub = Hub((HOST, PORT), [(RELAY_HOST, RELAY_PORT)])
     hub.start()
 
-    hub.accept_rpc(SERVICE, "echo", 0, 0, handler)
+    hub.accept_rpc(SERVICE, 0, 0, "echo", handler)
 
     greenhouse.schedule(greenhouse.run_backdoor,
             args=((BACKHOST, BACKPORT), {'hub': hub}))

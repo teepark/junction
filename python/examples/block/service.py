@@ -20,7 +20,7 @@ def main():
     hub = junction.Hub(("localhost", PORT), [("localhost", MIDDLEMAN_PORT)])
     hub.start()
 
-    hub.accept_rpc(WAIT_SERVICE, "wait", 0, 0, wait)
+    hub.accept_rpc(WAIT_SERVICE, 0, 0, "wait", wait)
 
     greenhouse.schedule(greenhouse.run_backdoor,
             args=(("localhost", PORT + 1), {'hub': hub}))

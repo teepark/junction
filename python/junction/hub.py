@@ -59,13 +59,11 @@ class Hub(object):
                     errors._BailOutOfListener(), self._listener_coro)
 
     def accept_publish(
-            self, service, method, mask, value, handler, schedule=False):
+            self, service, mask, value, method, handler, schedule=False):
         '''Set a handler for incoming publish messages
 
         :param service: the incoming message must have this service
         :type service: anything hash-able
-        :param method: the method name to trigger handler
-        :type method: string
         :param mask:
             value to be bitwise-and'ed against the incoming id, the result of
             which must mask the 'value' param
@@ -74,6 +72,8 @@ class Hub(object):
             the result of `routing_id & mask` must match this in order to
             trigger the handler
         :type value: int
+        :param method: the method name
+        :type method: string
         :param handler:
             the function that will be called on incoming matching messages
         :type handler: callable
@@ -82,47 +82,47 @@ class Hub(object):
             each matching message. default ``False``.
         :type schedule: bool
 
-        :returns:
-            a boolean indicating whether a new subscription was stored. this
-            can come back ``False`` if the subscription is somehow invalid (the
-            mask/value pair could never match anything, or it overlaps with
-            an existing subscription)
+        :raises:
+            - :class:`ImpossibleSubscription
+              <junction.errors.ImpossibleSubscription>` if there is no routing
+              ID which could possibly match the mask/value pair
+            - :class:`OverlappingSubscription
+              <junction.errors.OverlappingSubscription>` if a prior publish
+              registration that overlaps with this one (there is a
+              service/method/routing id that would match *both* this *and* a
+              previously-made registration).
         '''
-        return bool(self._dispatcher.add_local_subscriptions(handler,
-            [(const.MSG_TYPE_PUBLISH, service, method, mask, value, schedule)]))
+        self._dispatcher.add_local_subscription(const.MSG_TYPE_PUBLISH,
+                service, mask, value, method, handler, schedule)
 
-    def unsubscribe_publish(self, service, method, mask, value, handler):
+    def unsubscribe_publish(self, service, mask, value):
         '''Remove a publish subscription
 
         :param service: the service of the subscription to remove
         :type service: anything hash-able
-        :param method: the method in the subscription
-        :type method: string
         :param mask: the mask of the subscription to remove
         :type mask: int
         :param value: the value in the subscription to remove
         :type value: int
-        :param handler: the handler function of the subscription to remove
-        :type handler: callable
 
         :returns:
             a boolean indicating whether the subscription was there (True) and
             removed, or not (False)
         '''
         return self._dispatcher.remove_local_subscription(
-                const.MSG_TYPE_PUBLISH, service, method, mask, value, handler)
+                const.MSG_TYPE_PUBLISH, service, mask, value)
 
-    def publish(self, service, method, routing_id, args, kwargs):
+    def publish(self, service, routing_id, method, args, kwargs):
         '''Send a 1-way message
 
         :param service: the service name (the routing top level)
         :type service: anything hash-able
-        :param method: the method name to call
-        :type method: string
         :param routing_id:
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
+        :param method: the method name to call
+        :type method: string
         :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
@@ -135,30 +135,25 @@ class Hub(object):
             registered to receive the message
         '''
         if not self._dispatcher.send_publish(
-                service, method, routing_id, args, kwargs):
+                service, routing_id, method, args, kwargs):
             raise errors.Unroutable()
 
-    def publish_receiver_count(self, service, method, routing_id):
+    def publish_receiver_count(self, service, routing_id):
         '''Get the number of peers that would handle a particular publish
 
         :param service: the service name
         :type service: anything hash-able
-        :param method: the method name
-        :type method: string
-        :param routing_id:
-            the id used for narrowing within the (service, method) handlers
+        :param routing_id: the id used for limiting the service handlers
         :type routing_id: int
         '''
         return len(list(self._dispatcher.find_peer_routes(
-            const.MSG_TYPE_PUBLISH, service, method, routing_id)))
+            const.MSG_TYPE_PUBLISH, service, routing_id)))
 
-    def accept_rpc(self, service, method, mask, value, handler, schedule=True):
+    def accept_rpc(self, service, mask, value, method, handler, schedule=True):
         '''Set a handler for incoming RPCs
 
         :param service: the incoming RPC must have this service
         :type service: anything hash-able
-        :param method: the method name to trigger handler
-        :type method: string
         :param mask:
             value to be bitwise-and'ed against the incoming id, the result of
             which must mask the 'value' param
@@ -167,6 +162,8 @@ class Hub(object):
             the result of `routing_id & mask` must match this in order to
             trigger the handler
         :type value: int
+        :param method: the method name to trigger handler
+        :type method: string
         :param handler:
             the function that will be called on incoming matching RPC requests
         :type handler: callable
@@ -175,28 +172,24 @@ class Hub(object):
             each matching message. default ``True``.
         :type schedule: bool
 
-        :returns:
-            a boolean indicating whether a new subscription was stored. this
-            can come back ``False`` if the subscription is somehow invalid (the
-            mask/value pair could never match anything, or it overlaps with
-            an existing subscription)
+        :raises:
+            - :class:`ImpossibleSubscription
+              <junction.errors.ImpossibleSubscription>` if there is no routing
+              ID which could possibly match the mask/value pair
+            - :class:`OverlappingSubscription
+              <junction.errors.OverlappingSubscription>` if a prior rpc
+              registration that overlaps with this one (there is a
+              service/method/routing id that would match *both* this *and* a
+              previously-made registration).
         '''
-        return bool(self._dispatcher.add_local_subscriptions(
-            handler,
-            [(const.MSG_TYPE_RPC_REQUEST,
-                service,
-                method,
-                mask,
-                value,
-                schedule)]))
+        self._dispatcher.add_local_subscription(const.MSG_TYPE_RPC_REQUEST,
+                service, mask, value, method, handler, schedule)
 
-    def unsubscribe_rpc(self, service, method, mask, value, handler):
+    def unsubscribe_rpc(self, service, mask, value, handler):
         '''Remove a rpc subscription
 
         :param service: the service of the subscription to remove
         :type service: anything hash-able
-        :param method: the method in the subscription
-        :type method: string
         :param mask: the mask of the subscription to remove
         :type mask: int
         :param value: the value in the subscription to remove
@@ -209,20 +202,19 @@ class Hub(object):
             removed, or not (False)
         '''
         return self._dispatcher.remove_local_subscription(
-                const.MSG_TYPE_RPC_REQUEST, service, method, mask, value,
-                handler)
+                const.MSG_TYPE_RPC_REQUEST, service, mask, value, handler)
 
-    def send_rpc(self, service, method, routing_id, args, kwargs):
+    def send_rpc(self, service, routing_id, method, args, kwargs):
         '''Send out an RPC request
 
         :param service: the service name (the routing top level)
         :type service: anything hash-able
-        :param method: the method name to call
-        :type method: string
         :param routing_id:
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
+        :param method: the method name to call
+        :type method: string
         :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
@@ -237,7 +229,7 @@ class Hub(object):
             registered to receive the message
         '''
         rpc = self._dispatcher.send_rpc(
-                service, method, routing_id, args, kwargs)
+                service, routing_id, method, args, kwargs)
 
         if not rpc:
             raise errors.Unroutable()
@@ -271,19 +263,19 @@ class Hub(object):
         '''
         return self._rpc_client.wait(futures, timeout)
 
-    def rpc(self, service, method, routing_id, args, kwargs, timeout=None):
+    def rpc(self, service, routing_id, method, args, kwargs, timeout=None):
         '''Send an RPC request and return the corresponding response
 
         This will block waiting until the response has been received.
 
         :param service: the service name (the routing top level)
         :type service: anything hash-able
-        :param method: the method name to call
-        :type method: string
         :param routing_id:
             The id used for routing within the registered handlers of the
             service.
         :type routing_id: int
+        :param method: the method name to call
+        :type method: string
         :param args: the positional arguments to send along with the request
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
@@ -304,24 +296,24 @@ class Hub(object):
               was provided and it expires
         '''
         return self.send_rpc(
-                service, method, routing_id, args, kwargs).wait(timeout)
+                service, routing_id, method, args, kwargs).wait(timeout)
 
-    def rpc_receiver_count(self, service, method, routing_id):
+    def rpc_receiver_count(self, service, routing_id, method):
         '''Get the number of peers that would handle a particular RPC
 
         :param service: the service name
         :type service: anything hash-able
+        :param routing_id:
+            the id used for narrowing within the service handlers
+        :type routing_id: int
         :param method: the method name
         :type method: string
-        :param routing_id:
-            the id used for narrowing within the (service, method) handlers
-        :type routing_id: int
 
         :returns:
             the integer number of peers that would receive the described RPC
         '''
         return len(list(self._dispatcher.find_peer_routes(
-            const.MSG_TYPE_RPC_REQUEST, service, method, routing_id)))
+            const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)))
 
     def dependency_root(self, func):
         '''Create a parent-less :class:`Dependent <junction.futures.Dependent>`
