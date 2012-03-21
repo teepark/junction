@@ -94,18 +94,17 @@ class Dispatcher(object):
             for mask, value, handlers in value:
                 yield (msg_type, service, mask, value)
 
-    def store_peer(self, peer):
-        success = True
+    def store_peer(self, peer, subscriptions):
         if peer.ident in self.peers:
             winner, loser = connection.compare(peer, self.peers[peer.ident])
+            if loser is peer:
+                return False
             loser.go_down(reconnect=False)
-            self.drop_peer_subscriptions(winner)
-            success = peer is not loser
-            peer = winner
+            self.drop_peer_subscriptions(loser)
 
         self.peers[peer.ident] = peer
-        self.add_peer_subscriptions(peer, peer.subscriptions, extend=False)
-        return success
+        self.add_peer_subscriptions(peer, subscriptions)
+        return True
 
     def drop_peer(self, peer):
         self.peers.pop(peer.ident, None)
@@ -119,27 +118,20 @@ class Dispatcher(object):
 
         self.rpc_client.connection_down(peer)
 
-    def add_peer_subscriptions(self, peer, subscriptions, extend=True):
+    def add_peer_subscriptions(self, peer, subscriptions):
         # format for peer_subs:
         # {(msg_type, service): [(mask, value, connection)]}
         for msg_type, service, mask, value in subscriptions:
             self.peer_subs.setdefault((msg_type, service), []).append(
                     (mask, value, peer))
-        if extend:
-            peer.subscriptions.extend(subscriptions)
 
     def drop_peer_subscriptions(self, peer):
-        for msg_type, service, mask, value in peer.subscriptions:
-            group = self.peer_subs.get((msg_type, service), 0)
-            if not group:
-                continue
-            try:
-                i = group.index((mask, value, peer))
-            except ValueError:
-                continue
-            del group[i]
-            if not group:
-                del self.peer_subs[(msg_type, service)]
+        for key, group in self.peer_subs.items():
+            group = [g for g in group if g[2] is not peer]
+            if group:
+                self.peer_subs[key] = group
+            else:
+                del self.peer_subs[key]
 
     def find_peer_routes(self, msg_type, service, routing_id):
         for mask, value, peer in self.peer_subs.get((msg_type, service), []):

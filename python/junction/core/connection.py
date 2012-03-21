@@ -31,9 +31,8 @@ class Peer(object):
         self._sender_coro = None
         self._receiver_coro = None
 
-        # we'll get these from the peer on handshake
+        # we'll get this from the peer on handshake
         self.ident = ()
-        self.subscriptions = []
 
     ##
     ## Public API
@@ -180,13 +179,11 @@ class Peer(object):
                 or not isinstance(received[1][1], list)):
             return False
 
-        #FIXME: stop storing subscriptions on the peer, the one source of
-        #      truth is on the dispatcher
-        self.ident, self.subscriptions = received[1]
+        self.ident, subs = received[1]
         self.up = True
         self.established.set()
 
-        return self.ident is None or self.dispatcher.store_peer(self)
+        return self.ident is None or self.dispatcher.store_peer(self, subs)
 
     def reconnect(self):
         if not self.attempt_reconnects:
