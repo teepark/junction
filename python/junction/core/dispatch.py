@@ -197,9 +197,6 @@ class Dispatcher(object):
             result = handler(*args, **kwargs)
         except errors.HandledError, exc:
             rc = const.RPC_ERR_KNOWN
-            # FIXME: if there are un-serializable exception arguments, the
-            #        error will be handled as a connection error and the TCP
-            #        connection torn down and re-built
             result = (exc.code, exc.args)
             scheduler.handle_exception(*sys.exc_info())
         except Exception:
