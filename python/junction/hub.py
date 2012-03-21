@@ -33,8 +33,8 @@ class Hub(object):
         :type timeout: float or None
 
         :returns:
-            ``True`` if it timed out or connects or handshakes failed,
-            otherwise ``False``
+            ``True`` if all connections were made, ``False`` if it hit the
+            timeout instead.
         '''
         if timeout:
             deadline = time.time() + timeout
@@ -44,10 +44,9 @@ class Hub(object):
 
         for peer_addr in conns:
             remaining = max(0, deadline - time.time()) if timeout else None
-            if self._started_peers[peer_addr].wait_connected(remaining):
-                return True
-
-        return False
+            if not self._started_peers[peer_addr].wait_connected(remaining):
+                return False
+        return True
 
     def shutdown(self):
         'Close all peer connections and stop listening for new ones'

@@ -57,8 +57,7 @@ class Peer(object):
             self.schedule_restarter()
 
     def wait_connected(self, timeout=None):
-        self.established.wait(timeout)
-        return not self.up
+        return not self.established.wait(timeout)
 
     def push(self, msg):
         self.send_queue.put(self.dump(msg))

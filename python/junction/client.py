@@ -40,8 +40,8 @@ class Client(object):
         :type timeout: float or None
 
         :returns:
-            ``True`` if it timed out or if the connect or handshake failed,
-            otherwise ``False``
+            ``True`` if all connections were made, ``False`` if it hit the
+            timeout instead.
         '''
         return self._peer.wait_connected(timeout)
 
