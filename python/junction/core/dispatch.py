@@ -207,7 +207,14 @@ class Dispatcher(object):
             result = traceback.format_exception(*sys.exc_info())
             scheduler.handle_exception(*sys.exc_info())
 
-        peer.push((response, (counter, rc, result)))
+        try:
+            msg = peer.dump((response, (counter, rc, result)))
+        except TypeError:
+            msg = peer.dump((response,
+                (counter, const.RPC_ERR_UNSER_RESP, repr(result))))
+            scheduler.handle_exception(*sys.exc_info())
+
+        peer.push_string(msg)
 
     # callback for peer objects to pass up a message
     def incoming(self, peer, msg):
@@ -242,10 +249,7 @@ class Dispatcher(object):
 
     def incoming_rpc_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
-            # badly formed message, but it *was* identified as an RPC request,
-            # so we can send an error response instead of just dropping it
-            peer.push((const.MSG_TYPE_RPC_RESPONSE,
-                    (counter, const.RPC_ERR_MALFORMED, None)))
+            # drop malformed messages
             return
         counter, service, routing_id, method, args, kwargs = msg
 

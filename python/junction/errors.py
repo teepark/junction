@@ -44,6 +44,9 @@ class JunctionSystemError(Exception):
 class UnsupportedRemoteMethod(Exception):
     "Service doesn't know about the method called"
 
+class UnserializableResponse(Exception):
+    "Service handler returned an unserializable object"
+
 
 HANDLED_ERROR_TYPES = {}
 

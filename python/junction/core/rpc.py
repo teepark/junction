@@ -29,10 +29,16 @@ class RPCClient(object):
                 (counter, service, routing_id, method, args, kwargs))
 
         target_count = 0
+        strings = []
         for peer in targets:
             target_set.add(peer)
-            peer.push(msg)
+            strings.append(peer.dump(msg))
             target_count += 1
+
+        # did all the serializing before any of the sending for
+        # atomicity in the case of unserializable arguments
+        for peer, string in zip(targets, strings):
+            peer.push_string(string)
 
         if not target_set:
             return None

@@ -208,6 +208,9 @@ class RPC(object):
         if rc == const.RPC_ERR_LOST_CONN:
             return errors.LostConnection(peer_ident)
 
+        if rc == const.RPC_ERR_UNSER_RESP:
+            return errors.UnserializableResponse(result)
+
         return errors.UnrecognizedRemoteProblem(peer_ident, rc, result)
 
 

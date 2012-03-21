@@ -61,6 +61,9 @@ class Peer(object):
         return not self.up
 
     def push(self, msg):
+        self.send_queue.put(self.dump(msg))
+
+    def push_string(self, msg):
         self.send_queue.put(msg)
 
     ##
@@ -93,7 +96,7 @@ class Peer(object):
                 if msg is _END:
                     break
 
-                self.sock.sendall(self.dump(msg))
+                self.sock.sendall(msg)
         except socket.error:
             self.connection_failure()
 
