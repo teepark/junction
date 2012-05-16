@@ -26,7 +26,7 @@ class StateClearingTestCase(unittest.TestCase):
         state.descriptormap.clear()
         state.to_run.clear()
 
-        greenhouse.poller.set()
+        greenhouse.reset_poller()
 
     def tearDown(self):
         GTL.release()
