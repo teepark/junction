@@ -33,7 +33,7 @@ def main():
     client = junction.Client(peer_addr)
 
     client.connect()
-    if client.wait_on_connections(timeout=3):
+    if not client.wait_on_connections(timeout=3):
         raise RuntimeError("connection timeout")
 
     print client.rpc(SERVICE, 0, "echo", ('one',), {})

@@ -19,7 +19,7 @@ service architectures, an echo server.
         return "echoed: %s" % (x,)
 
     hub = junction.Hub(("127.0.0.1", 9000), [])
-    hub.accept_rpc("ECHO", "echo", 0, 0, echo)
+    hub.accept_rpc("ECHO", 0, 0, "echo", echo)
     hub.start()
 
     try:
@@ -34,8 +34,8 @@ Now let's break this down.
 
 We'll need a :class:`Hub <junction.hub.Hub>` object and since every
 hub in junction can connect to any other, it needs a ``(host, port)``
-pair on which to run the server it use to accept peer connections from
-other hubs. The second argument is the list of hubs (items in this
+pair on which to run the server it will use to accept peer connections
+from other hubs. The second argument is the list of hubs (items in this
 list would be ``(host, port)`` pairs) to which it should connect. In
 this case there are no peers it needs to know about, so that list is
 empty.
@@ -52,7 +52,7 @@ connections we asked it to (none, this time).
 The wait at the end is just to get the main greenlet to block - nothing
 else has a reference to this ``Event``, so nothing will be waking it
 from its wait. By catching ``KeyboardInterrupt``, we allow it to bail
-out semi-cleanly with Ctrl-C.
+out cleanly with Ctrl-C.
 
 
 Subscription Specification and Matching
@@ -60,7 +60,7 @@ Subscription Specification and Matching
 
 Here's the part where we talk about the mask and value. Every
 RPC and publish subscription in junction is made with a service name,
-method name, and mask and value integers in order to specify precisely
+mask and value integers, and a method name in order to specify precisely
 which messages it should be receiving. The service and method are easy,
 they just have to match what is in the message exactly. The mask and
 value however are different. The corresponding component in an RPC
@@ -103,11 +103,11 @@ First the code.
 
     hub.wait_on_connections()
 
-    print hub.rpc("ECHO", "echo", 0, ("first request",), {})[0]
+    print hub.rpc("ECHO", 0, "echo", ("first request",), {})[0]
 
     rpcs = []
     for msg in ("second", "third", "fourth"):
-        rpcs.append(hub.send_rpc("ECHO", "echo", 0, (msg,), {}))
+        rpcs.append(hub.send_rpc("ECHO", 0, "echo", (msg,), {}))
 
     for rpc in rpcs:
         print rpc.wait()[0]
@@ -126,10 +126,10 @@ it. This is necessary, otherwise it would raise :class:`Unroutable
 <junction.hub.Hub.rpc>` call. Not having connected to its peer yet, it
 wouldn't have collected its subscription information and so it wouldn't
 know where to send the RPC (the Unroutable error effectively says "I
-haven't met anyone that accepts RPCs to ECHO/echo/0").
+haven't met anyone that accepts RPCs to ECHO/0/echo").
 
 Once connected, we can call :meth:`rpc <junction.hub.Hub.rpc>` with
-the service, method, routing id, positional arguments and keyword
+the service, routing id, method, positional arguments and keyword
 arguments. This method will block until all responses come back, and
 then return them. Because it is possible that more than one peer might
 have had a subscription matching the RPC, the method always returns a
@@ -182,11 +182,11 @@ client-only hub.
 
     client.wait_on_connections()
 
-    print client.rpc("ECHO", "echo", 0, ("first request",), {})[0]
+    print client.rpc("ECHO", 0, "echo", ("first request",), {})[0]
 
     rpcs = []
     for msg in ("second", "third", "fourth"):
-        rpcs.append(client.send_rpc("ECHO", "echo", 0, (msg,), {}))
+        rpcs.append(client.send_rpc("ECHO", 0, "echo", (msg,), {}))
 
     for rpc in rpcs:
         print rpc.wait()[0]

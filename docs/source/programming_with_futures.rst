@@ -5,9 +5,10 @@ Programming With Futures
 ========================
 
 Junction's asynchronous RPC api involves a number of objects that meet
-the definition of a `"future"`_. The fit the bill because when initially
-created, their results are not yet known but will be transparently
-filled in when they arrive, or they can be explicitly waited for.
+the definition of a `"future"`_. They fit the bill because when
+initially created, their results are not yet known but will be
+transparently filled in when they arrive, or they can be explicitly
+waited for.
 
 
 Overview
@@ -18,12 +19,12 @@ These are :class:`RPCs <junction.futures.RPC>` and
 RPCs always correspond to a :meth:`single RPC call
 <junction.hub.Hub.send_rpc>`. Dependents can be built to wait on any
 combination of RPCs and other Dependents, and they can either represent
-a not-yet-started RPC or the results of any callback function.Dependents
-wrap a callback that isn't fired until all its parent futures are
-complete, then calls the callback passing it the results of its parents,
-and using the callback result as its own result (though if the callback
-returns an RPC, that is then waited on as well and its results are used
-as those of the Dependent).
+a not-yet-started RPC or the results of any callback function.
+Dependents wrap a callback that isn't fired until all its parent futures
+are complete, then calls the callback passing it the results of its
+parents, and using the callback result as its own result (though if the
+callback returns an RPC, that is then waited on as well and its results
+are used as those of the Dependent).
 
 Both objects share a common API, so in some circumstances can be used
 interchangeably.
@@ -45,7 +46,7 @@ step, building the HTML (often rendering a template), so there should be
 
 Before then, any place we would have passed RPC-collected data into a
 function or had it in a variable, we can instead use a future for that
-data in its place.  Anything that we would have done with that data, we
+data in its place. Anything that we would have done with that data, we
 can instead do in a Dependent of the future. With this approach we can
 maximize the parallelism between webserver and data providers and have
 that parallelism track the true dependency graph between RPCs, rather
@@ -55,8 +56,8 @@ Consider the simple example below of pseudocode validating an entered
 username and password::
 
     def validate(hub, username, passwd):
-        userid = hub.rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})[0]
-        is_valid = hub.rpc(PASSWORD_SERVICE, "validate", 0, (userid, passwd), {})[0]
+        userid = hub.rpc(USERDATA_SERVICE, 0, "by_username", (username,), {})[0]
+        is_valid = hub.rpc(PASSWORD_SERVICE, 0, "validate", (userid, passwd), {})[0]
         return is_valid
 
 .. image:: imgs/single_validate.png
@@ -65,11 +66,11 @@ To go async and program with futures, we must use a Dependent for the
 second RPC as its arguments include the results from the first RPC.::
 
     def validate(hub, username, passwd):
-        userid = hub.send_rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})
+        userid = hub.send_rpc(USERDATA_SERVICE, 0, "by_username", (username,), {})
 
         @userid.after
         def is_valid(userid):
-            return hub.send_rpc(PASSWORD_SERVICE, "validate", 0, (userid[0], passwd))
+            return hub.send_rpc(PASSWORD_SERVICE, 0, "validate", (userid[0], passwd))
 
         return is_valid.wait()[0]
 
@@ -87,11 +88,11 @@ a little supporting code in the batching, we can get each of the
 sequential RPC pairs happening together in parallel::
 
     def validate(hub, username, passwd):
-        userid = hub.send_rpc(USERDATA_SERVICE, "by_username", 0, (username,), {})
+        userid = hub.send_rpc(USERDATA_SERVICE, 0, "by_username", (username,), {})
 
         @userid.after
         def is_valid(userid):
-            return hub.send_rpc(PASSWORD_SERVICE, "validate", 0, (userid[0], passwd))
+            return hub.send_rpc(PASSWORD_SERVICE, 0, "validate", (userid[0], passwd))
 
         return is_valid
 
@@ -139,7 +140,7 @@ The Common API of RPCs and Dependents
 
 **Hub.wait_any()** and **Client.wait_any()**
     Both :class:`Hub <junction.hub.Hub>` and :class:`Client
-    <junction.client.Client>` have a method "wait_all", which accepts a
+    <junction.client.Client>` have a method "wait_any", which accepts a
     list of futures (these can be any mixtures of
     :class:`RPCs <junction.futures.RPC>` and :class:`Dependents
     <junction.futures.Dependent>`), and returns the first complete
