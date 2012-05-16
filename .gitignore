@@ -2,9 +2,9 @@
 *.pyc
 *.pyo
 .*.swo
-python/junction.egg-info/*
-python/MANIFEST.in
-python/build/*
+junction.egg-info/*
+MANIFEST.in
+build/*
 docs/build/*
 dist/*
 html/*
