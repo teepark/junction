@@ -1,12 +1,16 @@
 import random
+import sys
+import time
+import traceback
 
 import greenhouse
+import junction
 import mummy
 
 
 def map_reduce(hub, service, mapper, reducer):
     return hub.rpc(service, 0, "map_reduce",
-            (dump_func(mapper), dump_func(reducer)), {})[0]
+            (dump_func(mapper), dump_func(reducer)), {})
 
 
 class Coordinator(object):
@@ -26,7 +30,7 @@ class Coordinator(object):
             schedule=True)
 
         hub.accept_publish(
-            service,
+            "%s-result" % (service,),
             mask,
             value,
             "result",
@@ -36,17 +40,18 @@ class Coordinator(object):
     def handle_map_reduce(self, dumped_mapper, dumped_reducer):
         reducer = random.randrange(self._num_reducers)
 
-        mappers = self._hub.publish_receiver_count(self._service, "map", 0)
+        mappers = self._hub.publish_receiver_count(
+                "%s-mapper" % (self._service,), 0)
 
         job_id = self._hub.rpc(
-            self._service,
+            "%s-reducer" % (self._service,),
             reducer,
             "setup",
             (dumped_reducer, mappers, self._value),
             {})[0]
 
         self._hub.publish(
-            self._service,
+            "%s-mapper" % (self._service,),
             0,
             "map",
             (job_id, dumped_mapper, reducer),
@@ -54,7 +59,6 @@ class Coordinator(object):
 
         self._active[(reducer, job_id)] = waiter = greenhouse.Event()
         waiter.wait()
-
         return self._active.pop((reducer, job_id))
 
     def handle_result(self, reducer, job_id, results):
@@ -74,7 +78,7 @@ class Reducer(object):
         self._counter = 1
 
         hub.accept_rpc(
-                service,
+                "%s-reducer" % (service,),
                 mask,
                 value,
                 "setup",
@@ -82,7 +86,7 @@ class Reducer(object):
                 schedule=False)
 
         hub.accept_publish(
-                service,
+                "%s-reducer" % (service,),
                 mask,
                 value,
                 "reduce",
@@ -114,7 +118,7 @@ class Reducer(object):
                 del self._setup_data[job_id]
 
                 self._hub.publish(
-                        self._service,
+                        "%s-result" % (self._service,),
                         coordinator,
                         "result",
                         (self._value, job_id, self._results.pop(job_id),),
@@ -129,8 +133,8 @@ class Mapper(object):
         self._service = service
         self._datasource = data_source
 
-        hub.accept_publish(
-                service, 0, 0, "map", self.handle_map, schedule=True)
+        hub.accept_publish("%s-mapper" % (service,),
+                0, 0, "map", self.handle_map, schedule=True)
 
     def handle_map(self, job_id, dumped_mapper, reducer_id):
         items = self._datasource()
@@ -142,7 +146,7 @@ class Mapper(object):
 
             if i and not i % self.page_size:
                 self._hub.publish(
-                    self._service,
+                    "%s-reducer" % (self._service,),
                     reducer_id,
                     "reduce",
                     (job_id, results, False),
@@ -151,7 +155,7 @@ class Mapper(object):
                 greenhouse.pause()
 
         self._hub.publish(
-            self._service,
+            "%s-reducer" % (self._service,),
             reducer_id,
             "reduce",
             (job_id, results, True),
@@ -182,3 +186,34 @@ def load_func(s):
     code = type(load_func.func_code)(*mummy.loads(s))
     func.func_code = code
     return func
+
+
+if __name__ == '__main__':
+    greenhouse.global_exception_handler(traceback.print_exception)
+
+    if sys.argv[1] == "mapper":
+        hub = junction.Hub(("", 9090), [("", 9091), ("", 9092)])
+        hub.start()
+        mapper = Mapper(hub, 'map-reduce', lambda: [1,2,3,4,5,6,7])
+        greenhouse.run_backdoor(("", 8090), locals())
+    elif sys.argv[1] == "reducer":
+        hub = junction.Hub(("", 9091), [("", 9090), ("", 9092)])
+        hub.start()
+        reducer = Reducer(hub, 'map-reduce', 0, 0)
+        greenhouse.run_backdoor(("", 8091), locals())
+    elif sys.argv[1] == "coordinator":
+        hub = junction.Hub(("", 9092), [("", 9090), ("", 9091)])
+        hub.start()
+        coord = Coordinator(hub, 'map-reduce', 0, 0, 1)
+        greenhouse.run_backdoor(("", 8092), locals())
+    elif sys.argv[1] == "client":
+        cli = junction.Client(("", 9092)) # only need the coordinator
+        cli.connect()
+        cli.wait_on_connections()
+        result = map_reduce(
+                cli, 'map-reduce', lambda x: x ** 2, lambda a, b: a + b)
+        print repr(result)
+    else:
+        print >> sys.stderr, \
+                "argument must be 'mapper', 'reducer', or 'coordinator'"
+        sys.exit(1)
