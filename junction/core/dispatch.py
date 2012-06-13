@@ -88,6 +88,15 @@ class Dispatcher(object):
                 return handlers[method]
         return None, False
 
+    def locally_handles(self, msg_type, service, routing_id):
+        group = self.local_subs.get((msg_type, service), [])
+        if not group:
+            return False
+        for mask, value, handlers in group:
+            if routing_id & mask == value:
+                return True
+        return False
+
     def local_subscriptions(self):
         for key, value in self.local_subs.iteritems():
             msg_type, service = key
@@ -308,6 +317,7 @@ class Dispatcher(object):
                 self.rpc_handler(
                         peer, client_counter, handler, args, kwargs, True)
 
+        # find remote targets and count up total handlers
         target_count = handler is not None and 1 or 0
         targets = list(self.find_peer_routes(
                 const.MSG_TYPE_RPC_REQUEST, service, routing_id))
@@ -324,17 +334,13 @@ class Dispatcher(object):
                 'peer': peer,
             }
 
-        if handler is None and not targets:
-            target_count = int(any(routing_id & mask == value
-                    for mask, value, handlers in self.local_subs.get(
-                        (const.MSG_TYPE_RPC_REQUEST, service), [])))
-            target_count += sum(1 for mask, value, conn
-                    in self.peer_subs.get(
-                        (const.MSG_TYPE_RPC_REQUEST, service), [])
-                    if routing_id & mask == value and conn.up)
-            for i in xrange(target_count):
-                peer.push((const.MSG_TYPE_PROXY_RESPONSE,
-                    (client_counter, const.RPC_ERR_NOMETHOD, None)))
+        if handler is None and not targets and self.locally_handles(
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id):
+            # just send a NOMETHOD error now if there are no remote
+            # handlers and we handle this service/routing_id locally, but
+            # don't recognize the method
+            peer.push((const.MSG_TYPE_PROXY_RESPONSE,
+                (client_counter, const.RPC_ERR_NOMETHOD, None)))
 
         peer.push((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
                 (client_counter, target_count)))
