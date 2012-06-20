@@ -19,6 +19,7 @@ class Dispatcher(object):
         self.peer_subs = {}
         self.local_subs = {}
         self.peers = {}
+        self.reconnecting = {}
         self.inflight_proxies = {}
 
     def add_local_subscription(self, msg_type, service, mask, value, method,
@@ -26,6 +27,9 @@ class Dispatcher(object):
         # storage in local_subs is shaped like so:
         # {(msg_type, service): [
         #     (mask, value, {method: (handler, schedule), ...}), ...], ...}
+
+        # sanity check that no 1 bits in the value would be masked out.
+        # in that case, there is no routing id that could possibly match
         if value & ~mask:
             raise errors.ImpossibleSubscription(msg_type, service, mask, value)
 
@@ -33,20 +37,28 @@ class Dispatcher(object):
         for pmask, pvalue, phandlers in existing:
             if pmask & value == mask & pvalue:
                 if method in phandlers:
+                    # (mask, value) overlaps with a previous
+                    # subscription with the same method
                     raise errors.OverlappingSubscription(
                             (msg_type, service, mask, value, method),
                             (msg_type, service, pmask, pvalue, method))
                 elif (mask, value) == (pmask, pvalue):
+                    # same (mask, value) as a previous subscription but for a
+                    # different method, so piggy-back on that data structure
                     phandlers[method] = (handler, schedule)
+
+                    # also bail out. we can skip the MSG_TYPE_ANNOUNCE
+                    # below b/c peers don't route with peers' methods
                     return
         else:
             existing.append((mask, value, {method: (handler, schedule)}))
 
+        # let peers know about the new subscription
         for peer in self.peers.itervalues():
             if not peer.up:
                 continue
             peer.push((const.MSG_TYPE_ANNOUNCE,
-                    [(msg_type, service, mask, value)]))
+                    (msg_type, service, mask, value)))
 
     def remove_local_subscription(
             self, msg_type, service, mask, value):
@@ -115,6 +127,9 @@ class Dispatcher(object):
             for mask, value, handlers in value:
                 yield (msg_type, service, mask, value)
 
+    def add_reconnecting(self, addr, peer):
+        self.reconnecting[addr] = peer
+
     def store_peer(self, peer, subscriptions):
         if peer.ident in self.peers:
             winner, loser = connection.compare(peer, self.peers[peer.ident])
@@ -122,6 +137,9 @@ class Dispatcher(object):
                 return False
             loser.go_down(reconnect=False)
             self.drop_peer_subscriptions(loser)
+        elif peer.ident in self.reconnecting:
+            log.info("terminating reconnect loop in favor of incoming conn")
+            self.reconnecting.pop(peer.ident).go_down(reconnect=False)
 
         self.peers[peer.ident] = peer
         self.add_peer_subscriptions(peer, subscriptions)
@@ -391,16 +409,26 @@ class Dispatcher(object):
                 'peer': peer,
             }
 
+        send_nomethod = False
         if handler is None and not targets and self.locally_handles(
                 const.MSG_TYPE_RPC_REQUEST, service, routing_id):
-            # just send a NOMETHOD error now if there are no remote
-            # handlers and we handle this service/routing_id locally, but
-            # don't recognize the method
-            peer.push((const.MSG_TYPE_PROXY_RESPONSE,
-                (client_counter, const.RPC_ERR_NOMETHOD, None)))
+            # if there are no remote handlers and we only fail locally because
+            # of the method, send a NOMETHOD error and include ourselves in the
+            # target_count so the client can distinguish between "no method"
+            # and "unroutable"
+            log.warn("received proxy_request %r for unknown method from %r" %
+                    (msg[:4], peer.ident,))
+            target_count += 1
+            send_nomethod = True
 
         peer.push((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
                 (client_counter, target_count)))
+
+        # must send the response after the response_count
+        # or the client gets confused
+        if send_nomethod:
+            peer.push((const.MSG_TYPE_PROXY_RESPONSE,
+                (client_counter, const.RPC_ERR_NOMETHOD, None)))
 
     def incoming_proxy_query_count(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:

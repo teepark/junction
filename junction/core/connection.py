@@ -16,6 +16,8 @@ log = logging.getLogger("junction.connection")
 
 
 class Peer(object):
+    RECONNECT_PAUSES = [0] + [(2 ** i) / 10.0 for i in xrange(9)]
+
     def __init__(self, local_addr, dispatcher, addr, sock, initiator=True,
             reconnect=True):
         self.local_addr = local_addr
@@ -27,7 +29,6 @@ class Peer(object):
         self._closing = False
 
         self.attempt_reconnects = reconnect
-        self.reconnect_pauses = [0] + [(2 ** i) / 10.0 for i in xrange(9)]
         self.send_queue = util.Queue()
         self.established = util.Event()
         self.reconnect_waiter = util.Event()
@@ -197,14 +198,18 @@ class Peer(object):
         self.up = True
         self.established.set()
 
-        return self.ident is None or self.dispatcher.store_peer(self, subs)
+        if self.ident is None:
+            # junction.Clients send None as their 'ident'
+            return True
+        return self.dispatcher.store_peer(self, subs)
 
     def reconnect(self):
         if not self.attempt_reconnects:
             return False
 
-        pauses = itertools.chain(self.reconnect_pauses, itertools.repeat(30.0))
+        pauses = itertools.chain(self.RECONNECT_PAUSES, itertools.repeat(30.0))
 
+        # TODO: add jitter
         for pause in pauses:
             # reset
             self.sock.close()
@@ -213,7 +218,9 @@ class Peer(object):
             self.established.clear()
             self.up = False
 
-            if not self.reconnect_waiter.wait(timeout=pause) or self._closing:
+            self.dispatcher.add_reconnecting(self.addr, self)
+
+            if self.reconnect_waiter.wait(timeout=pause) or self._closing:
                 return False
 
             if self.attempt_connect():

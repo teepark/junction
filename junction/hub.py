@@ -98,8 +98,19 @@ class Hub(object):
               service/method/routing id that would match *both* this *and* a
               previously-made registration).
         '''
+        # support @hub.accept_publish(serv, mask, val, meth) decorator usage
+        if handler is None:
+            return lambda h: self.accept_publish(
+                    service, mask, value, method, h, schedule)
+
+        log.info("accepting publishes%s %r" % (
+                " scheduled" if schedule else "",
+                (service, (mask, value), method),))
+
         self._dispatcher.add_local_subscription(const.MSG_TYPE_PUBLISH,
                 service, mask, value, method, handler, schedule)
+
+        return handler
 
     def unsubscribe_publish(self, service, mask, value):
         '''Remove a publish subscription
@@ -157,7 +168,7 @@ class Hub(object):
         return len(list(self._dispatcher.find_peer_routes(
             const.MSG_TYPE_PUBLISH, service, routing_id)))
 
-    def accept_rpc(self, service, mask, value, method, handler, schedule=True):
+    def accept_rpc(self, service, mask, value, method, handler=None, schedule=True):
         '''Set a handler for incoming RPCs
 
         :param service: the incoming RPC must have this service
@@ -190,8 +201,19 @@ class Hub(object):
               service/method/routing id that would match *both* this *and* a
               previously-made registration).
         '''
+        # support @hub.accept_rpc(serv, mask, val, meth) decorator usage
+        if handler is None:
+            return lambda h: self.accept_rpc(
+                    service, mask, value, method, h, schedule)
+
+        log.info("accepting RPCs%s %r" % (
+                " scheduled" if schedule else "",
+                (service, (mask, value), method),))
+
         self._dispatcher.add_local_subscription(const.MSG_TYPE_RPC_REQUEST,
                 service, mask, value, method, handler, schedule)
+
+        return handler
 
     def unsubscribe_rpc(self, service, mask, value, handler):
         '''Remove a rpc subscription
@@ -366,16 +388,19 @@ class Hub(object):
         server.listen(socket.SOMAXCONN)
         log.info("starting listener socket on %r" % (self.addr,))
 
-        try:
-            while not self._closing:
+        while not self._closing:
+            try:
                 client, addr = server.accept()
-                peer = connection.Peer(self._ident, self._dispatcher, addr, client,
-                        initiator=False)
-                peer.start()
+            except errors._BailOutOfListener:
+                log.info("closing listener socket")
+                server.close()
+                break
 
-                # we may block on the accept() call for a while, and these local
-                # vars will prevent the last peer from being garbage collected if
-                # it goes down in the meantime.
-                del client, peer
-        except errors._BailOutOfListener:
-            server.close()
+            peer = connection.Peer(self._ident, self._dispatcher, addr, client,
+                    initiator=False)
+            peer.start()
+
+            # we may block on the next accept() call for a while, and these
+            # local vars will prevent the last peer from being garbage
+            # collected if it goes down in the meantime.
+            del client, peer

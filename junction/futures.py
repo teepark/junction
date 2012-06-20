@@ -165,7 +165,7 @@ class RPC(object):
         return self._completed
 
     def _incoming(self, peer_ident, rc, result):
-        self._results.append(self._format_result(peer_ident, rc, result))
+        self._results.append(self._check_error(peer_ident, rc, result))
         self._arrival.set()
         self._arrival.clear()
 
@@ -186,7 +186,7 @@ class RPC(object):
             child._incoming(self, self.results)
         self._children = []
 
-    def _format_result(self, peer_ident, rc, result):
+    def _check_error(self, peer_ident, rc, result):
         if not rc:
             return result
 
