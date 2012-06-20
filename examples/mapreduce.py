@@ -1,3 +1,4 @@
+import logging
 import random
 import sys
 import time
@@ -190,6 +191,7 @@ def load_func(s):
 
 if __name__ == '__main__':
     greenhouse.global_exception_handler(traceback.print_exception)
+    junction.configure_logging(level=1)
 
     if sys.argv[1] == "mapper":
         hub = junction.Hub(("", 9090), [("", 9091), ("", 9092)])

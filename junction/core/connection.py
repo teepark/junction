@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import itertools
+import logging
 import socket
 import struct
 
@@ -9,6 +10,9 @@ import mummy
 
 from . import const
 from .. import errors
+
+
+log = logging.getLogger("junction.connection")
 
 
 class Peer(object):
@@ -96,6 +100,7 @@ class Peer(object):
 
                 self.sock.sendall(msg)
         except socket.error:
+            log.warn("connection to %r went down (sending)" % (self.ident,))
             self.connection_failure()
 
     def receiver_coro(self):
@@ -103,6 +108,7 @@ class Peer(object):
             while 1:
                 self.dispatcher.incoming(self, self.recv_one())
         except (socket.error, errors.MessageCutOff):
+            log.warn("connection to %r went down (receiving)" % (self.ident,))
             self.connection_failure()
 
     ##
@@ -146,6 +152,7 @@ class Peer(object):
         scheduler.schedule(self.restarter_coro)
 
     def attempt_connect(self):
+        log.info("attempting to connect to %r" % (self.target,))
         try:
             self.sock.connect(self.target)
         except socket.error:
@@ -154,6 +161,9 @@ class Peer(object):
         return self.attempt_handshake()
 
     def attempt_handshake(self):
+        peername = self.sock.getpeername()
+        log.info("sending a handshake to %r" % (peername,))
+
         # send a handshake message
         try:
             self.sock.sendall(self.dump((const.MSG_TYPE_HANDSHAKE, (
@@ -166,6 +176,7 @@ class Peer(object):
         try:
             received = self.recv_one()
         except (socket.error, errors.MessageCutOff):
+            log.warn("receiving handshake from %r failed" % (peername,))
             return False
 
         # validate the peer's handshake message format
@@ -177,7 +188,10 @@ class Peer(object):
                 or len(received[1]) != 2
                 or not isinstance(received[1][0], (tuple, type(None)))
                 or not isinstance(received[1][1], list)):
+            log.warn("invalid handshake from %r" % (peername,))
             return False
+
+        log.info("received handshake from %r" % (peername,))
 
         self.ident, subs = received[1]
         self.up = True

@@ -1,11 +1,15 @@
 from __future__ import absolute_import
 
 import collections
+import logging
 import weakref
 
 from greenhouse import io
 from . import errors, futures
 from .core import connection, const, dispatch, rpc
+
+
+log = logging.getLogger("junction.client")
 
 
 class Client(object):
@@ -25,6 +29,8 @@ class Client(object):
 
     def connect(self):
         "Initiate the connection to a proxying hub"
+        log.info("connecting")
+
         # don't have the connection attempt reconnects, because when it goes
         # down we are going to cycle to the next potential peer from the Client
         self._peer = connection.Peer(
@@ -43,10 +49,14 @@ class Client(object):
             ``True`` if all connections were made, ``False`` if it hit the
             timeout instead.
         '''
-        return self._peer.wait_connected(timeout)
+        result = self._peer.wait_connected(timeout)
+        if not result:
+            log.warn("connect wait timed out after %.2f seconds" % timeout)
+        return result
 
     def reset(self):
         "Close the current failed connection and prepare for a new one"
+        log.info("resetting client")
         rpc_client = self._rpc_client
         self._addrs.append(self._peer.addr)
         self.__init__(self._addrs)
@@ -56,6 +66,7 @@ class Client(object):
 
     def shutdown(self):
         'Close the hub connection'
+        log.info("shutting down")
         self._peer.go_down(reconnect=False)
 
     def publish(self, service, routing_id, method, args, kwargs):

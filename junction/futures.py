@@ -1,11 +1,15 @@
 from __future__ import absolute_import
 
+import logging
 import weakref
 
 from greenhouse import scheduler, util
 import mummy
 from .core import const
 from . import errors
+
+
+log = logging.getLogger("junction.rpc")
 
 
 class RPC(object):
@@ -187,30 +191,47 @@ class RPC(object):
             return result
 
         if rc == const.RPC_ERR_MALFORMED:
+            log.error("'malformed request' error response from %r" %
+                    (peer_ident,))
             return errors.JunctionSystemError("malformed rpc request")
 
         if rc == const.RPC_ERR_NOHANDLER:
+            log.error("'no handler' error response from %r" % (peer_ident,))
             return errors.NoRemoteHandler(
                     "RPC mistakenly sent to %r" % (peer_ident,))
 
         if rc == const.RPC_ERR_NOMETHOD:
+            log.error("'unsupported method' error response from %r" %
+                    (peer_ident,))
             return errors.UnsupportedRemoteMethod(
                     "peer at %r doesn't support the method" % (peer_ident,))
 
         if rc == const.RPC_ERR_KNOWN:
             err_code, err_args = result
-            return errors.HANDLED_ERROR_TYPES.get(
-                    err_code, errors.HandledError)(peer_ident, *err_args)
+            if err_code in errors.HANDLED_ERROR_TYPES:
+                err_klass = errors.HANDLED_ERROR_TYPES.get(err_code)
+                log.error("%s error raised in rpc handler at %r" %
+                        (err_klass.__name__, peer_ident))
+                err = err_klass(peer_ident, *err_args)
+                return err
+            else:
+                rc = const.RPC_ERR_UNKNOWN
 
         if rc == const.RPC_ERR_UNKNOWN:
+            log.error("exception in rpc handler at %r" % (peer_ident,))
             return errors.RemoteException(peer_ident, result)
 
         if rc == const.RPC_ERR_LOST_CONN:
+            log.error("rpc failure from lost connection to %r" % (peer_ident,))
             return errors.LostConnection(peer_ident)
 
         if rc == const.RPC_ERR_UNSER_RESP:
+            log.error("rpc handler at %r returned an unserializable object" %
+                    (peer_ident,))
             return errors.UnserializableResponse(result)
 
+        log.error("error response with unrecognized return code from %r" %
+                (peer_ident,))
         return errors.UnrecognizedRemoteProblem(peer_ident, rc, result)
 
 

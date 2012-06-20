@@ -1,12 +1,16 @@
 from __future__ import absolute_import
 
 import itertools
+import logging
 import sys
 import traceback
 
 from greenhouse import scheduler
 from . import connection, const
 from .. import errors
+
+
+log = logging.getLogger("junction.dispatch")
 
 
 class Dispatcher(object):
@@ -65,12 +69,17 @@ class Dispatcher(object):
     def incoming_unsubscribe(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:
             # badly formatted message
+            log.warn("received malformed unsubscribe from %r" % (peer.ident,))
             return
+
+        log.debug("received unsubscribe %r from %r" % (msg, peer.ident))
 
         msg_type, service, mask, value = msg
 
         groups = self.peer_subs.get((msg_type, service), 0)
         if not groups:
+            log.warn(("unsubscribe from %r described an unrecognized" +
+                    " subscription (msg_type, service)") % (peer.ident,))
             return
         for i, group in enumerate(groups):
             if (mask, value, peer) == group:
@@ -78,6 +87,9 @@ class Dispatcher(object):
                 if not groups:
                     del self.peer_subs[(msg_type, service)]
                 break
+        else:
+            log.warn(("unsubscribe from %r described an unrecognized" +
+                    " subscription (mask, value, peer)") % (peer.ident,))
 
     def find_local_handler(self, msg_type, service, routing_id, method):
         group = self.local_subs.get((msg_type, service), 0)
@@ -126,6 +138,16 @@ class Dispatcher(object):
                 self.proxied_response(counter, const.RPC_ERR_LOST_CONN, None)
 
         self.rpc_client.connection_down(peer)
+
+    def incoming_announce(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 4:
+            # drop malformed messages
+            log.warn("received malformed announce from %r" % (peer.ident,))
+            return
+
+        log.debug("received announce %r from %r" % (msg, peer.ident))
+
+        self.add_peer_subscriptions(peer, [msg])
 
     def add_peer_subscriptions(self, peer, subscriptions):
         # format for peer_subs:
@@ -228,14 +250,21 @@ class Dispatcher(object):
     def incoming_publish(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:
             # drop malformed messages
+            log.warn("received malformed publish from %r" % (peer.ident,))
             return
+
         service, routing_id, method, args, kwargs = msg
 
         handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_PUBLISH, service, routing_id, method)
         if handler is None:
             # drop mis-delivered messages
+            log.warn("received mis-delivered publish %r from %r" %
+                    (msg[:3], peer.ident))
             return
+
+        log.debug("received publish %r from %r" %
+                (msg[:3], peer.ident))
 
         if schedule:
             scheduler.schedule(handler, args=args, kwargs=kwargs)
@@ -243,12 +272,16 @@ class Dispatcher(object):
             try:
                 handler(*args, **kwargs)
             except Exception:
+                log.error("exception handling publish %r from %r" %
+                        ((service, routing_id, method), peer.ident))
                 scheduler.handle_exception(*sys.exc_info())
 
     def incoming_rpc_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
             # drop malformed messages
+            log.warn("received malformed rpc_request from %r" % (peer.ident,))
             return
+
         counter, service, routing_id, method, args, kwargs = msg
 
         handler, schedule = self.find_local_handler(
@@ -257,14 +290,24 @@ class Dispatcher(object):
             if any(routing_id & mask == value
                     for mask, value, handlers in self.local_subs.get(
                             (const.MSG_TYPE_RPC_REQUEST, service), [])):
+                log.warn("received rpc_request %r for unknown method from %r" %
+                        (msg[:4], peer.ident))
                 rc = const.RPC_ERR_NOMETHOD
             else:
+                log.warn("received mis-delivered rpc_request %r from %r" %
+                        (msg[:4], peer.ident))
                 rc = const.RPC_ERR_NOHANDLER
 
             # mis-delivered message
             peer.push((const.MSG_TYPE_RPC_RESPONSE,
                     (counter, rc, None)))
-        elif schedule:
+            return
+
+        log.debug("handling rpc_request %r from %r %s" % (
+                msg[:4], peer.ident,
+                "scheduled" if schedule else "immediately"))
+
+        if schedule:
             scheduler.schedule(self.rpc_handler,
                     args=(peer, counter, handler, args, kwargs))
         else:
@@ -273,15 +316,19 @@ class Dispatcher(object):
     def incoming_rpc_response(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
             # drop malformed responses
+            log.warn("received malformed rpc_response from %r" % (peer.ident,))
             return
 
         counter, rc, result = msg
 
         if counter in self.inflight_proxies:
+            log.info("received a proxied response from %r" % (peer.ident,))
             self.proxied_response(counter, rc, result)
         elif (counter not in self.rpc_client.inflight or
                 peer.ident not in self.rpc_client.inflight[counter]):
             # drop mistaken responses
+            log.warn("received mis-delivered rpc_response from %r" %
+                    (peer.ident,))
             return
 
         self.rpc_client.response(peer, counter, rc, result)
@@ -291,6 +338,8 @@ class Dispatcher(object):
         entry['awaiting'] -= 1
         if not entry['awaiting']:
             del self.inflight_proxies[counter]
+        log.info("forwarding proxied response to %r, %d remaining" %
+                (entry['peer'].ident, entry['awaiting']))
         entry['peer'].push((const.MSG_TYPE_PROXY_RESPONSE,
                 (entry['client_counter'], rc, result)))
 
@@ -303,6 +352,8 @@ class Dispatcher(object):
     def incoming_proxy_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
             # drop badly formed messages
+            log.warn("received malformed proxy_request from %r" %
+                    (peer.ident,))
             return
         client_counter, service, routing_id, method, args, kwargs = msg
 
@@ -310,6 +361,9 @@ class Dispatcher(object):
         handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
         if handler is not None:
+            log.debug("locally handling proxy_request %r from %r %s" % (
+                    msg[:4], peer.ident,
+                    "scheduled" if schedule else "immediately"))
             if schedule:
                 scheduler.schedule(self.rpc_handler, args=(
                     peer, client_counter, handler, args, kwargs, True))
@@ -324,6 +378,9 @@ class Dispatcher(object):
 
         if targets:
             target_count += len(targets)
+
+            log.debug("forwarding proxy_request %r from %r to %d peers" %
+                    (msg[:4], peer.ident, target_count))
 
             rpc = self.rpc_client.request(
                     targets, service, routing_id, method, args, kwargs)
@@ -378,7 +435,7 @@ class Dispatcher(object):
         self.rpc_client.expect(peer, counter, target_count)
 
     handlers = {
-        const.MSG_TYPE_ANNOUNCE: add_peer_subscriptions,
+        const.MSG_TYPE_ANNOUNCE: incoming_announce,
         const.MSG_TYPE_UNSUBSCRIBE: incoming_unsubscribe,
         const.MSG_TYPE_PUBLISH: incoming_publish,
         const.MSG_TYPE_RPC_REQUEST: incoming_rpc_request,

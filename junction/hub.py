@@ -1,11 +1,15 @@
 from __future__ import absolute_import
 
+import logging
 import socket
 import time
 
 from greenhouse import io, scheduler
 from . import errors, futures
 from .core import connection, const, dispatch, rpc
+
+
+log = logging.getLogger("junction.hub")
 
 
 class Hub(object):
@@ -45,11 +49,14 @@ class Hub(object):
         for peer_addr in conns:
             remaining = max(0, deadline - time.time()) if timeout else None
             if not self._started_peers[peer_addr].wait_connected(remaining):
+                log.warn("connect wait timed out after %.2f seconds" % timeout)
                 return False
         return True
 
     def shutdown(self):
         'Close all peer connections and stop listening for new ones'
+        log.info("shutting down")
+
         for peer in self._dispatcher.peers.values():
             peer.go_down(reconnect=False)
 
@@ -108,6 +115,8 @@ class Hub(object):
             a boolean indicating whether the subscription was there (True) and
             removed, or not (False)
         '''
+        log.info("unsubscribing from publish %r" % (
+                (service, (mask, value)),))
         return self._dispatcher.remove_local_subscription(
                 const.MSG_TYPE_PUBLISH, service, mask, value)
 
@@ -200,6 +209,7 @@ class Hub(object):
             a boolean indicating whether the subscription was there (True) and
             removed, or not (False)
         '''
+        log.info("unsubscribing from RPC %r" % ((service, (mask, value)),))
         return self._dispatcher.remove_local_subscription(
                 const.MSG_TYPE_RPC_REQUEST, service, mask, value, handler)
 
@@ -337,6 +347,8 @@ class Hub(object):
 
     def start(self):
         "Start up the hub's server, and have it start initiating connections"
+        log.info("starting")
+
         self._listener_coro = scheduler.greenlet(self._listener)
         scheduler.schedule(self._listener_coro)
 
@@ -352,6 +364,7 @@ class Hub(object):
 
         server.bind(self.addr)
         server.listen(socket.SOMAXCONN)
+        log.info("starting listener socket on %r" % (self.addr,))
 
         try:
             while not self._closing:
