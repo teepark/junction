@@ -220,7 +220,7 @@ class Peer(object):
 
             self.dispatcher.add_reconnecting(self.addr, self)
 
-            if self.reconnect_waiter.wait(timeout=pause) or self._closing:
+            if not self.reconnect_waiter.wait(timeout=pause) or self._closing:
                 return False
 
             if self.attempt_connect():
