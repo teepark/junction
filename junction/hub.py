@@ -65,7 +65,7 @@ class Hub(object):
                     errors._BailOutOfListener(), self._listener_coro)
 
     def accept_publish(
-            self, service, mask, value, method, handler, schedule=False):
+            self, service, mask, value, method, handler=None, schedule=False):
         '''Set a handler for incoming publish messages
 
         :param service: the incoming message must have this service
