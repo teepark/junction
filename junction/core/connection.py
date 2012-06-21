@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import itertools
 import logging
+import random
 import socket
 import struct
 
@@ -12,11 +13,12 @@ from . import const
 from .. import errors
 
 
+RECONN_JITTER = 0.25
+
 log = logging.getLogger("junction.connection")
 
 
 class Peer(object):
-    RECONNECT_PAUSES = [0] + [(2 ** i) / 10.0 for i in xrange(9)]
 
     def __init__(self, local_addr, dispatcher, addr, sock, initiator=True,
             reconnect=True):
@@ -101,7 +103,7 @@ class Peer(object):
 
                 self.sock.sendall(msg)
         except socket.error:
-            log.warn("connection to %r went down (sending)" % (self.ident,))
+            log.warn("connection to %r went down (writer)" % (self.ident,))
             self.connection_failure()
 
     def receiver_coro(self):
@@ -109,7 +111,7 @@ class Peer(object):
             while 1:
                 self.dispatcher.incoming(self, self.recv_one())
         except (socket.error, errors.MessageCutOff):
-            log.warn("connection to %r went down (receiving)" % (self.ident,))
+            log.warn("connection to %r went down (reader)" % (self.ident,))
             self.connection_failure()
 
     ##
@@ -203,14 +205,26 @@ class Peer(object):
             return True
         return self.dispatcher.store_peer(self, subs)
 
+    def pause_chain(self):
+        # start with [0, 0.1], then double until we top out at 30,
+        # but with each doubling include +-RECONN_JITTER%
+        yield 0
+
+        n = 0.1
+        while 1:
+            yield n
+            n *= 2 * (1 - ((random.random() - 0.5) * 2 * RECONN_JITTER))
+            if n > 30:
+                break
+
+        while 1:
+            yield 30
+
     def reconnect(self):
         if not self.attempt_reconnects:
             return False
 
-        pauses = itertools.chain(self.RECONNECT_PAUSES, itertools.repeat(30.0))
-
-        # TODO: add jitter
-        for pause in pauses:
+        for pause in self.pause_chain():
             # reset
             self.sock.close()
             self.sock = io.Socket()
