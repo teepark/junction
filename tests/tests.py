@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # vim: fileencoding=utf8:et:sta:ai:sw=4:ts=4:sts=4
 
+import logging
 import traceback
 import unittest
 
@@ -9,10 +10,13 @@ import junction
 import junction.errors
 
 
-TIMEOUT = 0.002
+TIMEOUT = 0.01
 PORT = 5000
 
 GTL = greenhouse.Lock()
+
+#junction.configure_logging(level=1)
+#greenhouse.global_exception_handler(traceback.print_exception)
 
 # base class stolen from the greenhouse test suite
 class StateClearingTestCase(unittest.TestCase):
@@ -140,10 +144,14 @@ class JunctionTests(object):
 
         greenhouse.pause_for(TIMEOUT)
 
-        sender_results.append(self.sender.rpc("service", 0, "method", (1,), {}))
-        sender_results.append(self.sender.rpc("service", 0, "method", (2,), {}))
-        sender_results.append(self.sender.rpc("service", 0, "method", (3,), {}))
-        sender_results.append(self.sender.rpc("service", 0, "method", (4,), {}))
+        sender_results.append(self.sender.rpc("service", 0, "method", (1,), {},
+            timeout=TIMEOUT))
+        sender_results.append(self.sender.rpc("service", 0, "method", (2,), {},
+            timeout=TIMEOUT))
+        sender_results.append(self.sender.rpc("service", 0, "method", (3,), {},
+            timeout=TIMEOUT))
+        sender_results.append(self.sender.rpc("service", 0, "method", (4,), {},
+            timeout=TIMEOUT))
 
         self.assertEqual(handler_results, [1, 2, 3, 4])
         self.assertEqual(sender_results, [[1], [4], [9], [16]])
@@ -156,7 +164,7 @@ class JunctionTests(object):
         greenhouse.pause_for(TIMEOUT)
 
         self.assertRaises(junction.errors.Unroutable,
-                self.sender.rpc, "service2", 0, "method", (1,), {})
+                self.sender.rpc, "service2", 0, "method", (1,), {}, TIMEOUT)
 
         greenhouse.pause_for(TIMEOUT)
 
@@ -169,7 +177,7 @@ class JunctionTests(object):
 
         greenhouse.pause_for(TIMEOUT)
 
-        result = self.sender.rpc("service", 0, "method2", (1,), {})
+        result = self.sender.rpc("service", 0, "method2", (1,), {}, TIMEOUT)
         assert isinstance(result, list)
         assert len(result) == 1
         assert isinstance(result[0], junction.errors.UnsupportedRemoteMethod)
@@ -186,7 +194,7 @@ class JunctionTests(object):
         greenhouse.pause_for(TIMEOUT)
 
         self.assertRaises(junction.errors.Unroutable,
-                self.sender.rpc, "service", 1, "method", (1,), {})
+                self.sender.rpc, "service", 1, "method", (1,), {}, TIMEOUT)
 
         greenhouse.pause_for(TIMEOUT)
 
@@ -203,7 +211,7 @@ class JunctionTests(object):
 
         greenhouse.pause_for(TIMEOUT)
 
-        result = self.sender.rpc("service", 0, "method", (), {})
+        result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
 
         self.assertEqual(len(result), 1)
         self.assert_(isinstance(result[0], CustomError), junction.errors.HANDLED_ERROR_TYPES)
@@ -221,7 +229,7 @@ class JunctionTests(object):
 
         greenhouse.pause_for(TIMEOUT)
 
-        result = self.sender.rpc("service", 0, "method", (), {})
+        result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
 
         self.assertEqual(len(result), 1)
         self.assert_(isinstance(result[0], junction.errors.RemoteException))
@@ -248,7 +256,7 @@ class JunctionTests(object):
         rpcs.append(self.sender.send_rpc("service", 0, "method", (4,), {}))
 
         while rpcs:
-            rpc = self.sender.wait_any(rpcs)
+            rpc = self.sender.wait_any(rpcs, TIMEOUT)
             rpcs.remove(rpc)
             sender_results.append(rpc.results)
 
@@ -283,6 +291,8 @@ class RelayedClientTests(JunctionTests, StateClearingTestCase):
 
         self.sender = junction.Client(self.relayer.addr)
         self.sender.connect()
+
+        self.relayer.wait_on_connections()
         self.sender.wait_on_connections()
 
     def tearDown(self):
@@ -299,7 +309,7 @@ class NetworklessDependentTests(StateClearingTestCase):
                 lambda x: x - 7).after(
                 lambda x: x ** 3).after(
                 lambda x: x // 2)
-        self.assertEqual(dep.wait(), 62)
+        self.assertEqual(dep.wait(TIMEOUT), 62)
 
 
 if __name__ == '__main__':
