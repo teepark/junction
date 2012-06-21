@@ -97,11 +97,7 @@ class Peer(object):
     def sender_coro(self):
         try:
             while 1:
-                msg = self.send_queue.get()
-                if msg is _END:
-                    break
-
-                self.sock.sendall(msg)
+                self.sock.sendall(self.send_queue.get())
         except socket.error:
             log.warn("connection to %r went down (writer)" % (self.ident,))
             self.connection_failure()
@@ -270,6 +266,3 @@ def compare(peerA, peerB):
     if (peerA.ident < peerA.local_addr) == peerA.initiator:
         return peerA, peerB
     return peerB, peerA
-
-
-_END = object()
