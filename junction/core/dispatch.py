@@ -198,21 +198,34 @@ class Dispatcher(object):
                 const.MSG_TYPE_PUBLISH, service, routing_id, method)
         if handler is not None:
             found_one = True
+            log.debug("locally handling publish %r %s" %
+                    (msg[1][:3], "scheduled" if schedule else "immediately"))
             if schedule:
                 scheduler.schedule(handler, args=args, kwargs=kwargs)
             else:
                 try:
                     handler(*args, **kwargs)
                 except Exception:
+                    log.error("exception handling local publish %r" %
+                            (msg[1][:3],))
                     scheduler.handle_exception(*sys.exc_info())
 
         # send publishes to peers with handlers
-        for peer in self.find_peer_routes(
-                const.MSG_TYPE_PUBLISH, service, routing_id):
+        peers = list(self.find_peer_routes(
+                const.MSG_TYPE_PUBLISH, service, routing_id))
+        if peers:
+            log.debug("sending publish %r to %d peers" % (msg[1][:3], len(peers)))
+
+        for peer in peers:
             found_one = True
             peer.push(msg)
 
         return found_one
+
+    def send_proxied_rpc(self, service, routing_id, method, args, kwargs):
+        log.debug("sending proxied_rpc %r" % ((service, routing_id, method),))
+        return self.rpc_client.request([self.peers.values()[0]],
+                service, routing_id, method, args, kwargs)
 
     def send_rpc(self, service, routing_id, method, args, kwargs):
         handler, schedule = self.find_local_handler(
@@ -220,22 +233,41 @@ class Dispatcher(object):
         routes = []
         if handler is not None:
             routes.append(LocalTarget(self, handler, schedule))
-        routes.extend(self.find_peer_routes(
-                const.MSG_TYPE_RPC_REQUEST, service, routing_id))
+            log.debug("locally handling rpc_request %r %s" %
+                    ((service, routing_id, method),
+                    "scheduled" if schedule else "immediately"))
+
+        peers = list(self.find_peer_routes(
+            const.MSG_TYPE_RPC_REQUEST, service, routing_id))
+        routes.extend(peers)
+
+        if peers:
+            log.debug("sending rpc_request %r to %d peers" %
+                    ((service, routing_id, method), len(peers)))
+
         return self.rpc_client.request(
                 routes, service, routing_id, method, args, kwargs)
 
     def send_proxied_publish(self, service, routing_id, method, args, kwargs):
+        log.debug("sending proxied_publish %r" %
+                ((service, routing_id, method),))
         self.peers.values()[0].push(
                 (const.MSG_TYPE_PROXY_PUBLISH,
                     (service, routing_id, method, args, kwargs)))
 
+    def publish_handler(self, handler, msg, source, args, kwargs):
+        log.debug("executing publish handler for %r from %r" % (msg, source))
+        try:
+            handler(*args, **kwargs)
+        except Exception:
+            log.error("exception handling publish %r from %r" % (msg, source))
+            scheduler.handle_exception(*sys.exc_info())
+
     def rpc_handler(self, peer, counter, handler, args, kwargs,
             proxied=False, scheduled=False):
         req_type = "proxy_request" if proxied else "rpc_request"
-        if scheduled:
-            log.debug("executing scheduled %s handler for %d" %
-                    (req_type, counter))
+        log.debug("executing %s handler for %d from %r" %
+                (req_type, counter, peer.ident))
 
         response = (proxied and const.MSG_TYPE_PROXY_RESPONSE
                 or const.MSG_TYPE_RPC_RESPONSE)
@@ -294,18 +326,15 @@ class Dispatcher(object):
                     (msg[:3], peer.ident))
             return
 
-        log.debug("received publish %r from %r" %
-                (msg[:3], peer.ident))
+        log.debug("handling publish %r from %r %s" %
+                (msg[:3], peer.ident,
+                "scheduled" if schedule else "immediately"))
 
         if schedule:
-            scheduler.schedule(handler, args=args, kwargs=kwargs)
+            scheduler.schedule(self.publish_handler,
+                    args=(handler, msg[:3], peer.ident, args, kwargs))
         else:
-            try:
-                handler(*args, **kwargs)
-            except Exception:
-                log.error("exception handling publish %r from %r" %
-                        ((service, routing_id, method), peer.ident))
-                scheduler.handle_exception(*sys.exc_info())
+            self.publish_handler(handler, msg[:3], peer.ident, args, kwargs)
 
     def incoming_rpc_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:

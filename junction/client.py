@@ -153,7 +153,7 @@ class Client(object):
         if not self._peer.up:
             raise errors.Unroutable()
 
-        return self._rpc_client.request([self._peer],
+        return self._dispatcher.send_proxied_rpc(
                 service, routing_id, method, args, kwargs)
 
     def wait_any(self, futures, timeout=None):

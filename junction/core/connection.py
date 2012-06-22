@@ -202,13 +202,15 @@ class Peer(object):
         return self.dispatcher.store_peer(self, subs)
 
     def pause_chain(self):
-        # start with [0, 0.1], then double until we top out at 30,
-        # but with each doubling include +-RECONN_JITTER%
+        # start with [0, 0.1], then double until we top out at
+        # 30, but with each doubling include a jitter factor
         yield 0
 
         n = 0.1
         while 1:
             yield n
+            # this arithmetic doubles it, and then modifies it by a random
+            # ratio between -RECONN_JITTER and RECONN_JITTER (+-25%)
             n *= 2 * (1 - ((random.random() - 0.5) * 2 * RECONN_JITTER))
             if n > 30:
                 break
