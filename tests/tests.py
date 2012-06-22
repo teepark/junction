@@ -57,7 +57,6 @@ class JunctionTests(object):
     def tearDown(self):
         self.peer.shutdown()
         self.sender.shutdown()
-        greenhouse.pause_for(TIMEOUT)
         del self.peer, self.sender
 
         junction.errors.HANDLED_ERROR_TYPES = self._handled_errors_copy
@@ -66,69 +65,90 @@ class JunctionTests(object):
 
     def test_publish_success(self):
         results = []
+        ev = greenhouse.Event()
 
-        self.peer.accept_publish("service", 0, 0, "method", results.append)
+        @self.peer.accept_publish("service", 0, 0, "method")
+        def handler(item):
+            results.append(item)
+            if len(results) == 4:
+                ev.set()
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         self.sender.publish("service", 0, "method", (1,), {})
         self.sender.publish("service", 0, "method", (2,), {})
         self.sender.publish("service", 0, "method", (3,), {})
         self.sender.publish("service", 0, "method", (4,), {})
 
-        greenhouse.pause_for(TIMEOUT)
+        ev.wait(TIMEOUT)
 
         self.assertEqual(results, [1, 2, 3, 4])
 
     def test_publish_ruled_out_by_service(self):
         results = []
+        ev = greenhouse.Event()
 
-        self.peer.accept_publish("service1", 0, 0, "method", results.append)
+        @self.peer.accept_publish("service1", 0, 0, "method")
+        def handler(item):
+            results.append(item)
+            ev.set()
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         try:
-            self.sender.publish("service2", 0, "method", (), {})
+            self.sender.publish("service2", 0, "method", (1,), {})
         except junction.errors.Unroutable:
             # eat this as Clients don't get this raised, only Hubs
             pass
 
-        greenhouse.pause_for(TIMEOUT)
+        assert ev.wait(TIMEOUT)
 
         self.assertEqual(results, [])
 
     def test_publish_ruled_out_by_method(self):
         results = []
+        ev = greenhouse.Event()
 
-        self.peer.accept_publish("service", 0, 0, "method1", results.append)
+        @self.peer.accept_publish("service", 0, 0, "method1")
+        def handler(item):
+            results.append(item)
+            ev.set()
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         try:
-            self.sender.publish("service", 0, "method2", (), {})
+            self.sender.publish("service", 0, "method2", (1,), {})
         except junction.errors.Unroutable:
             # eat this as Clients don't get this raised, only Hubs
             pass
 
-        greenhouse.pause_for(TIMEOUT)
+        assert ev.wait(TIMEOUT)
 
         self.assertEqual(results, [])
 
     def test_publish_ruled_out_by_routing_id(self):
         results = []
+        ev = greenhouse.Event()
 
         # only sign up for even routing ids
-        self.peer.accept_publish("service", 1, 0, "method", results.append)
+        @self.peer.accept_publish("service", 1, 0, "method")
+        def handler(item):
+            results.append(item)
+            ev.set()
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         try:
-            self.sender.publish("service", 1, "method", (), {})
+            self.sender.publish("service", 1, "method", (1,), {})
         except junction.errors.Unroutable:
             # eat this as Clients don't get this raised, only Hubs
             pass
 
-        greenhouse.pause_for(TIMEOUT)
+        assert ev.wait(TIMEOUT)
 
         self.assertEqual(results, [])
 
@@ -136,13 +156,13 @@ class JunctionTests(object):
         handler_results = []
         sender_results = []
 
+        @self.peer.accept_rpc("service", 0, 0, "method")
         def handler(x):
             handler_results.append(x)
             return x ** 2
 
-        self.peer.accept_rpc("service", 0, 0, "method", handler)
-
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         sender_results.append(self.sender.rpc("service", 0, "method", (1,), {},
             timeout=TIMEOUT))
@@ -158,15 +178,20 @@ class JunctionTests(object):
 
     def test_rpc_ruled_out_by_service(self):
         results = []
+        ev = greenhouse.Event()
 
-        self.peer.accept_rpc("service1", 0, 0, "method", results.append)
+        @self.peer.accept_rpc("service1", 0, 0, "method")
+        def handler(item):
+            results.append(item)
+            ev.set()
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         self.assertRaises(junction.errors.Unroutable,
                 self.sender.rpc, "service2", 0, "method", (1,), {}, TIMEOUT)
 
-        greenhouse.pause_for(TIMEOUT)
+        assert ev.wait(TIMEOUT)
 
         self.assertEqual(results, [])
 
@@ -175,14 +200,13 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 0, 0, "method1", results.append)
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         result = self.sender.rpc("service", 0, "method2", (1,), {}, TIMEOUT)
         assert isinstance(result, list)
         assert len(result) == 1
         assert isinstance(result[0], junction.errors.UnsupportedRemoteMethod)
-
-        greenhouse.pause_for(TIMEOUT)
 
         self.assertEqual(results, [])
 
@@ -191,12 +215,11 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 1, 0, "method", results.append)
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         self.assertRaises(junction.errors.Unroutable,
                 self.sender.rpc, "service", 1, "method", (1,), {}, TIMEOUT)
-
-        greenhouse.pause_for(TIMEOUT)
 
         self.assertEqual(results, [])
 
@@ -209,7 +232,8 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
 
@@ -227,7 +251,8 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
 
@@ -246,7 +271,8 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
-        greenhouse.pause_for(TIMEOUT)
+        for i in xrange(4):
+            greenhouse.pause()
 
         rpcs = []
 
