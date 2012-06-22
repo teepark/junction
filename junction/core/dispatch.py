@@ -556,3 +556,11 @@ class LocalTarget(object):
             # sent back here via dispatcher.rpc_handler
             counter, rc, result = msg
             self.dispatcher.rpc_client.response(self, counter, rc, result)
+
+    # trick RPCClient.request
+    # in the case of a local handler it doesn't have to go over the wire, so
+    # there's no issue with unserializable arguments (or return values). so
+    # we'll skip the "dump" phase and just "push" the object itself
+    push_string = push
+    def dump(self, msg):
+        return msg
