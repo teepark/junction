@@ -14,8 +14,7 @@ Todo
 ----
 
 - mapper function should be called once for a given piece of
-  input and yield (key, val) pairs
-- job config should specify a base case for reduction
+  input and yield zero or more (key, val) pairs
 - the mapper node should pick the reducer to send a yielded key/val
   pair to with `reducers[hash(key) % num_reducers]`, where reducers
   is *the same* list that was sent to all mappers by the coordinator.
@@ -26,11 +25,18 @@ Done
 
 - mapper's data source is provided at job-start time
 - data source takes a 'mapper id' which the mapper was instantiated with
+- job config should specify a base case for reduction
 '''
 
-def map_reduce(hub, service, source, mapper, reducer):
+_MISSING = object()
+
+def map_reduce(hub, service, source, mapper, reducer, reduce_base=_MISSING):
+    missing = reduce_base is _MISSING
+    if missing:
+        reduce_base = None
     return hub.rpc(service, 0, "map_reduce",
-            (dump_func(source), dump_func(mapper), dump_func(reducer)), {})
+            (dump_func(source), dump_func(mapper),
+            dump_func(reducer), reduce_base, not missing), {})
 
 
 class Coordinator(object):
@@ -57,7 +63,8 @@ class Coordinator(object):
             self.handle_result,
             schedule=False)
 
-    def handle_map_reduce(self, dumped_source, dumped_mapper, dumped_reducer):
+    def handle_map_reduce(self, dumped_source, dumped_mapper, dumped_reducer,
+            reduce_base, base_case_provided):
         reducer = random.randrange(self._num_reducers)
 
         mappers = self._hub.publish_receiver_count(
@@ -67,7 +74,8 @@ class Coordinator(object):
             "%s-reducer" % (self._service,),
             reducer,
             "setup",
-            (dumped_reducer, mappers, self._value),
+            (dumped_reducer, mappers, self._value,
+                reduce_base, base_case_provided),
             {})[0]
 
         self._hub.publish(
@@ -113,21 +121,25 @@ class Reducer(object):
                 self.handle_reduce,
                 schedule=True)
 
-    def handle_setup(self, dumped_reducer, mapper_count, coordinator_id):
+    def handle_setup(self, dumped_reducer, mapper_count, coordinator_id,
+            reduce_base, base_case_provided):
         counter = self._counter
         self._counter += 1
 
-        self._setup_data[counter] = (coordinator_id, dumped_reducer)
+        self._setup_data[counter] = (coordinator_id, dumped_reducer,
+                reduce_base, base_case_provided)
         self._active[counter] = mapper_count
 
         return counter
 
     def handle_reduce(self, job_id, results, final):
-        coordinator, dumped_reducer = self._setup_data[job_id]
+        coord, reduc, base, has_base = self._setup_data[job_id]
 
-        args = [load_func(dumped_reducer), results]
+        args = [load_func(reduc), results]
         if job_id in self._results:
             args.append(self._results[job_id])
+        elif has_base:
+            args.append(base)
 
         self._results[job_id] = reduce(*args)
 
@@ -139,7 +151,7 @@ class Reducer(object):
 
                 self._hub.publish(
                         "%s-result" % (self._service,),
-                        coordinator,
+                        coord,
                         "result",
                         (self._value, job_id, self._results.pop(job_id),),
                         {})
