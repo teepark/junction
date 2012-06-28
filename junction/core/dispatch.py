@@ -562,17 +562,7 @@ class LocalTarget(object):
 
     def push(self, msg):
         msgtype, msg = msg
-        if msgtype == const.MSG_TYPE_PUBLISH:
-            service, routing_id, method, args, kwargs = msg
-            if self.schedule:
-                scheduler.schedule(self.handler, args=args, kwargs=kwargs)
-            else:
-                try:
-                    self.handler(*args, **kwargs)
-                except Exception:
-                    scheduler.handle_exception(*sys.exc_info())
-
-        elif msgtype == const.MSG_TYPE_RPC_REQUEST:
+        if msgtype == const.MSG_TYPE_RPC_REQUEST:
             counter, service, routing_id, method, args, kwargs = msg
             if self.schedule:
                 scheduler.schedule(self.dispatcher.rpc_handler,
