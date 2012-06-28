@@ -35,11 +35,6 @@ class RPCClient(object):
             strings.append(peer.dump(msg))
             target_count += 1
 
-        # did all the serializing before any of the sending for
-        # atomicity in the case of unserializable arguments
-        for peer, string in zip(targets, strings):
-            peer.push_string(string)
-
         if not target_set:
             return None
 
@@ -47,6 +42,11 @@ class RPCClient(object):
 
         rpc = futures.RPC(self, counter, target_count)
         self.rpcs[counter] = rpc
+
+        # did all the serializing before any of the sending for
+        # atomicity in the case of unserializable arguments
+        for peer, string in zip(targets, strings):
+            peer.push_string(string)
 
         return rpc
 
