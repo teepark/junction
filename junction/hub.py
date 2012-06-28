@@ -329,7 +329,7 @@ class Hub(object):
         return self.send_rpc(
                 service, routing_id, method, args, kwargs).wait(timeout)
 
-    def rpc_receiver_count(self, service, routing_id, method):
+    def rpc_receiver_count(self, service, routing_id):
         '''Get the number of peers that would handle a particular RPC
 
         :param service: the service name
@@ -337,14 +337,12 @@ class Hub(object):
         :param routing_id:
             the id used for narrowing within the service handlers
         :type routing_id: int
-        :param method: the method name
-        :type method: string
 
         :returns:
             the integer number of peers that would receive the described RPC
         '''
         return len(list(self._dispatcher.find_peer_routes(
-            const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)))
+            const.MSG_TYPE_RPC_REQUEST, service, routing_id)))
 
     def dependency_root(self, func):
         '''Create a parent-less :class:`Dependent <junction.futures.Dependent>`
