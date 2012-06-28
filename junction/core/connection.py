@@ -13,7 +13,7 @@ from . import const
 from .. import errors
 
 
-RECONN_JITTER = 0.25
+RECONNECT_JITTER = 0.25
 
 log = logging.getLogger("junction.connection")
 
@@ -99,7 +99,6 @@ class Peer(object):
             while 1:
                 self.sock.sendall(self.send_queue.get())
         except socket.error:
-            log.warn("connection to %r went down (writer)" % (self.ident,))
             self.connection_failure()
 
     def receiver_coro(self):
@@ -107,7 +106,6 @@ class Peer(object):
             while 1:
                 self.dispatcher.incoming(self, self.recv_one())
         except (socket.error, errors.MessageCutOff):
-            log.warn("connection to %r went down (reader)" % (self.ident,))
             self.connection_failure()
 
     ##
@@ -119,6 +117,7 @@ class Peer(object):
         return self.ident or self.addr
 
     def connection_failure(self):
+        log.warn("connection to %r went down" % (self.ident,))
         self.go_down(reconnect=True)
 
     def init_sock(self):
@@ -210,8 +209,8 @@ class Peer(object):
         while 1:
             yield n
             # this arithmetic doubles it, and then modifies it by a random
-            # ratio between -RECONN_JITTER and RECONN_JITTER (+-25%)
-            n *= 2 * (1 - ((random.random() - 0.5) * 2 * RECONN_JITTER))
+            # ratio between -RECONNECT_JITTER and RECONNECT_JITTER (+-25%)
+            n *= 2 * (1 - ((random.random() - 0.5) * 2 * RECONNECT_JITTER))
             if n > 30:
                 break
 
