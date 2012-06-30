@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-import logging.handlers
+import logging
 import sys
 
 from .hub import Hub
@@ -17,7 +17,7 @@ def configure_logging(filename=None, filemode=None, fmt=None, datefmt=None,
         if filename is None:
             handler = logging.StreamHandler(stream or sys.stderr)
         else:
-            handler = logging.handlers.FileHandler(filemode or 'a')
+            handler = logging.FileHandler(filename, filemode or 'a')
 
     if fmt is None:
         fmt = "[%(asctime)s] %(name)s/%(levelname)s | %(message)s"
