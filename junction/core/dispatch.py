@@ -14,8 +14,9 @@ log = logging.getLogger("junction.dispatch")
 
 
 class Dispatcher(object):
-    def __init__(self, rpc_client):
+    def __init__(self, rpc_client, hub):
         self.rpc_client = rpc_client
+        self.hub = hub
         self.peer_subs = {}
         self.local_subs = {}
         self.peers = {}
@@ -222,31 +223,53 @@ class Dispatcher(object):
 
         return found_one
 
-    def send_proxied_rpc(self, service, routing_id, method, args, kwargs):
+    def send_proxied_rpc(
+            self, service, routing_id, method, args, kwargs, singular):
         log.debug("sending proxied_rpc %r" % ((service, routing_id, method),))
         return self.rpc_client.request([self.peers.values()[0]],
-                service, routing_id, method, args, kwargs)
+                (service, routing_id, method, bool(singular), args, kwargs))
 
-    def send_rpc(self, service, routing_id, method, args, kwargs):
+    def target_selection(self, peers, service, routing_id, method):
+        by_addr = {}
+        for peer in peers:
+            if isinstance(peer, LocalTarget):
+                by_addr[None] = peer
+            else:
+                by_addr[peer.ident] = peer
+        choice = self.hub.select_peer(
+                by_addr.keys(), service, routing_id, method)
+        return by_addr[choice]
+
+    def send_rpc(self, service, routing_id, method, args, kwargs,
+            singular):
         handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
         routes = []
         if handler is not None:
             routes.append(LocalTarget(self, handler, schedule))
-            log.debug("locally handling rpc_request %r %s" %
-                    ((service, routing_id, method),
-                    "scheduled" if schedule else "immediately"))
 
         peers = list(self.find_peer_routes(
             const.MSG_TYPE_RPC_REQUEST, service, routing_id))
         routes.extend(peers)
 
-        if peers:
+        if singular and len(peers) > 1:
+            routes = [self.target_selection(
+                    routes, service, routing_id, method)]
+            if not isinstance(routes[0], LocalTarget):
+                handler = None
+
+        if handler is not None:
+            log.debug("locally handling rpc_request %r %s" %
+                    ((service, routing_id, method),
+                    "scheduled" if schedule else "immediately"))
+
+        if peers and not (singular and handler):
             log.debug("sending rpc_request %r to %d peers" %
-                    ((service, routing_id, method), len(peers)))
+                    ((service, routing_id, method),
+                    len(routes) - bool(handler)))
 
         return self.rpc_client.request(
-                routes, service, routing_id, method, args, kwargs)
+                routes, (service, routing_id, method, args, kwargs))
 
     def send_proxied_publish(self, service, routing_id, method, args, kwargs):
         log.debug("sending proxied_publish %r" %
@@ -422,45 +445,57 @@ class Dispatcher(object):
         self.send_publish(*(msg + (True,)))
 
     def incoming_proxy_request(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 6:
+        if not isinstance(msg, tuple) or len(msg) != 7:
             # drop badly formed messages
             log.warn("received malformed proxy_request from %r" %
                     (peer.ident,))
             return
-        client_counter, service, routing_id, method, args, kwargs = msg
+        cli_counter, service, routing_id, method, singular, args, kwargs = msg
 
-        # handle it locally if it's aimed at us
+        # find local handlers
         handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
+
+        # find remote targets and count up total handlers
+        targets = list(self.find_peer_routes(
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id))
+        target_count = len(targets) + bool(handler)
+
+        # pick the single target for 'singular' proxy RPCs
+        if target_count > 1 and singular:
+            target_count = 1
+            target = self.target_selection(
+                    targets + [LocalTarget(self, handler, schedule)],
+                    service, routing_id, method)
+            if isinstance(target, LocalTarget):
+                targets = []
+            else:
+                handler = None
+                targets = [target]
+
+        # handle it locally if it's aimed at us
         if handler is not None:
             log.debug("locally handling proxy_request %r from %r %s" % (
                     msg[:4], peer.ident,
                     "scheduled" if schedule else "immediately"))
             if schedule:
                 scheduler.schedule(self.rpc_handler,
-                        args=(peer, client_counter, handler, args, kwargs),
+                        args=(peer, cli_counter, handler, args, kwargs),
                         kwargs={'proxied': True, 'scheduled': True})
             else:
                 self.rpc_handler(
-                        peer, client_counter, handler, args, kwargs, True)
-
-        # find remote targets and count up total handlers
-        target_count = handler is not None and 1 or 0
-        targets = list(self.find_peer_routes(
-                const.MSG_TYPE_RPC_REQUEST, service, routing_id))
+                        peer, cli_counter, handler, args, kwargs, True)
 
         if targets:
-            target_count += len(targets)
-
             log.debug("forwarding proxy_request %r from %r to %d peers" %
-                    (msg[:4], peer.ident, target_count))
+                    (msg[:4], peer.ident, target_count - bool(handler)))
 
             rpc = self.rpc_client.request(
-                    targets, service, routing_id, method, args, kwargs)
+                    targets, (service, routing_id, method, args, kwargs))
 
             self.inflight_proxies[rpc.counter] = {
                 'awaiting': len(targets),
-                'client_counter': client_counter,
+                'client_counter': cli_counter,
                 'peer': peer,
             }
 
@@ -477,13 +512,13 @@ class Dispatcher(object):
             send_nomethod = True
 
         peer.push((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
-                (client_counter, target_count)))
+                (cli_counter, target_count)))
 
         # must send the response after the response_count
         # or the client gets confused
         if send_nomethod:
             peer.push((const.MSG_TYPE_PROXY_RESPONSE,
-                (client_counter, const.RPC_ERR_NOMETHOD, None)))
+                (cli_counter, const.RPC_ERR_NOMETHOD, None)))
 
     def incoming_proxy_query_count(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:

@@ -16,7 +16,7 @@ class Client(object):
     "A junction client without the server"
     def __init__(self, addrs):
         self._rpc_client = rpc.ProxiedClient(self)
-        self._dispatcher = dispatch.Dispatcher(self._rpc_client)
+        self._dispatcher = dispatch.Dispatcher(self._rpc_client, None)
         self._peer = None
 
         # allow just a single (host, port) pair
@@ -126,7 +126,8 @@ class Client(object):
                 const.MSG_TYPE_PUBLISH, service, routing_id, method).wait(
                         timeout)[0]
 
-    def send_rpc(self, service, routing_id, method, args, kwargs):
+    def send_rpc(self, service, routing_id, method, args, kwargs,
+            singular=False):
         '''Send out an RPC request
 
         :param service: the service name (the routing top level)
@@ -141,6 +142,8 @@ class Client(object):
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
+        :param singular: if ``True``, only send the request to a single peer
+        :type singular: bool
 
         :returns:
             a :class:`RPC <junction.futures.RPC>` object representing the
@@ -154,7 +157,7 @@ class Client(object):
             raise errors.Unroutable()
 
         return self._dispatcher.send_proxied_rpc(
-                service, routing_id, method, args, kwargs)
+                service, routing_id, method, args, kwargs, singular)
 
     def wait_any(self, futures, timeout=None):
         '''Wait for the response for any (the first) of multiple futures
@@ -183,7 +186,8 @@ class Client(object):
         '''
         return self._rpc_client.wait(futures, timeout)
 
-    def rpc(self, service, routing_id, method, args, kwargs, timeout=None):
+    def rpc(self, service, routing_id, method, args, kwargs,
+            timeout=None, singular=False):
         '''Send an RPC request and return the corresponding response
 
         This will block waiting until the response has been received.
@@ -204,6 +208,8 @@ class Client(object):
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
         :type timeout: float or None
+        :param singular: if ``True``, only send the request to a single peer
+        :type singular: bool
 
         :returns:
             a list of the objects returned by the RPC's targets. these could be
@@ -215,7 +221,8 @@ class Client(object):
             - :class:`WaitTimeout <junction.errors.WaitTimeout>` if a timeout
               was provided and it expires
         '''
-        rpc = self.send_rpc(service, routing_id, method, args, kwargs)
+        rpc = self.send_rpc(service, routing_id, method, args, kwargs,
+                singular=singular)
         results = rpc.wait(timeout)
         if not rpc.target_count:
             raise errors.Unroutable()

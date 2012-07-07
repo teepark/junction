@@ -21,12 +21,11 @@ class RPCClient(object):
         self.counter += 1
         return counter
 
-    def request(self, targets, service, routing_id, method, args, kwargs):
+    def request(self, targets, msg):
         counter = self.next_counter()
         target_set = set()
 
-        msg = (self.REQUEST,
-                (counter, service, routing_id, method, args, kwargs))
+        msg = (self.REQUEST, (counter,) + msg)
 
         target_count = 0
         strings = []

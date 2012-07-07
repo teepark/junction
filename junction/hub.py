@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import logging
+import random
 import socket
 import time
 
@@ -23,7 +24,7 @@ class Hub(object):
         self._listener_coro = None
 
         self._rpc_client = rpc.RPCClient()
-        self._dispatcher = dispatch.Dispatcher(self._rpc_client)
+        self._dispatcher = dispatch.Dispatcher(self._rpc_client, self)
 
     def wait_on_connections(self, conns=None, timeout=None):
         '''Wait for connections to be made and their handshakes to finish
@@ -235,7 +236,8 @@ class Hub(object):
         return self._dispatcher.remove_local_subscription(
                 const.MSG_TYPE_RPC_REQUEST, service, mask, value, handler)
 
-    def send_rpc(self, service, routing_id, method, args, kwargs):
+    def send_rpc(self, service, routing_id, method, args, kwargs,
+            singular=False):
         '''Send out an RPC request
 
         :param service: the service name (the routing top level)
@@ -250,6 +252,8 @@ class Hub(object):
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
+        :param singular: if ``True``, only send the request to a single peer
+        :type singular: bool
 
         :returns:
             a :class:`RPC <junction.futures.RPC>` object representing the
@@ -260,12 +264,38 @@ class Hub(object):
             registered to receive the message
         '''
         rpc = self._dispatcher.send_rpc(
-                service, routing_id, method, args, kwargs)
+                service, routing_id, method, args, kwargs, singular)
 
         if not rpc:
             raise errors.Unroutable()
 
         return rpc
+
+    def select_peer(self, peer_addrs, service, routing_id, method):
+        '''Choose a target from the available peers for a singular RPC
+
+        :param peer_addrs:
+            the ``(host, port)``s of the peers eligible to handle the RPC, and
+            possibly a ``None`` entry if this hub can handle it locally
+        :type peer_addrs: list
+        :param service: the service of the RPC
+        :type service: anything hash-able
+        :param routing_id: the routing_id of the RPC
+        :type routing_id: int
+        :param method: the RPC method name
+        :type method: string
+
+        :returns: one of the provided peer_addrs
+
+        There is no reason to call this method directly, but it may be useful
+        to override it in a Hub subclass.
+
+        The default implementation uses ``None`` if it is available (prefer
+        local handling), then falls back to a random selection.
+        '''
+        if any(p is None for p in peer_addrs):
+            return None
+        return random.choice(peer_addrs)
 
     def wait_any(self, futures, timeout=None):
         '''Wait for the response for any (the first) of multiple futures
@@ -294,7 +324,8 @@ class Hub(object):
         '''
         return self._rpc_client.wait(futures, timeout)
 
-    def rpc(self, service, routing_id, method, args, kwargs, timeout=None):
+    def rpc(self, service, routing_id, method, args, kwargs, timeout=None,
+            singular=False):
         '''Send an RPC request and return the corresponding response
 
         This will block waiting until the response has been received.
@@ -315,6 +346,8 @@ class Hub(object):
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
         :type timeout: float or None
+        :param singular: if ``True``, only send the request to a single peer
+        :type singular: bool
 
         :returns:
             a list of the objects returned by the RPC's targets. these could be
@@ -327,7 +360,8 @@ class Hub(object):
               was provided and it expires
         '''
         return self.send_rpc(
-                service, routing_id, method, args, kwargs).wait(timeout)
+                service, routing_id, method, args, kwargs, singular).wait(
+                        timeout)
 
     def rpc_receiver_count(self, service, routing_id):
         '''Get the number of peers that would handle a particular RPC
