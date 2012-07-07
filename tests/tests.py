@@ -10,7 +10,7 @@ import junction
 import junction.errors
 
 
-TIMEOUT = 0.01
+TIMEOUT = 0.015
 PORT = 5000
 
 GTL = greenhouse.Lock()
