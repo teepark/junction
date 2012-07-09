@@ -226,8 +226,10 @@ class Dispatcher(object):
     def send_proxied_rpc(
             self, service, routing_id, method, args, kwargs, singular):
         log.debug("sending proxied_rpc %r" % ((service, routing_id, method),))
-        return self.rpc_client.request([self.peers.values()[0]],
-                (service, routing_id, method, bool(singular), args, kwargs))
+        return self.rpc_client.request(
+                [self.peers.values()[0]],
+                (service, routing_id, method, bool(singular), args, kwargs),
+                singular)
 
     def target_selection(self, peers, service, routing_id, method):
         by_addr = {}

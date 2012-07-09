@@ -21,7 +21,7 @@ class RPCClient(object):
         self.counter += 1
         return counter
 
-    def request(self, targets, msg):
+    def request(self, targets, msg, singular=False):
         counter = self.next_counter()
         target_set = set()
 
@@ -39,7 +39,7 @@ class RPCClient(object):
 
         self.sent(counter, target_set)
 
-        rpc = futures.RPC(self, counter, target_count)
+        rpc = futures.RPC(self, counter, target_count, singular)
         self.rpcs[counter] = rpc
 
         # did all the serializing before any of the sending for

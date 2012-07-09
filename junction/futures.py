@@ -18,12 +18,13 @@ class RPC(object):
     instances of this class shouldn't be created directly, they are returned by
     :meth:`Hub.send_rpc() <junction.hub.Hub.send_rpc>`.
     """
-    def __init__(self, client, counter, target_count):
+    def __init__(self, client, counter, target_count, singular=False):
         self._client = client
         self._completed = False
         self._waits = []
         self._results = []
         self._children = []
+        self._singular = singular
 
         self._counter = counter
         self._target_count = target_count
@@ -157,6 +158,8 @@ class RPC(object):
         """
         if not self._completed:
             raise AttributeError("incomplete response")
+        if self._singular:
+            return self.partial_results[0]
         return self.partial_results
 
     @property
