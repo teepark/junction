@@ -102,7 +102,7 @@ class RPC(object):
 
         self._completed = True
         self._target_count = 1
-        self._results = [result]
+        self._results = result
 
         for wait in self._waits:
             wait.finish(self)
