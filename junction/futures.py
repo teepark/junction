@@ -40,7 +40,10 @@ class RPC(object):
             None allows it to wait indefinitely.
         :type timeout: int, float or None
 
-        :returns: a list of the responses returned by the RPC's target peers.
+        :returns:
+            a list of the responses returned by the RPC's target peers, unless
+            it was created as a *singular* RPC in which case it is just the
+            single result
 
         :raises:
             :class:`WaitTimeout <junction.errors.WaitTimeout>` if ``timeout``
