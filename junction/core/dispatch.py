@@ -215,7 +215,8 @@ class Dispatcher(object):
         peers = list(self.find_peer_routes(
                 const.MSG_TYPE_PUBLISH, service, routing_id))
         if peers:
-            log.debug("sending publish %r to %d peers" % (msg[1][:3], len(peers)))
+            log.debug("sending publish %r to %d peers" % (
+                msg[1][:3], len(peers)))
 
         for peer in peers:
             found_one = True
