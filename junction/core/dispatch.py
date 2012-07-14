@@ -322,6 +322,9 @@ class Dispatcher(object):
             msg = peer.dump((response,
                 (counter, const.RPC_ERR_UNSER_RESP, repr(result))))
             scheduler.handle_exception(*sys.exc_info())
+        else:
+            log.debug("responding with MSG_TYPE_RESPONSE to %s %d" %
+                    (req_type, counter))
 
         peer.push_string(msg)
 
