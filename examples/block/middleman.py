@@ -7,6 +7,7 @@ import greenhouse
 import junction
 
 greenhouse.global_exception_handler(traceback.print_exception)
+junction.configure_logging(level=1)
 
 
 PORT = 9870

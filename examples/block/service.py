@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # vim: fileencoding=utf8:et:sta:ai:sw=4:ts=4:sts=4
 
+import traceback
 
 import greenhouse
 import junction
@@ -11,6 +12,9 @@ MIDDLEMAN_PORT = 9870
 
 WAIT_SERVICE = 1
 
+
+greenhouse.global_exception_handler(traceback.print_exception)
+junction.configure_logging(level=1)
 
 def wait(seconds):
     greenhouse.pause_for(seconds)
