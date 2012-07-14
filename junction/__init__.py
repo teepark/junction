@@ -11,7 +11,7 @@ VERSION = (0, 1, 0, "")
 __version__ = ".".join(filter(None, map(str, VERSION)))
 
 
-def configure_logging(filename=None, filemode=None, fmt=None, datefmt=None,
+def configure_logging(filename=None, filemode=None, fmt=None,
         level=logging.INFO, stream=None, handler=None):
     if handler is None:
         if filename is None:
