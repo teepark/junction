@@ -47,11 +47,11 @@ class Peer(object):
     def start(self):
         scheduler.schedule(self.starter_coro)
 
-    def go_down(self, reconnect=False):
+    def go_down(self, reconnect=False, expected=False):
         self.up = False
         self.established.clear()
         self.end_io_coros()
-        self.dispatcher.drop_peer(self)
+        subs = self.dispatcher.drop_peer(self)
 
         if not reconnect:
             self._closing = True
@@ -60,6 +60,9 @@ class Peer(object):
             scheduler.schedule_in(1.0, self.sock.close)
         elif self.initiator:
             self.schedule_restarter()
+
+        if not expected:
+            self.dispatcher.connection_lost(self, subs)
 
     def wait_connected(self, timeout=None):
         return not self.established.wait(timeout)
@@ -117,7 +120,7 @@ class Peer(object):
 
     def connection_failure(self):
         log.warn("connection to %r went down" % (self.ident,))
-        self.go_down(reconnect=True)
+        self.go_down(reconnect=True, expected=False)
 
     def init_sock(self):
         # disable Nagle algorithm with the NODELAY option

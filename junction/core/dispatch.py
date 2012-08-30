@@ -6,16 +6,17 @@ import traceback
 
 from greenhouse import scheduler
 from . import connection, const
-from .. import errors
+from .. import errors, hooks
 
 
 log = logging.getLogger("junction.dispatch")
 
 
 class Dispatcher(object):
-    def __init__(self, rpc_client, hub):
+    def __init__(self, rpc_client, hub, hooks=None):
         self.rpc_client = rpc_client
         self.hub = hub
+        self.hooks = hooks
         self.peer_subs = {}
         self.local_subs = {}
         self.peers = {}
@@ -135,19 +136,23 @@ class Dispatcher(object):
             winner, loser = connection.compare(peer, self.peers[peer.ident])
             if loser is peer:
                 return False
-            loser.go_down(reconnect=False)
-            self.drop_peer_subscriptions(loser)
+            loser.go_down(reconnect=False, expected=True)
         elif peer.ident in self.reconnecting:
             log.info("terminating reconnect loop in favor of incoming conn")
-            self.reconnecting.pop(peer.ident).go_down(reconnect=False)
+            self.reconnecting.pop(peer.ident).go_down(
+                    reconnect=False, expected=True)
 
         self.peers[peer.ident] = peer
         self.add_peer_subscriptions(peer, subscriptions)
         return True
 
+    def connection_lost(self, peer, subs):
+        hooks._get(self.hooks, "connection_lost")(
+                self.hub, peer.ident, subs)
+
     def drop_peer(self, peer):
         self.peers.pop(peer.ident, None)
-        self.drop_peer_subscriptions(peer)
+        subs = self.drop_peer_subscriptions(peer)
 
         # reply to all in-flight proxied RPCs to the dropped peer
         # with the "lost connection" error
@@ -156,6 +161,7 @@ class Dispatcher(object):
                 self.proxied_response(counter, const.RPC_ERR_LOST_CONN, None)
 
         self.rpc_client.connection_down(peer)
+        return subs
 
     def incoming_announce(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 4:
@@ -175,12 +181,15 @@ class Dispatcher(object):
                     (mask, value, peer))
 
     def drop_peer_subscriptions(self, peer):
-        for key, group in self.peer_subs.items():
-            group = [g for g in group if g[2] is not peer]
-            if group:
-                self.peer_subs[key] = group
-            else:
-                del self.peer_subs[key]
+        removed = []
+        for (msg_type, service), subs in self.peer_subs.items():
+            for (mask, value, conn) in subs:
+                if conn is peer:
+                    removed.append((msg_type, service, mask, value))
+                    subs.remove((mask, value, conn))
+            if not subs:
+                del self.peer_subs[(msg_type, service)]
+        return removed
 
     def find_peer_routes(self, msg_type, service, routing_id):
         for mask, value, peer in self.peer_subs.get((msg_type, service), []):
@@ -238,7 +247,7 @@ class Dispatcher(object):
                 by_addr[None] = peer
             else:
                 by_addr[peer.ident] = peer
-        choice = self.hub.select_peer(
+        choice = hooks._get(self.hooks, 'select_peer')(
                 by_addr.keys(), service, routing_id, method)
         return by_addr[choice]
 

@@ -15,7 +15,7 @@ log = logging.getLogger("junction.hub")
 
 class Hub(object):
     'A hub in the server graph'
-    def __init__(self, addr, peer_addrs, hostname=None):
+    def __init__(self, addr, peer_addrs, hostname=None, hooks=None):
         self.addr = addr
         self._ident = (hostname or addr[0], addr[1])
         self._peers = peer_addrs
@@ -24,7 +24,7 @@ class Hub(object):
         self._listener_coro = None
 
         self._rpc_client = rpc.RPCClient()
-        self._dispatcher = dispatch.Dispatcher(self._rpc_client, self)
+        self._dispatcher = dispatch.Dispatcher(self._rpc_client, self, hooks)
 
     def wait_on_connections(self, conns=None, timeout=None):
         '''Wait for connections to be made and their handshakes to finish
