@@ -407,10 +407,14 @@ class Hub(object):
         scheduler.schedule(self._listener_coro)
 
         for addr in self._peers:
-            peer = connection.Peer(
-                    self._ident, self._dispatcher, addr, io.Socket())
-            peer.start()
-            self._started_peers[addr] = peer
+            self.add_peer(addr)
+
+    def add_peer(self, peer_addr):
+        "Build a connection to the Hub at a given ``(host, port)`` address"
+        peer = connection.Peer(
+                self._ident, self._dispatcher, peer_addr, io.Socket())
+        peer.start()
+        self._started_peers[addr] = peer
 
     def _listener(self):
         server = io.Socket()
