@@ -280,7 +280,7 @@ class Dispatcher(object):
                     len(routes) - bool(handler)))
 
         return self.rpc_client.request(
-                routes, (service, routing_id, method, args, kwargs))
+                routes, (service, routing_id, method, args, kwargs), singular)
 
     def send_proxied_publish(self, service, routing_id, method, args, kwargs):
         log.debug("sending proxied_publish %r" %
