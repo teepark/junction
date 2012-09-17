@@ -93,8 +93,6 @@ class Peer(object):
     def restarter_coro(self):
         if self.reconnect():
             self.schedule_io_coros()
-        else:
-            self.established.set()
 
     def sender_coro(self):
         try:
