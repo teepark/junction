@@ -43,16 +43,16 @@ class Dispatcher(object):
                     raise errors.OverlappingSubscription(
                             (msg_type, service, mask, value, method),
                             (msg_type, service, pmask, pvalue, method))
-                elif (mask, value) == (pmask, pvalue):
+                elif mask == pmask and value == pvalue:
                     # same (mask, value) as a previous subscription but for a
                     # different method, so piggy-back on that data structure
                     phandlers[method] = (handler, schedule)
 
                     # also bail out. we can skip the MSG_TYPE_ANNOUNCE
-                    # below b/c peers don't route with peers' methods
+                    # below b/c peers don't route with their peers' methods
                     return
-        else:
-            existing.append((mask, value, {method: (handler, schedule)}))
+
+        existing.append((mask, value, {method: (handler, schedule)}))
 
         # let peers know about the new subscription
         for peer in self.peers.itervalues():
@@ -489,9 +489,8 @@ class Dispatcher(object):
 
         # handle it locally if it's aimed at us
         if handler is not None:
-            log.debug("locally handling proxy_request %r from %r %s" % (
-                    msg[:4], peer.ident,
-                    "scheduled" if schedule else "immediately"))
+            log.debug("locally handling proxy_request %r %s" % (
+                    msg[:4], "scheduled" if schedule else "immediately"))
             if schedule:
                 scheduler.schedule(self.rpc_handler,
                         args=(peer, cli_counter, handler, args, kwargs),
@@ -501,8 +500,8 @@ class Dispatcher(object):
                         peer, cli_counter, handler, args, kwargs, True)
 
         if targets:
-            log.debug("forwarding proxy_request %r from %r to %d peers" %
-                    (msg[:4], peer.ident, target_count - bool(handler)))
+            log.debug("forwarding proxy_request %r to %d peers" %
+                    (msg[:4], target_count - bool(handler)))
 
             rpc = self.rpc_client.request(
                     targets, (service, routing_id, method, args, kwargs))
@@ -520,8 +519,8 @@ class Dispatcher(object):
             # of the method, send a NOMETHOD error and include ourselves in the
             # target_count so the client can distinguish between "no method"
             # and "unroutable"
-            log.warn("received proxy_request %r for unknown method from %r" %
-                    (msg[:4], peer.ident,))
+            log.warn("received proxy_request %r for unknown method" %
+                    (msg[:4],))
             target_count += 1
             send_nomethod = True
 
