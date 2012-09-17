@@ -414,7 +414,7 @@ class Hub(object):
         peer = connection.Peer(
                 self._ident, self._dispatcher, peer_addr, io.Socket())
         peer.start()
-        self._started_peers[addr] = peer
+        self._started_peers[peer_addr] = peer
 
     def _listener(self):
         server = io.Socket()
