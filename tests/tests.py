@@ -289,6 +289,31 @@ class JunctionTests(object):
         self.assertEqual(handler_results, [1, 2, 3, 4])
         self.assertEqual(sender_results, [[1], [4], [9], [16]])
 
+    def test_singular_rpc(self):
+        handler_results = []
+        sender_results = []
+
+        @self.peer.accept_rpc("service", 0, 0, "method")
+        def handler(x):
+            handler_results.append(x)
+            return x ** 2
+
+        for i in xrange(4):
+            greenhouse.pause()
+
+        sender_results.append(self.sender.rpc("service", 0, "method", (1,), {},
+            timeout=TIMEOUT, singular=True))
+        sender_results.append(self.sender.rpc("service", 0, "method", (2,), {},
+            timeout=TIMEOUT, singular=True))
+        sender_results.append(self.sender.rpc("service", 0, "method", (3,), {},
+            timeout=TIMEOUT, singular=True))
+        sender_results.append(self.sender.rpc("service", 0, "method", (4,), {},
+            timeout=TIMEOUT, singular=True))
+
+        self.assertEqual(handler_results, [1,2,3,4])
+        self.assertEqual(sender_results, [1,4,9,16])
+
+
 
 class HubTests(JunctionTests, StateClearingTestCase):
     def build_sender(self):
