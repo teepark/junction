@@ -6,17 +6,17 @@ log = logging.getLogger("junction.hooks")
 
 
 def select_peer(peer_addrs, service, routing_id, method):
-    '''Choose a target from the available peers for a singular RPC
+    '''Choose a target from the available peers for a singular message
 
     :param peer_addrs:
         the ``(host, port)``s of the peers eligible to handle the RPC, and
         possibly a ``None`` entry if this hub can handle it locally
     :type peer_addrs: list
-    :param service: the service of the RPC
+    :param service: the service of the message
     :type service: anything hash-able
-    :param routing_id: the routing_id of the RPC
+    :param routing_id: the routing_id of the message
     :type routing_id: int
-    :param method: the RPC method name
+    :param method: the message method name
     :type method: string
 
     :returns: one of the provided peer_addrs

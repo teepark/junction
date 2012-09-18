@@ -43,7 +43,7 @@ class Hub(object):
         '''
         if timeout:
             deadline = time.time() + timeout
-        conns = conns or self._peers
+        conns = conns or self._started_peers.keys()
         if not hasattr(conns, "__iter__"):
             conns = [conns]
 
@@ -132,7 +132,8 @@ class Hub(object):
         return self._dispatcher.remove_local_subscription(
                 const.MSG_TYPE_PUBLISH, service, mask, value)
 
-    def publish(self, service, routing_id, method, args, kwargs):
+    def publish(self, service, routing_id, method, args, kwargs,
+            singular=False):
         '''Send a 1-way message
 
         :param service: the service name (the routing top level)
@@ -147,6 +148,8 @@ class Hub(object):
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
+        :param singular: if ``True``, only send the message to a single peer
+        :type singular: bool
 
         :returns: None. use 'rpc' methods for requests with responses.
 
@@ -154,8 +157,8 @@ class Hub(object):
             :class:`Unroutable <junction.errors.Unroutable>` if no peers are
             registered to receive the message
         '''
-        if not self._dispatcher.send_publish(
-                service, routing_id, method, args, kwargs):
+        if not self._dispatcher.send_publish(service, routing_id, method, args,
+                kwargs, singular=singular):
             raise errors.Unroutable()
 
     def publish_receiver_count(self, service, routing_id):

@@ -197,40 +197,40 @@ class Dispatcher(object):
                 yield peer
 
     def send_publish(self, service, routing_id, method, args, kwargs,
-            forwarded=False):
+            forwarded=False, singular=False):
         msg = (const.MSG_TYPE_PUBLISH,
                 (service, routing_id, method, args, kwargs))
-        found_one = False
+
+        # get the peers registered for this publish
+        peers = list(self.find_peer_routes(
+                const.MSG_TYPE_PUBLISH, service, routing_id))
 
         # handle locally if we have a hander for it
         handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_PUBLISH, service, routing_id, method)
+
+        targets = peers[:]
+        if handler:
+            targets.append(LocalTarget(self, handler, schedule))
+
+        if singular:
+            targets = [self.target_selection(
+                targets, service, routing_id, method)]
+            if not isinstance(targets[0], LocalTarget):
+                handler = None
+
         if handler is not None:
-            found_one = True
             log.debug("locally handling publish %r %s" %
                     (msg[1][:3], "scheduled" if schedule else "immediately"))
-            if schedule:
-                scheduler.schedule(handler, args=args, kwargs=kwargs)
-            else:
-                try:
-                    handler(*args, **kwargs)
-                except Exception:
-                    log.error("exception handling local publish %r" %
-                            (msg[1][:3],))
-                    scheduler.handle_exception(*sys.exc_info())
 
-        # send publishes to peers with handlers
-        peers = list(self.find_peer_routes(
-                const.MSG_TYPE_PUBLISH, service, routing_id))
-        if peers:
+        if peers and not (singular and handler):
             log.debug("sending publish %r to %d peers" % (
                 msg[1][:3], len(peers)))
 
-        for peer in peers:
-            found_one = True
-            peer.push(msg)
+        for target in targets:
+            target.push(msg)
 
-        return found_one
+        return bool(handler or peers)
 
     def send_proxied_rpc(
             self, service, routing_id, method, args, kwargs, singular):
@@ -623,6 +623,18 @@ class LocalTarget(object):
             # sent back here via dispatcher.rpc_handler
             counter, rc, result = msg
             self.dispatcher.rpc_client.response(self, counter, rc, result)
+
+        elif msgtype == const.MSG_TYPE_PUBLISH:
+            service, routing_id, method, args, kwargs = msg
+            if self.schedule:
+                scheduler.schedule(self.handler, args=args, kwargs=kwargs)
+            else:
+                try:
+                    self.handler(*args, **kwargs)
+                except Exception:
+                    log.error("exception handling local publish %r" %
+                            ((service, routing_id, method),))
+                    scheduler.handle_exception(*sys.exc_info())
 
     # trick RPCClient.request
     # in the case of a local handler it doesn't have to go over the wire, so

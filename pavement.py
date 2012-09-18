@@ -41,7 +41,7 @@ def sdist():
 @task
 def clean():
     for p in map(path, (
-        'junction.egg-info', 'dist', 'build', 'MANIFEST.in', 'docs/build')):
+        'junction.egg-info', 'dist', 'build', 'MANIFEST.in')):
         if p.exists():
             if p.isdir():
                 p.rmtree()
