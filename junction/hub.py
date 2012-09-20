@@ -274,32 +274,6 @@ class Hub(object):
 
         return rpc
 
-    def select_peer(self, peer_addrs, service, routing_id, method):
-        '''Choose a target from the available peers for a singular RPC
-
-        :param peer_addrs:
-            the ``(host, port)``s of the peers eligible to handle the RPC, and
-            possibly a ``None`` entry if this hub can handle it locally
-        :type peer_addrs: list
-        :param service: the service of the RPC
-        :type service: anything hash-able
-        :param routing_id: the routing_id of the RPC
-        :type routing_id: int
-        :param method: the RPC method name
-        :type method: string
-
-        :returns: one of the provided peer_addrs
-
-        There is no reason to call this method directly, but it may be useful
-        to override it in a Hub subclass.
-
-        The default implementation uses ``None`` if it is available (prefer
-        local handling), then falls back to a random selection.
-        '''
-        if any(p is None for p in peer_addrs):
-            return None
-        return random.choice(peer_addrs)
-
     def wait_any(self, futures, timeout=None):
         '''Wait for the response for any (the first) of multiple futures
 
