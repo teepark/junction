@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import logging
 import weakref
 
-from greenhouse import scheduler, util
+import greenhouse
 import mummy
 from .core import const
 from . import errors
@@ -29,7 +29,7 @@ class RPC(object):
         self._counter = counter
         self._target_count = target_count
 
-        self._arrival = util.Event()
+        self._arrival = greenhouse.Event()
 
     def wait(self, timeout=None):
         """Block the current greenlet until the response arrives
@@ -424,7 +424,7 @@ class Dependent(object):
         # wait on something that would need to come back through the connection
         # whose receiver coro it just blocked, resulting in deadlock. so run
         # the callback in a separate coro just in case.
-        scheduler.schedule(self._func_runner)
+        greenhouse.schedule(self._func_runner)
 
     def _transfer(self, source, target):
         for i, parent in enumerate(self._parents):

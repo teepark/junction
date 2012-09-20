@@ -4,7 +4,7 @@ import logging
 import sys
 import traceback
 
-from greenhouse import scheduler
+import greenhouse
 from . import connection, const
 from .. import errors, hooks
 
@@ -295,7 +295,7 @@ class Dispatcher(object):
             handler(*args, **kwargs)
         except Exception:
             log.error("exception handling publish %r from %r" % (msg, source))
-            scheduler.handle_exception(*sys.exc_info())
+            greenhouse.handle_exception(*sys.exc_info())
 
     def rpc_handler(self, peer, counter, handler, args, kwargs,
             proxied=False, scheduled=False):
@@ -314,13 +314,13 @@ class Dispatcher(object):
                     (exc.code, req_type, counter))
             rc = const.RPC_ERR_KNOWN
             result = (exc.code, exc.args)
-            scheduler.handle_exception(*sys.exc_info())
+            greenhouse.handle_exception(*sys.exc_info())
         except Exception:
             log.error("responding with RPC_ERR_UNKNOWN to %s %d" %
                     (req_type, counter))
             rc = const.RPC_ERR_UNKNOWN
             result = traceback.format_exception(*sys.exc_info())
-            scheduler.handle_exception(*sys.exc_info())
+            greenhouse.handle_exception(*sys.exc_info())
 
         try:
             msg = peer.dump((response, (counter, rc, result)))
@@ -329,7 +329,7 @@ class Dispatcher(object):
                     (req_type, counter))
             msg = peer.dump((response,
                 (counter, const.RPC_ERR_UNSER_RESP, repr(result))))
-            scheduler.handle_exception(*sys.exc_info())
+            greenhouse.handle_exception(*sys.exc_info())
         else:
             log.debug("responding with MSG_TYPE_RESPONSE to %s %d" %
                     (req_type, counter))
@@ -368,7 +368,7 @@ class Dispatcher(object):
                 "scheduled" if schedule else "immediately"))
 
         if schedule:
-            scheduler.schedule(self.publish_handler,
+            greenhouse.schedule(self.publish_handler,
                     args=(handler, msg[:3], peer.ident, args, kwargs))
         else:
             self.publish_handler(handler, msg[:3], peer.ident, args, kwargs)
@@ -405,7 +405,7 @@ class Dispatcher(object):
                 "scheduled" if schedule else "immediately"))
 
         if schedule:
-            scheduler.schedule(self.rpc_handler,
+            greenhouse.schedule(self.rpc_handler,
                     args=(peer, counter, handler, args, kwargs),
                     kwargs={'scheduled': True})
         else:
@@ -492,7 +492,7 @@ class Dispatcher(object):
             log.debug("locally handling proxy_request %r %s" % (
                     msg[:4], "scheduled" if schedule else "immediately"))
             if schedule:
-                scheduler.schedule(self.rpc_handler,
+                greenhouse.schedule(self.rpc_handler,
                         args=(peer, cli_counter, handler, args, kwargs),
                         kwargs={'proxied': True, 'scheduled': True})
             else:
@@ -613,7 +613,7 @@ class LocalTarget(object):
         if msgtype == const.MSG_TYPE_RPC_REQUEST:
             counter, service, routing_id, method, args, kwargs = msg
             if self.schedule:
-                scheduler.schedule(self.dispatcher.rpc_handler,
+                greenhouse.schedule(self.dispatcher.rpc_handler,
                         args=(self, counter, self.handler, args, kwargs))
             else:
                 self.dispatcher.rpc_handler(
@@ -627,14 +627,14 @@ class LocalTarget(object):
         elif msgtype == const.MSG_TYPE_PUBLISH:
             service, routing_id, method, args, kwargs = msg
             if self.schedule:
-                scheduler.schedule(self.handler, args=args, kwargs=kwargs)
+                greenhouse.schedule(self.handler, args=args, kwargs=kwargs)
             else:
                 try:
                     self.handler(*args, **kwargs)
                 except Exception:
                     log.error("exception handling local publish %r" %
                             ((service, routing_id, method),))
-                    scheduler.handle_exception(*sys.exc_info())
+                    greenhouse.handle_exception(*sys.exc_info())
 
     # trick RPCClient.request
     # in the case of a local handler it doesn't have to go over the wire, so

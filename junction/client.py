@@ -4,7 +4,7 @@ import collections
 import logging
 import weakref
 
-from greenhouse import io
+import greenhouse
 from . import errors, futures
 from .core import connection, const, dispatch, rpc
 
@@ -35,7 +35,7 @@ class Client(object):
         # down we are going to cycle to the next potential peer from the Client
         self._peer = connection.Peer(
                 None, self._dispatcher, self._addrs.popleft(),
-                io.Socket(), reconnect=False)
+                greenhouse.Socket(), reconnect=False)
         self._peer.start()
 
     def wait_on_connections(self, timeout=None):
