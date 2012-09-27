@@ -15,7 +15,7 @@ class BadHandshake(Exception):
     "Unexpected message while trying to establish a peering"
 
 class Unroutable(Exception):
-    "A message does not have any peers's registrations"
+    "A message does correspond to have any peers' registrations"
 
 class NoRemoteHandler(Exception):
     "An RPC was mistakenly sent to a peer"

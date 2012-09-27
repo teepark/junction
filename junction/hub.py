@@ -139,8 +139,8 @@ class Hub(object):
         :param service: the service name (the routing top level)
         :type service: anything hash-able
         :param routing_id:
-            The id used for routing within the registered handlers of the
-            service.
+            the id used for routing within the registered handlers of the
+            service
         :type routing_id: int
         :param method: the method name to call
         :type method: string
