@@ -132,7 +132,7 @@ class Hub(object):
         return self._dispatcher.remove_local_subscription(
                 const.MSG_TYPE_PUBLISH, service, mask, value)
 
-    def publish(self, service, routing_id, method, args, kwargs,
+    def publish(self, service, routing_id, method, args=None, kwargs=None,
             singular=False):
         '''Send a 1-way message
 
@@ -157,8 +157,8 @@ class Hub(object):
             :class:`Unroutable <junction.errors.Unroutable>` if no peers are
             registered to receive the message
         '''
-        if not self._dispatcher.send_publish(service, routing_id, method, args,
-                kwargs, singular=singular):
+        if not self._dispatcher.send_publish(service, routing_id, method,
+                args or (), kwargs or {}, singular=singular):
             raise errors.Unroutable()
 
     def publish_receiver_count(self, service, routing_id):
@@ -239,7 +239,7 @@ class Hub(object):
         return self._dispatcher.remove_local_subscription(
                 const.MSG_TYPE_RPC_REQUEST, service, mask, value, handler)
 
-    def send_rpc(self, service, routing_id, method, args, kwargs,
+    def send_rpc(self, service, routing_id, method, args=None, kwargs=None,
             singular=False):
         '''Send out an RPC request
 
@@ -266,8 +266,8 @@ class Hub(object):
             :class:`Unroutable <junction.errors.Unroutable>` if no peers are
             registered to receive the message
         '''
-        rpc = self._dispatcher.send_rpc(
-                service, routing_id, method, args, kwargs, singular)
+        rpc = self._dispatcher.send_rpc(service, routing_id, method,
+                args or (), kwargs or {}, singular)
 
         if not rpc:
             raise errors.Unroutable()
@@ -301,8 +301,8 @@ class Hub(object):
         '''
         return self._rpc_client.wait(futures, timeout)
 
-    def rpc(self, service, routing_id, method, args, kwargs, timeout=None,
-            singular=False):
+    def rpc(self, service, routing_id, method, args=None, kwargs=None,
+            timeout=None, singular=False):
         '''Send an RPC request and return the corresponding response
 
         This will block waiting until the response has been received.
@@ -336,9 +336,8 @@ class Hub(object):
             - :class:`WaitTimeout <junction.errors.WaitTimeout>` if a timeout
               was provided and it expires
         '''
-        return self.send_rpc(
-                service, routing_id, method, args, kwargs, singular).wait(
-                        timeout)
+        return self.send_rpc(service, routing_id, method,
+                args or (), kwargs or {}, singular).wait(timeout)
 
     def rpc_receiver_count(self, service, routing_id):
         '''Get the number of peers that would handle a particular RPC

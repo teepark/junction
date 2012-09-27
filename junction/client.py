@@ -69,7 +69,8 @@ class Client(object):
         log.info("shutting down")
         self._peer.go_down(reconnect=False)
 
-    def publish(self, service, routing_id, method, args, kwargs):
+    #TODO: singular
+    def publish(self, service, routing_id, method, args=None, kwargs=None):
         '''Send a 1-way message
 
         :param service: the service name (the routing top level)
@@ -95,7 +96,7 @@ class Client(object):
             raise errors.Unroutable()
 
         self._dispatcher.send_proxied_publish(
-                service, routing_id, method, args, kwargs)
+                service, routing_id, method, args or (), kwargs or {})
 
     def publish_receiver_count(
             self, service, routing_id, method, timeout=None):
@@ -126,7 +127,7 @@ class Client(object):
                 const.MSG_TYPE_PUBLISH, service, routing_id, method).wait(
                         timeout)[0]
 
-    def send_rpc(self, service, routing_id, method, args, kwargs,
+    def send_rpc(self, service, routing_id, method, args=None, kwargs=None,
             singular=False):
         '''Send out an RPC request
 
@@ -156,8 +157,8 @@ class Client(object):
         if not self._peer.up:
             raise errors.Unroutable()
 
-        return self._dispatcher.send_proxied_rpc(
-                service, routing_id, method, args, kwargs, singular)
+        return self._dispatcher.send_proxied_rpc(service, routing_id, method,
+                args or (), kwargs or {}, singular)
 
     def wait_any(self, futures, timeout=None):
         '''Wait for the response for any (the first) of multiple futures
@@ -186,7 +187,7 @@ class Client(object):
         '''
         return self._rpc_client.wait(futures, timeout)
 
-    def rpc(self, service, routing_id, method, args, kwargs,
+    def rpc(self, service, routing_id, method, args=None, kwargs=None,
             timeout=None, singular=False):
         '''Send an RPC request and return the corresponding response
 
@@ -221,8 +222,8 @@ class Client(object):
             - :class:`WaitTimeout <junction.errors.WaitTimeout>` if a timeout
               was provided and it expires
         '''
-        rpc = self.send_rpc(service, routing_id, method, args, kwargs,
-                singular=singular)
+        rpc = self.send_rpc(service, routing_id, method,
+                args or (), kwargs or {}, singular=singular)
         results = rpc.wait(timeout)
         if not rpc.target_count:
             raise errors.Unroutable()
