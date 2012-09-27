@@ -69,7 +69,6 @@ class Client(object):
         log.info("shutting down")
         self._peer.go_down(reconnect=False)
 
-    #TODO: singular
     def publish(self, service, routing_id, method, args=None, kwargs=None,
             singular=False):
         '''Send a 1-way message
