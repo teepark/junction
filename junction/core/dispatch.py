@@ -132,15 +132,21 @@ class Dispatcher(object):
         self.reconnecting[addr] = peer
 
     def store_peer(self, peer, subscriptions):
+        loser = None
         if peer.ident in self.peers:
             winner, loser = connection.compare(peer, self.peers[peer.ident])
-            if loser is peer:
+            if peer is loser:
+                winner.established.set()
+                peer.established.set()
                 return False
-            loser.go_down(reconnect=False, expected=True)
         elif peer.ident in self.reconnecting:
             log.info("terminating reconnect loop in favor of incoming conn")
-            self.reconnecting.pop(peer.ident).go_down(
-                    reconnect=False, expected=True)
+            loser = self.reconnecting.pop(peer.ident)
+
+        peer.established.set()
+        if loser is not None:
+            loser.established.set()
+            loser.go_down(reconnect=False, expected=True)
 
         self.peers[peer.ident] = peer
         self.add_peer_subscriptions(peer, subscriptions)
