@@ -70,7 +70,8 @@ class Client(object):
         self._peer.go_down(reconnect=False)
 
     #TODO: singular
-    def publish(self, service, routing_id, method, args=None, kwargs=None):
+    def publish(self, service, routing_id, method, args=None, kwargs=None,
+            singular=False):
         '''Send a 1-way message
 
         :param service: the service name (the routing top level)
@@ -85,6 +86,8 @@ class Client(object):
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
+        :param singular: if ``True``, only send the message to a single peer
+        :type singular: bool
 
         :returns: None. use 'rpc' methods for requests with responses.
 
@@ -95,8 +98,8 @@ class Client(object):
         if not self._peer.up:
             raise errors.Unroutable()
 
-        self._dispatcher.send_proxied_publish(
-                service, routing_id, method, args or (), kwargs or {})
+        self._dispatcher.send_proxied_publish(service, routing_id, method,
+                args or (), kwargs or {}, singular=singular)
 
     def publish_receiver_count(
             self, service, routing_id, method, timeout=None):

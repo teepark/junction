@@ -288,12 +288,13 @@ class Dispatcher(object):
         return self.rpc_client.request(
                 routes, (service, routing_id, method, args, kwargs), singular)
 
-    def send_proxied_publish(self, service, routing_id, method, args, kwargs):
+    def send_proxied_publish(self, service, routing_id, method, args, kwargs,
+            singular=False):
         log.debug("sending proxied_publish %r" %
                 ((service, routing_id, method),))
         self.peers.values()[0].push(
                 (const.MSG_TYPE_PROXY_PUBLISH,
-                    (service, routing_id, method, args, kwargs)))
+                    (service, routing_id, method, args, kwargs, singular)))
 
     def publish_handler(self, handler, msg, source, args, kwargs):
         log.debug("executing publish handler for %r from %r" % (msg, source))
@@ -453,7 +454,7 @@ class Dispatcher(object):
                 (entry['client_counter'], rc, result)))
 
     def incoming_proxy_publish(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 5:
+        if not isinstance(msg, tuple) or len(msg) != 6:
             # drop malformed messages
             log.warn("received malformed proxy_publish from %r" %
                     (peer.ident,))
@@ -462,7 +463,7 @@ class Dispatcher(object):
         log.debug("forwarding a proxy_publish %r from %r" %
                 (msg[:3], peer.ident))
 
-        self.send_publish(*(msg + (True,)))
+        self.send_publish(*(msg[:5] + (True, msg[5])))
 
     def incoming_proxy_request(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 7:
