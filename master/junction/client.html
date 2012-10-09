@@ -2,13 +2,16 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
+
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>junction.client – A Sender-Only Client Object &mdash; junction v0.1.0 documentation</title>
+    <title>junction.client – A Sender-Only Client Object &mdash; junction 0.1.0 documentation</title>
+    
     <link rel="stylesheet" href="../static/nature.css" type="text/css" />
     <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../',
@@ -21,9 +24,9 @@
     <script type="text/javascript" src="../static/jquery.js"></script>
     <script type="text/javascript" src="../static/underscore.js"></script>
     <script type="text/javascript" src="../static/doctools.js"></script>
-    <link rel="top" title="junction v0.1.0 documentation" href="../index.html" />
+    <link rel="top" title="junction 0.1.0 documentation" href="../index.html" />
     <link rel="next" title="junction.futures – Representations of In-Progress Actions" href="futures.html" />
-    <link rel="prev" title="junction.node – A Node In The Server Mesh" href="node.html" /> 
+    <link rel="prev" title="junction.hub – A Hub In The Server Mesh" href="hub.html" /> 
   </head>
   <body>
     <div class="related">
@@ -39,9 +42,9 @@
           <a href="futures.html" title="junction.futures – Representations of In-Progress Actions"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="node.html" title="junction.node – A Node In The Server Mesh"
+          <a href="hub.html" title="junction.hub – A Hub In The Server Mesh"
              accesskey="P">previous</a> |</li>
-        <li><a href="../index.html">junction v0.1.0 documentation</a> &raquo;</li> 
+        <li><a href="../index.html">junction 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -54,12 +57,12 @@
 <span id="junction-client-a-sender-only-client-object"></span><h1><a class="reference internal" href="#module-junction.client" title="junction.client"><tt class="xref py py-mod docutils literal"><span class="pre">junction.client</span></tt></a> &#8211; A Sender-Only Client Object<a class="headerlink" href="#module-junction.client" title="Permalink to this headline">¶</a></h1>
 <dl class="class">
 <dt id="junction.client.Client">
-<em class="property">class </em><tt class="descclassname">junction.client.</tt><tt class="descname">Client</tt><big>(</big><em>node_address</em><big>)</big><a class="headerlink" href="#junction.client.Client" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><tt class="descclassname">junction.client.</tt><tt class="descname">Client</tt><big>(</big><em>addrs</em><big>)</big><a class="headerlink" href="#junction.client.Client" title="Permalink to this definition">¶</a></dt>
 <dd><p>A junction client without the server</p>
 <dl class="method">
 <dt id="junction.client.Client.connect">
 <tt class="descname">connect</tt><big>(</big><big>)</big><a class="headerlink" href="#junction.client.Client.connect" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initiate the connection to a proxying node</p>
+<dd><p>Initiate the connection to a proxying hub</p>
 </dd></dl>
 
 <dl class="method">
@@ -74,10 +77,10 @@ callback should take no arguments).</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> (<em>callable</em>) &#8211; the callback function for the dependent (this will be started
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>func</strong> (<em>callable</em>) &#8211; the callback function for the dependent (this will be started
 immediately in a separate coroutine)</td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body">a new <a class="reference internal" href="futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a></td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">a new <a class="reference internal" href="futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a></td>
 </tr>
 </tbody>
 </table>
@@ -85,27 +88,28 @@ immediately in a separate coroutine)</td>
 
 <dl class="method">
 <dt id="junction.client.Client.publish">
-<tt class="descname">publish</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em>, <em>args</em>, <em>kwargs</em><big>)</big><a class="headerlink" href="#junction.client.Client.publish" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">publish</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args=None</em>, <em>kwargs=None</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.client.Client.publish" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send a 1-way message</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name (the routing top level)</li>
-<li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
 <li><strong>routing_id</strong> (<em>int</em>) &#8211; The id used for routing within the registered handlers of the
 service.</li>
+<li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
 <li><strong>args</strong> (<em>tuple</em>) &#8211; the positional arguments to send along with the request</li>
 <li><strong>kwargs</strong> (<em>dict</em>) &#8211; keyword arguments to send along with the request</li>
+<li><strong>singular</strong> (<em>bool</em>) &#8211; if <tt class="docutils literal"><span class="pre">True</span></tt>, only send the message to a single peer</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">None. use &#8216;rpc&#8217; methods for requests with responses.</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">None. use &#8216;rpc&#8217; methods for requests with responses.</p>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><p class="first last"><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if the client
-doesn&#8217;t have a connection to a node</p>
+<tr class="field-odd field"><th class="field-name">Raises :</th><td class="field-body"><p class="first last"><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if the client
+doesn&#8217;t have a connection to a hub</p>
 </td>
 </tr>
 </tbody>
@@ -114,22 +118,22 @@ doesn&#8217;t have a connection to a node</p>
 
 <dl class="method">
 <dt id="junction.client.Client.publish_receiver_count">
-<tt class="descname">publish_receiver_count</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.client.Client.publish_receiver_count" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">publish_receiver_count</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.client.Client.publish_receiver_count" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the number of peers that would handle a particular publish</p>
 <p>This method will block until a response arrives</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name</li>
+<li><strong>routing_id</strong> (<em>int</em>) &#8211; the id used for narrowing within the service handlers</li>
 <li><strong>method</strong> (<em>string</em>) &#8211; the method name</li>
-<li><strong>routing_id</strong> (<em>int</em>) &#8211; the id used for narrowing within the (service, method) handlers</li>
 <li><strong>timeout</strong> (<em>int, float or None</em>) &#8211; maximum time to wait for the response</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
+<tr class="field-even field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
 <li><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if no peers are
 registered to receive the message</li>
 <li><a class="reference internal" href="errors.html#junction.errors.WaitTimeout" title="junction.errors.WaitTimeout"><tt class="xref py py-class docutils literal"><span class="pre">WaitTimeout</span></tt></a> if a timeout
@@ -142,31 +146,38 @@ was provided and it expires</li>
 </dd></dl>
 
 <dl class="method">
+<dt id="junction.client.Client.reset">
+<tt class="descname">reset</tt><big>(</big><big>)</big><a class="headerlink" href="#junction.client.Client.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Close the current failed connection and prepare for a new one</p>
+</dd></dl>
+
+<dl class="method">
 <dt id="junction.client.Client.rpc">
-<tt class="descname">rpc</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em>, <em>args</em>, <em>kwargs</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.client.Client.rpc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">rpc</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args=None</em>, <em>kwargs=None</em>, <em>timeout=None</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.client.Client.rpc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send an RPC request and return the corresponding response</p>
 <p>This will block waiting until the response has been received.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name (the routing top level)</li>
-<li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
 <li><strong>routing_id</strong> (<em>int</em>) &#8211; The id used for routing within the registered handlers of the
 service.</li>
+<li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
 <li><strong>args</strong> (<em>tuple</em>) &#8211; the positional arguments to send along with the request</li>
 <li><strong>kwargs</strong> (<em>dict</em>) &#8211; keyword arguments to send along with the request</li>
 <li><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait for a response in seconds. with None, there is
 no timeout.</li>
+<li><strong>singular</strong> (<em>bool</em>) &#8211; if <tt class="docutils literal"><span class="pre">True</span></tt>, only send the request to a single peer</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a list of the objects returned by the RPC&#8217;s targets. these could be
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a list of the objects returned by the RPC&#8217;s targets. these could be
 of any serializable type.</p>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
 <li><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if no peers are
 registered to receive the message</li>
 <li><a class="reference internal" href="errors.html#junction.errors.WaitTimeout" title="junction.errors.WaitTimeout"><tt class="xref py py-class docutils literal"><span class="pre">WaitTimeout</span></tt></a> if a timeout
@@ -180,24 +191,24 @@ was provided and it expires</li>
 
 <dl class="method">
 <dt id="junction.client.Client.rpc_receiver_count">
-<tt class="descname">rpc_receiver_count</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.client.Client.rpc_receiver_count" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">rpc_receiver_count</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.client.Client.rpc_receiver_count" title="Permalink to this definition">¶</a></dt>
 <dd><p>Get the number of peers that would handle a particular RPC</p>
 <p>This method will block until a response arrives</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name</li>
+<li><strong>routing_id</strong> (<em>int</em>) &#8211; the id used for narrowing within the service handlers</li>
 <li><strong>method</strong> (<em>string</em>) &#8211; the method name</li>
-<li><strong>routing_id</strong> (<em>int</em>) &#8211; the id used for narrowing within the (service, method) handlers</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the integer number of peers that would receive the described RPC</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">the integer number of peers that would receive the described RPC</p>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
 <li><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if no peers are
 registered to receive the message</li>
 <li><a class="reference internal" href="errors.html#junction.errors.WaitTimeout" title="junction.errors.WaitTimeout"><tt class="xref py py-class docutils literal"><span class="pre">WaitTimeout</span></tt></a> if a timeout
@@ -211,28 +222,29 @@ was provided and it expires</li>
 
 <dl class="method">
 <dt id="junction.client.Client.send_rpc">
-<tt class="descname">send_rpc</tt><big>(</big><em>service</em>, <em>method</em>, <em>routing_id</em>, <em>args</em>, <em>kwargs</em><big>)</big><a class="headerlink" href="#junction.client.Client.send_rpc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">send_rpc</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args=None</em>, <em>kwargs=None</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.client.Client.send_rpc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send out an RPC request</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name (the routing top level)</li>
-<li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
 <li><strong>routing_id</strong> (<em>int</em>) &#8211; The id used for routing within the registered handlers of the
 service.</li>
+<li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
 <li><strong>args</strong> (<em>tuple</em>) &#8211; the positional arguments to send along with the request</li>
 <li><strong>kwargs</strong> (<em>dict</em>) &#8211; keyword arguments to send along with the request</li>
+<li><strong>singular</strong> (<em>bool</em>) &#8211; if <tt class="docutils literal"><span class="pre">True</span></tt>, only send the request to a single peer</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a> object representing the
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">a <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a> object representing the
 RPC and its future response.</p>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><p class="first last"><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if the client
-doesn&#8217;t have a connection to a node</p>
+<tr class="field-odd field"><th class="field-name">Raises :</th><td class="field-body"><p class="first last"><a class="reference internal" href="errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> if the client
+doesn&#8217;t have a connection to a hub</p>
 </td>
 </tr>
 </tbody>
@@ -242,7 +254,7 @@ doesn&#8217;t have a connection to a node</p>
 <dl class="method">
 <dt id="junction.client.Client.shutdown">
 <tt class="descname">shutdown</tt><big>(</big><big>)</big><a class="headerlink" href="#junction.client.Client.shutdown" title="Permalink to this definition">¶</a></dt>
-<dd><p>Close the node connection</p>
+<dd><p>Close the hub connection</p>
 </dd></dl>
 
 <dl class="method">
@@ -254,7 +266,7 @@ doesn&#8217;t have a connection to a node</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>futures</strong> (<em>list</em>) &#8211; a list made up of rpc <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">rpc</span></tt></a> and
 <a class="reference internal" href="futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">dependent</span></tt></a> objects on which to
 wait (only for the first one)</li>
@@ -263,13 +275,13 @@ no timeout.</li>
 </ul>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">one of the <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a>s or
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">one of the <a class="reference internal" href="futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPC</span></tt></a>s or
 <a class="reference internal" href="futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a>s from <tt class="docutils literal"><span class="pre">futures</span></tt>
 &#8211; the first one to be completed (or any of the ones that were
-already completed) for which <tt class="docutils literal"><span class="pre">completed</span></tt> is <tt class="xref docutils literal"><span class="pre">True</span></tt>.</p>
+already completed) for which <tt class="docutils literal"><span class="pre">completed</span></tt> is <tt class="docutils literal"><span class="pre">True</span></tt>.</p>
 </td>
 </tr>
-<tr class="field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Raises :</th><td class="field-body"><ul class="first last simple">
 <li><a class="reference internal" href="errors.html#junction.errors.WaitTimeout" title="junction.errors.WaitTimeout"><tt class="xref py py-class docutils literal"><span class="pre">WaitTimeout</span></tt></a> if a timeout
 was provided and it expires</li>
 </ul>
@@ -287,10 +299,10 @@ was provided and it expires</li>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field"><th class="field-name">Parameters:</th><td class="field-body"><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait in seconds. with None, there is no timeout.</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait in seconds. with None, there is no timeout.</td>
 </tr>
-<tr class="field"><th class="field-name">Returns:</th><td class="field-body"><tt class="xref docutils literal"><span class="pre">True</span></tt> if it timed out or if the connect or handshake failed,
-otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt></td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><tt class="docutils literal"><span class="pre">True</span></tt> if all connections were made, <tt class="docutils literal"><span class="pre">False</span></tt> if it hit the
+timeout instead.</td>
 </tr>
 </tbody>
 </table>
@@ -307,8 +319,8 @@ otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt><
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
-  <p class="topless"><a href="node.html"
-                        title="previous chapter"><tt class="docutils literal"><span class="pre">junction.node</span></tt> &#8211; A Node In The Server Mesh</a></p>
+  <p class="topless"><a href="hub.html"
+                        title="previous chapter"><tt class="docutils literal"><span class="pre">junction.hub</span></tt> &#8211; A Hub In The Server Mesh</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="futures.html"
                         title="next chapter"><tt class="docutils literal"><span class="pre">junction.futures</span></tt> &#8211; Representations of In-Progress Actions</a></p>
@@ -320,7 +332,7 @@ otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt><
 <div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="../search.html" method="get">
-      <input type="text" name="q" size="18" />
+      <input type="text" name="q" />
       <input type="submit" value="Go" />
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
@@ -347,14 +359,14 @@ otherwise <tt class="xref docutils literal"><span class="pre">False</span></tt><
           <a href="futures.html" title="junction.futures – Representations of In-Progress Actions"
              >next</a> |</li>
         <li class="right" >
-          <a href="node.html" title="junction.node – A Node In The Server Mesh"
+          <a href="hub.html" title="junction.hub – A Hub In The Server Mesh"
              >previous</a> |</li>
-        <li><a href="../index.html">junction v0.1.0 documentation</a> &raquo;</li> 
+        <li><a href="../index.html">junction 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
         &copy; Copyright 2010, Travis J Parker.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
     </div>
   </body>
 </html>

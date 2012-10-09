@@ -24,7 +24,9 @@
     <script type="text/javascript" src="../static/jquery.js"></script>
     <script type="text/javascript" src="../static/underscore.js"></script>
     <script type="text/javascript" src="../static/doctools.js"></script>
-    <link rel="top" title="junction 0.1.0 documentation" href="../index.html" /> 
+    <link rel="top" title="junction 0.1.0 documentation" href="../index.html" />
+    <link rel="next" title="junction.client – A Sender-Only Client Object" href="client.html" />
+    <link rel="prev" title="Programming With Futures" href="../programming_with_futures.html" /> 
   </head>
   <body>
     <div class="related">
@@ -36,6 +38,12 @@
         <li class="right" >
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="client.html" title="junction.client – A Sender-Only Client Object"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../programming_with_futures.html" title="Programming With Futures"
+             accesskey="P">previous</a> |</li>
         <li><a href="../index.html">junction 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
@@ -150,7 +158,7 @@ immediately in a separate coroutine)</td>
 
 <dl class="method">
 <dt id="junction.hub.Hub.publish">
-<tt class="descname">publish</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args</em>, <em>kwargs</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.publish" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">publish</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args=None</em>, <em>kwargs=None</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.publish" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send a 1-way message</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -158,8 +166,8 @@ immediately in a separate coroutine)</td>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service name (the routing top level)</li>
-<li><strong>routing_id</strong> (<em>int</em>) &#8211; The id used for routing within the registered handlers of the
-service.</li>
+<li><strong>routing_id</strong> (<em>int</em>) &#8211; the id used for routing within the registered handlers of the
+service</li>
 <li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
 <li><strong>args</strong> (<em>tuple</em>) &#8211; the positional arguments to send along with the request</li>
 <li><strong>kwargs</strong> (<em>dict</em>) &#8211; keyword arguments to send along with the request</li>
@@ -198,7 +206,7 @@ registered to receive the message</p>
 
 <dl class="method">
 <dt id="junction.hub.Hub.rpc">
-<tt class="descname">rpc</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args</em>, <em>kwargs</em>, <em>timeout=None</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.rpc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">rpc</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args=None</em>, <em>kwargs=None</em>, <em>timeout=None</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.rpc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send an RPC request and return the corresponding response</p>
 <p>This will block waiting until the response has been received.</p>
 <table class="docutils field-list" frame="void" rules="none">
@@ -256,36 +264,8 @@ was provided and it expires</li>
 </dd></dl>
 
 <dl class="method">
-<dt id="junction.hub.Hub.select_peer">
-<tt class="descname">select_peer</tt><big>(</big><em>peer_addrs</em>, <em>service</em>, <em>routing_id</em>, <em>method</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.select_peer" title="Permalink to this definition">¶</a></dt>
-<dd><p>Choose a target from the available peers for a singular RPC</p>
-<table class="docutils field-list" frame="void" rules="none">
-<col class="field-name" />
-<col class="field-body" />
-<tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
-<li><strong>peer_addrs</strong> (<em>list</em>) &#8211; the <tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)``s</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">peers</span> <span class="pre">eligible</span> <span class="pre">to</span> <span class="pre">handle</span> <span class="pre">the</span> <span class="pre">RPC,</span> <span class="pre">and</span>
-<span class="pre">possibly</span> <span class="pre">a</span> <span class="pre">``None</span></tt> entry if this hub can handle it locally</li>
-<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service of the RPC</li>
-<li><strong>routing_id</strong> (<em>int</em>) &#8211; the routing_id of the RPC</li>
-<li><strong>method</strong> (<em>string</em>) &#8211; the RPC method name</li>
-</ul>
-</td>
-</tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">one of the provided peer_addrs</p>
-</td>
-</tr>
-</tbody>
-</table>
-<p>There is no reason to call this method directly, but it may be useful
-to override it in a Hub subclass.</p>
-<p>The default implementation uses <tt class="docutils literal"><span class="pre">None</span></tt> if it is available (prefer
-local handling), then falls back to a random selection.</p>
-</dd></dl>
-
-<dl class="method">
 <dt id="junction.hub.Hub.send_rpc">
-<tt class="descname">send_rpc</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args</em>, <em>kwargs</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.send_rpc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">send_rpc</tt><big>(</big><em>service</em>, <em>routing_id</em>, <em>method</em>, <em>args=None</em>, <em>kwargs=None</em>, <em>singular=False</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.send_rpc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Send out an RPC request</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -441,9 +421,15 @@ timeout instead.</p>
       </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="../programming_with_futures.html"
+                        title="previous chapter">Programming With Futures</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="client.html"
+                        title="next chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">junction.client</span></tt> &#8211; A Sender-Only Client Object</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
-    <li><a href="../sources/junction/node.txt"
+    <li><a href="../sources/junction/hub.txt"
            rel="nofollow">Show Source</a></li>
   </ul>
 <div id="searchbox" style="display: none">
@@ -472,6 +458,12 @@ timeout instead.</p>
         <li class="right" >
           <a href="../py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
+        <li class="right" >
+          <a href="client.html" title="junction.client – A Sender-Only Client Object"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../programming_with_futures.html" title="Programming With Futures"
+             >previous</a> |</li>
         <li><a href="../index.html">junction 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>

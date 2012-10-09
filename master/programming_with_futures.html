@@ -2,13 +2,16 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
+
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Programming With Futures &mdash; junction v0.1.0 documentation</title>
+    <title>Programming With Futures &mdash; junction 0.1.0 documentation</title>
+    
     <link rel="stylesheet" href="static/nature.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
@@ -21,8 +24,8 @@
     <script type="text/javascript" src="static/jquery.js"></script>
     <script type="text/javascript" src="static/underscore.js"></script>
     <script type="text/javascript" src="static/doctools.js"></script>
-    <link rel="top" title="junction v0.1.0 documentation" href="index.html" />
-    <link rel="next" title="junction.node – A Node In The Server Mesh" href="junction/node.html" />
+    <link rel="top" title="junction 0.1.0 documentation" href="index.html" />
+    <link rel="next" title="junction.hub – A Hub In The Server Mesh" href="junction/hub.html" />
     <link rel="prev" title="Getting Started" href="getting_started.html" /> 
   </head>
   <body>
@@ -36,12 +39,12 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="junction/node.html" title="junction.node – A Node In The Server Mesh"
+          <a href="junction/hub.html" title="junction.hub – A Hub In The Server Mesh"
              accesskey="N">next</a> |</li>
         <li class="right" >
           <a href="getting_started.html" title="Getting Started"
              accesskey="P">previous</a> |</li>
-        <li><a href="index.html">junction v0.1.0 documentation</a> &raquo;</li> 
+        <li><a href="index.html">junction 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>  
 
@@ -53,25 +56,26 @@
   <div class="section" id="programming-with-futures">
 <span id="id1"></span><h1>Programming With Futures<a class="headerlink" href="#programming-with-futures" title="Permalink to this headline">¶</a></h1>
 <p>Junction&#8217;s asynchronous RPC api involves a number of objects that meet
-the definition of a <a class="reference external" href="http://en.wikipedia.org/wiki/Futures_and_promises">&#8220;future&#8221;</a>. The fit the bill because when initially
-created, their results are not yet known but will be transparently
-filled in when they arrive, or they can be explicitly waited for.</p>
+the definition of a <a class="reference external" href="http://en.wikipedia.org/wiki/Futures_and_promises">&#8220;future&#8221;</a>. They fit the bill because when
+initially created, their results are not yet known but will be
+transparently filled in when they arrive, or they can be explicitly
+waited for.</p>
 <div class="section" id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
 <p>These are <a class="reference internal" href="junction/futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> and
 <a class="reference internal" href="junction/futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependents</span></tt></a>.
-RPCs always correspond to a <a class="reference internal" href="junction/node.html#junction.node.Node.send_rpc" title="junction.node.Node.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">single</span> <span class="pre">RPC</span> <span class="pre">call</span></tt></a>. Dependents can be built to wait on any
+RPCs always correspond to a <a class="reference internal" href="junction/hub.html#junction.hub.Hub.send_rpc" title="junction.hub.Hub.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">single</span> <span class="pre">RPC</span> <span class="pre">call</span></tt></a>. Dependents can be built to wait on any
 combination of RPCs and other Dependents, and they can either represent
-a not-yet-started RPC or the results of any callback function.Dependents
-wrap a callback that isn&#8217;t fired until all its parent futures are
-complete, then calls the callback passing it the results of its parents,
-and using the callback result as its own result (though if the callback
-returns an RPC, that is then waited on as well and its results are used
-as those of the Dependent).</p>
+a not-yet-started RPC or the results of any callback function.
+Dependents wrap a callback that isn&#8217;t fired until all its parent futures
+are complete, then calls the callback passing it the results of its
+parents, and using the callback result as its own result (though if the
+callback returns an RPC, that is then waited on as well and its results
+are used as those of the Dependent).</p>
 <p>Both objects share a common API, so in some circumstances can be used
 interchangeably.</p>
 <p>Using RPC instances with the <strong>send_rpc()</strong> and <strong>wait_any()</strong> methods
-of <a class="reference internal" href="junction/node.html#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a> and <a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Client</span></tt></a> objects is a great way to parallelize RPCs
+of <a class="reference internal" href="junction/hub.html#junction.hub.Hub" title="junction.hub.Hub"><tt class="xref py py-class docutils literal"><span class="pre">Hub</span></tt></a> and <a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Client</span></tt></a> objects is a great way to parallelize RPCs
 within a single coroutine, and Dependents are a natural extension of
 that for when one needs to make RPC calls whose arguments are taken from
 the results of prior RPCs.</p>
@@ -84,28 +88,28 @@ step, building the HTML (often rendering a template), so there should be
 <em>NO</em> reason to wait on <em>anything</em> until then.</p>
 <p>Before then, any place we would have passed RPC-collected data into a
 function or had it in a variable, we can instead use a future for that
-data in its place.  Anything that we would have done with that data, we
+data in its place. Anything that we would have done with that data, we
 can instead do in a Dependent of the future. With this approach we can
 maximize the parallelism between webserver and data providers and have
 that parallelism track the true dependency graph between RPCs, rather
 than end up with choke points scattered throughout the process.</p>
 <p>Consider the simple example below of pseudocode validating an entered
 username and password:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">):</span>
-    <span class="n">userid</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">rpc</span><span class="p">(</span><span class="n">USERDATA_SERVICE</span><span class="p">,</span> <span class="s">&quot;by_username&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">username</span><span class="p">,),</span> <span class="p">{})[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">is_valid</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">rpc</span><span class="p">(</span><span class="n">PASSWORD_SERVICE</span><span class="p">,</span> <span class="s">&quot;validate&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">userid</span><span class="p">,</span> <span class="n">passwd</span><span class="p">),</span> <span class="p">{})[</span><span class="mi">0</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">hub</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">):</span>
+    <span class="n">userid</span> <span class="o">=</span> <span class="n">hub</span><span class="o">.</span><span class="n">rpc</span><span class="p">(</span><span class="n">USERDATA_SERVICE</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;by_username&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">username</span><span class="p">,),</span> <span class="p">{})[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">is_valid</span> <span class="o">=</span> <span class="n">hub</span><span class="o">.</span><span class="n">rpc</span><span class="p">(</span><span class="n">PASSWORD_SERVICE</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;validate&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">userid</span><span class="p">,</span> <span class="n">passwd</span><span class="p">),</span> <span class="p">{})[</span><span class="mi">0</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">is_valid</span>
 </pre></div>
 </div>
 <img alt="images/single_validate.png" src="images/single_validate.png" />
 <p>To go async and program with futures, we must use a Dependent for the
 second RPC as its arguments include the results from the first RPC.:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">):</span>
-    <span class="n">userid</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="n">USERDATA_SERVICE</span><span class="p">,</span> <span class="s">&quot;by_username&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">username</span><span class="p">,),</span> <span class="p">{})</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">hub</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">):</span>
+    <span class="n">userid</span> <span class="o">=</span> <span class="n">hub</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="n">USERDATA_SERVICE</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;by_username&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">username</span><span class="p">,),</span> <span class="p">{})</span>
 
     <span class="nd">@userid.after</span>
     <span class="k">def</span> <span class="nf">is_valid</span><span class="p">(</span><span class="n">userid</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="n">PASSWORD_SERVICE</span><span class="p">,</span> <span class="s">&quot;validate&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">userid</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">passwd</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">hub</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="n">PASSWORD_SERVICE</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;validate&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">userid</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">passwd</span><span class="p">))</span>
 
     <span class="k">return</span> <span class="n">is_valid</span><span class="o">.</span><span class="n">wait</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
 </pre></div>
@@ -114,23 +118,23 @@ second RPC as its arguments include the results from the first RPC.:</p>
 second <em>must</em> wait for the first, and the method still blocks until both
 RPCs have completed. Where the approach really helps us is when we need
 to validate a batch of username, password pairs:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="n">validations</span> <span class="o">=</span> <span class="p">[(</span><span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">validate</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">))</span> <span class="k">for</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">]</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">validations</span> <span class="o">=</span> <span class="p">[(</span><span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">validate</span><span class="p">(</span><span class="n">hub</span><span class="p">,</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">))</span> <span class="k">for</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">]</span>
 </pre></div>
 </div>
 <img alt="images/seq_validates.png" src="images/seq_validates.png" />
 <p>With just a tiny modification to the futures-based validate method, and
 a little supporting code in the batching, we can get each of the
 sequential RPC pairs happening together in parallel:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">):</span>
-    <span class="n">userid</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="n">USERDATA_SERVICE</span><span class="p">,</span> <span class="s">&quot;by_username&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">username</span><span class="p">,),</span> <span class="p">{})</span>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">def</span> <span class="nf">validate</span><span class="p">(</span><span class="n">hub</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">):</span>
+    <span class="n">userid</span> <span class="o">=</span> <span class="n">hub</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="n">USERDATA_SERVICE</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;by_username&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">username</span><span class="p">,),</span> <span class="p">{})</span>
 
     <span class="nd">@userid.after</span>
     <span class="k">def</span> <span class="nf">is_valid</span><span class="p">(</span><span class="n">userid</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">node</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="n">PASSWORD_SERVICE</span><span class="p">,</span> <span class="s">&quot;validate&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="n">userid</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">passwd</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">hub</span><span class="o">.</span><span class="n">send_rpc</span><span class="p">(</span><span class="n">PASSWORD_SERVICE</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;validate&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">userid</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">passwd</span><span class="p">))</span>
 
     <span class="k">return</span> <span class="n">is_valid</span>
 
-<span class="n">with_futures</span> <span class="o">=</span> <span class="p">[(</span><span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">validate</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">))</span> <span class="k">for</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">]</span>
+<span class="n">with_futures</span> <span class="o">=</span> <span class="p">[(</span><span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">validate</span><span class="p">(</span><span class="n">hub</span><span class="p">,</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">))</span> <span class="k">for</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">]</span>
 <span class="n">validations</span> <span class="o">=</span> <span class="p">[(</span><span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">wait</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">un</span><span class="p">,</span> <span class="n">pw</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">with_futures</span><span class="p">]</span>
 </pre></div>
 </div>
@@ -162,8 +166,8 @@ future, passing the provided result down.</dd>
 <dd>Creates and returns a new <a class="reference internal" href="junction/futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependent</span></tt></a> that depends on this future. Also
 optionally accepts a list of other future objects on which it should
 depend.</dd>
-<dt><strong>Node.wait_any()</strong> and <strong>Client.wait_any()</strong></dt>
-<dd>Both <a class="reference internal" href="junction/node.html#junction.node.Node" title="junction.node.Node"><tt class="xref py py-class docutils literal"><span class="pre">Node</span></tt></a> and <a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Client</span></tt></a> have a method &#8220;wait_all&#8221;, which accepts a
+<dt><strong>Hub.wait_any()</strong> and <strong>Client.wait_any()</strong></dt>
+<dd>Both <a class="reference internal" href="junction/hub.html#junction.hub.Hub" title="junction.hub.Hub"><tt class="xref py py-class docutils literal"><span class="pre">Hub</span></tt></a> and <a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Client</span></tt></a> have a method &#8220;wait_any&#8221;, which accepts a
 list of futures (these can be any mixtures of
 <a class="reference internal" href="junction/futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> and <a class="reference internal" href="junction/futures.html#junction.futures.Dependent" title="junction.futures.Dependent"><tt class="xref py py-class docutils literal"><span class="pre">Dependents</span></tt></a>), and returns the first complete
 future from the list.</dd>
@@ -172,7 +176,7 @@ future from the list.</dd>
 <div class="section" id="rpcs">
 <h2>RPCs<a class="headerlink" href="#rpcs" title="Permalink to this headline">¶</a></h2>
 <p><a class="reference internal" href="junction/futures.html#junction.futures.RPC" title="junction.futures.RPC"><tt class="xref py py-class docutils literal"><span class="pre">RPCs</span></tt></a> are created by calls to
-<a class="reference internal" href="junction/node.html#junction.node.Node.send_rpc" title="junction.node.Node.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">Node.send_rpc</span></tt></a> and
+<a class="reference internal" href="junction/hub.html#junction.hub.Hub.send_rpc" title="junction.hub.Hub.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">Hub.send_rpc</span></tt></a> and
 <a class="reference internal" href="junction/client.html#junction.client.Client.send_rpc" title="junction.client.Client.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">Client.send_rpc</span></tt></a>. These objects
 are a representation of the single in-flight RPC call.</p>
 <p>The <a class="reference internal" href="junction/futures.html#junction.futures.RPC.results" title="junction.futures.RPC.results"><tt class="xref py py-attr docutils literal"><span class="pre">results</span></tt></a> attribute will
@@ -234,8 +238,8 @@ instance), the return value is simply used as the Dependent&#8217;s result.</p>
   <p class="topless"><a href="getting_started.html"
                         title="previous chapter">Getting Started</a></p>
   <h4>Next topic</h4>
-  <p class="topless"><a href="junction/node.html"
-                        title="next chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">junction.node</span></tt> &#8211; A Node In The Server Mesh</a></p>
+  <p class="topless"><a href="junction/hub.html"
+                        title="next chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">junction.hub</span></tt> &#8211; A Hub In The Server Mesh</a></p>
   <h3>This Page</h3>
   <ul class="this-page-menu">
     <li><a href="sources/programming_with_futures.txt"
@@ -244,7 +248,7 @@ instance), the return value is simply used as the Dependent&#8217;s result.</p>
 <div id="searchbox" style="display: none">
   <h3>Quick search</h3>
     <form class="search" action="search.html" method="get">
-      <input type="text" name="q" size="18" />
+      <input type="text" name="q" />
       <input type="submit" value="Go" />
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
@@ -268,17 +272,17 @@ instance), the return value is simply used as the Dependent&#8217;s result.</p>
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="junction/node.html" title="junction.node – A Node In The Server Mesh"
+          <a href="junction/hub.html" title="junction.hub – A Hub In The Server Mesh"
              >next</a> |</li>
         <li class="right" >
           <a href="getting_started.html" title="Getting Started"
              >previous</a> |</li>
-        <li><a href="index.html">junction v0.1.0 documentation</a> &raquo;</li> 
+        <li><a href="index.html">junction 0.1.0 documentation</a> &raquo;</li> 
       </ul>
     </div>
     <div class="footer">
         &copy; Copyright 2010, Travis J Parker.
-      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.0.7.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
     </div>
   </body>
 </html>
