@@ -149,8 +149,15 @@ class RPC(object):
 
         this may also be the complete results, if :attr:`complete` is True
         """
-        return [type(x)(*deepcopy(x.args)) if isinstance(x, Exception)
-                else deepcopy(x) for x in self._results]
+        results = []
+        for x in self._results:
+            if isinstance(x, Exception):
+                results.append(type(x)(*deepcopy(x.args)))
+            elif hasattr(x, "__iter__") and not hasattr(x, "__len__"):
+                results.append(x)
+            else:
+                results.append(deepcopy(x))
+        return results
 
     @property
     def results(self):
