@@ -67,7 +67,7 @@ class Client(object):
     def shutdown(self):
         'Close the hub connection'
         log.info("shutting down")
-        self._peer.go_down(reconnect=False)
+        self._peer.go_down(reconnect=False, expected=True)
 
     def publish(self, service, routing_id, method, args=None, kwargs=None,
             singular=False):
