@@ -363,5 +363,68 @@ class NetworklessDependentTests(StateClearingTestCase):
         self.assertEqual(dep.wait(TIMEOUT), 62)
 
 
+class DownedConnectionTests(StateClearingTestCase):
+    def test_unrelated_rpcs_are_unaffected(self):
+        global PORT
+        hub = junction.Hub(("127.0.0.1", PORT), [])
+        PORT += 2
+
+        @hub.accept_rpc('service', 0, 0, 'method')
+        def handle():
+            greenhouse.pause_for(TIMEOUT)
+            return 1
+
+        hub.start()
+
+        peer = junction.Hub(("127.0.0.1", PORT), [hub.addr])
+        PORT += 2
+        peer.start()
+        peer.wait_on_connections()
+
+        client = junction.Client(hub.addr)
+        client.connect()
+        client.wait_on_connections()
+        client = [client]
+
+        @greenhouse.schedule
+        def kill_client():
+            # so it'll get GC'd
+            cli = client.pop()
+            cli._peer.sock.close()
+
+        # hub does a self-rpc during which the client connection goes away
+        result = peer.rpc('service', 0, 'method', singular=1)
+
+        self.assertEqual(result, 1)
+
+    def test_unrelated_self_rpcs_are_unaffected(self):
+        global PORT
+        hub = junction.Hub(("127.0.0.1", PORT), [])
+        PORT += 2
+
+        @hub.accept_rpc('service', 0, 0, 'method')
+        def handle():
+            greenhouse.pause_for(TIMEOUT)
+            return 1
+
+        hub.start()
+
+        client = junction.Client(hub.addr)
+        client.connect()
+        client.wait_on_connections()
+        client = [client]
+
+        @greenhouse.schedule
+        def kill_client():
+            # so it'll get GC'd
+            cli = client.pop()
+            cli._peer.sock.close()
+
+        # hub does a self-rpc during which the client connection goes away
+        result = hub.rpc('service', 0, 'method', singular=1)
+
+        self.assertEqual(result, 1)
+
+
 if __name__ == '__main__':
     unittest.main()
