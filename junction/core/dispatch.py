@@ -204,9 +204,6 @@ class Dispatcher(object):
 
     def send_publish(self, service, routing_id, method, args, kwargs,
             forwarded=False, singular=False):
-        msg = (const.MSG_TYPE_PUBLISH,
-                (service, routing_id, method, args, kwargs))
-
         # get the peers registered for this publish
         peers = list(self.find_peer_routes(
                 const.MSG_TYPE_PUBLISH, service, routing_id))
@@ -225,6 +222,15 @@ class Dispatcher(object):
             if not isinstance(targets[0], LocalTarget):
                 handler = None
 
+        if len(args) == 1 and hasattr(args[0], "__iter__") \
+                and not hasattr(args[0], "__len__"):
+            self.send_chunked_publish(service, routing_id, method, args[0],
+                    kwargs, targets, proxied=False)
+            return bool(handler or peers)
+
+        msg = (const.MSG_TYPE_PUBLISH,
+                (service, routing_id, method, args, kwargs))
+
         if handler is not None:
             log.debug("locally handling publish %r %s" %
                     (msg[1][:3], "scheduled" if schedule else "immediately"))
@@ -237,6 +243,24 @@ class Dispatcher(object):
             target.push(msg)
 
         return bool(handler or peers)
+
+    def send_chunked_publish(self, service, routing_id, method,
+            chunks, kwargs, targets, proxied=False):
+        counter = self.rpc_client.next_counter()
+        if proxied:
+            msgtype = const.MSG_TYPE_PROXY_PUBLISH_IS_CHUNKED
+        else:
+            msgtype = const.MSG_TYPE_PUBLISH_IS_CHUNKED
+        for target in targets:
+            target.push((msgtype,
+                (service, routing_id, method, counter, kwargs)))
+
+        for chunk in chunks:
+            for target in targets:
+                target.push((msgtype + 3, (counter, chunk)))
+
+        for target in targets:
+            target.push((msgtype + 6, counter))
 
     def send_proxied_rpc(
             self, service, routing_id, method, args, kwargs, singular):
@@ -292,9 +316,14 @@ class Dispatcher(object):
             singular=False):
         log.debug("sending proxied_publish %r" %
                 ((service, routing_id, method),))
-        self.peers.values()[0].push(
-                (const.MSG_TYPE_PROXY_PUBLISH,
-                    (service, routing_id, method, args, kwargs, singular)))
+        if len(args) == 1 and hasattr(args[0], "__iter__") \
+                and not hasattr(args[0], "__len__"):
+            self.send_chunked_publish(service, routing_id, method, args[0],
+                    kwargs, [self.peers.values()[0]], proxied=True)
+        else:
+            self.peers.values()[0].push(
+                    (const.MSG_TYPE_PROXY_PUBLISH,
+                        (service, routing_id, method, args, kwargs, singular)))
 
     def publish_handler(self, handler, msg, source, args, kwargs):
         log.debug("executing publish handler for %r from %r" % (msg, source))
@@ -350,6 +379,8 @@ class Dispatcher(object):
 
         if handler is None:
             # drop unrecognized messages
+            log.warn("received unrecognized message type %r from %r" %
+                    (msg_type, peer.ident))
             return
 
         handler(self, peer, msg)
