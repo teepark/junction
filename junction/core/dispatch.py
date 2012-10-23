@@ -22,6 +22,7 @@ class Dispatcher(object):
         self.peers = {}
         self.reconnecting = {}
         self.inflight_proxies = {}
+        self.proxying_channels = {}
 
     def add_local_subscription(self, msg_type, service, mask, value, method,
             handler, schedule):
@@ -257,10 +258,12 @@ class Dispatcher(object):
 
         for chunk in chunks:
             for target in targets:
-                target.push((msgtype + 3, (counter, chunk)))
+                if target.up:
+                    target.push((msgtype + 3, (counter, chunk)))
 
         for target in targets:
-            target.push((msgtype + 6, counter))
+            if target.up:
+                target.push((msgtype + 6, counter))
 
     def send_proxied_rpc(
             self, service, routing_id, method, args, kwargs, singular):
@@ -625,6 +628,69 @@ class Dispatcher(object):
 
         self.rpc_client.expect(peer, counter, target_count)
 
+    def incoming_proxy_publish_is_chunked(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 5:
+            log.warn("received malformed proxy_publish_is_chunked from %r" %
+                    (peer.ident,))
+            return
+
+        service, routing_id, method, source_counter, kwargs = msg
+
+        log.debug("received proxy_publish_is_chunked %r from %r" %
+                (msg[:4], peer.ident))
+
+        dest_counter = self.rpc_client.next_counter()
+        targets = list(self.find_peer_routes(
+                const.MSG_TYPE_PUBLISH, service, routing_id))
+
+        self.proxying_channels[(peer.ident, source_counter)] = {
+                'dest_counter': dest_counter, 'targets': targets}
+
+        for target in targets:
+            target.push((const.MSG_TYPE_PUBLISH_IS_CHUNKED,
+                (service, routing_id, method, dest_counter, kwargs)))
+
+    def incoming_proxy_publish_chunk(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 2:
+            log.warn("received malformed proxy_publish_chunk from %r" %
+                    (peer.ident,))
+            return
+
+        source_counter, chunk = msg
+
+        if (peer.ident, source_counter) not in self.proxying_channels:
+            log.warn("received misdelivered proxy_publish_chunk %r from %r" %
+                    (source_counter, peer.ident))
+            return
+
+        log.debug("received proxy_publish_chunk %r from %r" %
+                (source_counter, peer.ident))
+
+        entry = self.proxying_channels[(peer.ident, source_counter)]
+
+        for target in entry['targets']:
+            if target.up:
+                target.push((const.MSG_TYPE_PUBLISH_CHUNK,
+                    (entry['dest_counter'], chunk)))
+
+    def incoming_proxy_publish_end_chunks(self, peer, msg):
+        if not isinstance(msg, (int, long)):
+            log.warn("received malformed proxy_publish_end_chunks from %r" %
+                    (peer.ident,))
+            return
+
+        entry = self.proxying_channels.pop((peer.ident, msg), None)
+        if entry is None:
+            log.debug("received misdelivered proxy_publish_end_chunks " +
+                    "%r from %r" % (msg, peer.ident))
+            return
+
+        for target in entry['targets']:
+            if target.up:
+                target.push((const.MSG_TYPE_PUBLISH_END_CHUNKS,
+                        entry['dest_counter']))
+
+
     handlers = {
         const.MSG_TYPE_ANNOUNCE: incoming_announce,
         const.MSG_TYPE_UNSUBSCRIBE: incoming_unsubscribe,
@@ -636,6 +702,9 @@ class Dispatcher(object):
         const.MSG_TYPE_PROXY_RESPONSE: incoming_proxy_response,
         const.MSG_TYPE_PROXY_RESPONSE_COUNT: incoming_proxy_response_count,
         const.MSG_TYPE_PROXY_QUERY_COUNT: incoming_proxy_query_count,
+        const.MSG_TYPE_PROXY_PUBLISH_IS_CHUNKED:
+                incoming_proxy_publish_is_chunked,
+        const.MSG_TYPE_PROXY_PUBLISH_CHUNK: incoming_proxy_publish_chunk,
     }
 
 
