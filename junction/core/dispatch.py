@@ -123,6 +123,11 @@ class Dispatcher(object):
                 return True
         return False
 
+    def multipush(self, targets, msg):
+        for target in targets:
+            if target.up:
+                target.push(msg)
+
     def local_subscriptions(self):
         for key, value in self.local_subs.iteritems():
             msg_type, service = key
@@ -160,6 +165,11 @@ class Dispatcher(object):
     def drop_peer(self, peer):
         self.peers.pop(peer.ident, None)
         subs = self.drop_peer_subscriptions(peer)
+
+        channels = self.proxying_channels.pop(peer.ident, {})
+        for source_counter, entry in channels.iteritems():
+            self.multipush(entry['targets',
+                (entry['type'] + 3, const.RPC_ERR_LOST_CONN, None))
 
         # reply to all in-flight proxied RPCs to the dropped peer
         # with the "lost connection" error
@@ -240,8 +250,7 @@ class Dispatcher(object):
             log.debug("sending publish %r to %d peers" % (
                 msg[1][:3], len(peers)))
 
-        for target in targets:
-            target.push(msg)
+        self.multipush(targets, msg)
 
         return bool(handler or peers)
 
@@ -252,18 +261,42 @@ class Dispatcher(object):
             msgtype = const.MSG_TYPE_PROXY_PUBLISH_IS_CHUNKED
         else:
             msgtype = const.MSG_TYPE_PUBLISH_IS_CHUNKED
-        for target in targets:
-            target.push((msgtype,
+
+        self.multipush(targets, (msgtype,
                 (service, routing_id, method, counter, kwargs)))
 
-        for chunk in chunks:
-            for target in targets:
-                if target.up:
-                    target.push((msgtype + 3, (counter, chunk)))
+        chunks = iter(chunks)
+        err = False
+        while not err:
+            try:
+                chunk = chunks.next()
+                rc = 0
+            except StopIteration:
+                break
+            except errors.HandledError, exc:
+                log.error("sending RPC_ERR_KNOWN(%d) as final publish chunk" %
+                        (exc.code,))
+                rc = const.RPC_ERR_KNOWN
+                chunk = (exc.code, exc.args)
+                greenhouse.handle_exception(*sys.exc_info())
+                err = True
+            except Exception:
+                log.error("sending RPC_ERR_UNKNOWN as final publish chunk")
+                rc = const.RPC_ERR_UNKOWN
+                chunk = traceback.format_exception(*sys.exc_info())
+                greenhouse.handle_exception(*sys.exc_info())
+                err = True
 
-        for target in targets:
-            if target.up:
-                target.push((msgtype + 6, counter))
+            self.multipush(targets, (msgtype + 3, (counter, rc, chunk)))
+
+        if not err:
+            self.multipush(targets, (msgtype + 6, counter))
+
+    def cleanup_forwarded_chunk(self, peer_ident, counter):
+        entry = self.proxying_channels.get(peer_ident, {}).pop(counter, None)
+        if entry is not None and not self.proxying_channels[peer_ident]:
+            del self.proxying_channels[peer_ident]
+        return entry
 
     def send_proxied_rpc(
             self, service, routing_id, method, args, kwargs, singular):
@@ -645,19 +678,21 @@ class Dispatcher(object):
 
         bypeer = self.proxying_channels.setdefault(peer.ident, {})
         bypeer[source_counter] = {
-                'dest_counter': dest_counter, 'targets': targets}
+            'dest_counter': dest_counter,
+            'targets': targets,
+            'type': const.MSG_TYPE_PUBLISH_IS_CHUNKED,
+        }
 
-        for target in targets:
-            target.push((const.MSG_TYPE_PUBLISH_IS_CHUNKED,
+        self.multipush(targets, (const.MSG_TYPE_PUBLISH_IS_CHUNKED,
                 (service, routing_id, method, dest_counter, kwargs)))
 
     def incoming_proxy_publish_chunk(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 2:
+        if not isinstance(msg, tuple) or len(msg) != 3:
             log.warn("received malformed proxy_publish_chunk from %r" %
                     (peer.ident,))
             return
 
-        source_counter, chunk = msg
+        source_counter, rc, chunk = msg
 
         entry = self.proxying_channels.get(peer.ident, {}).get(
                 source_counter, None)
@@ -668,10 +703,8 @@ class Dispatcher(object):
         log.debug("received proxy_publish_chunk %r from %r" %
                 (source_counter, peer.ident))
 
-        for target in entry['targets']:
-            if target.up:
-                target.push((const.MSG_TYPE_PUBLISH_CHUNK,
-                    (entry['dest_counter'], chunk)))
+        self.multipush(entry['targets'], (const.MSG_TYPE_PUBLISH_CHUNK,
+            (entry['dest_counter'], rc, chunk)))
 
     def incoming_proxy_publish_end_chunks(self, peer, msg):
         if not isinstance(msg, (int, long)):
@@ -679,8 +712,7 @@ class Dispatcher(object):
                     (peer.ident,))
             return
 
-        entry = self.proxying_channels.pop((peer.ident, msg), None)
-        entry = self.proxying_channels.get(peer.ident, {}).pop(msg, None)
+        entry = self.cleanup_forwarded_chunk(peer.ident, msg)
         if entry is None:
             log.warn("received misdelivered proxy_publish_end_chunks " +
                     "%r from %r" % (msg, peer.ident))
@@ -689,13 +721,8 @@ class Dispatcher(object):
         log.debug("received proxy_publish_end_chunks %r from %r" %
                 (msg, peer.ident))
 
-        if not self.proxying_channels[peer.ident]:
-            del self.proxying_channels[peer.ident]
-
-        for target in entry['targets']:
-            if target.up:
-                target.push((const.MSG_TYPE_PUBLISH_END_CHUNKS,
-                        entry['dest_counter']))
+        self.multipush(entry['targets'],
+                (const.MSG_TYPE_PUBLISH_END_CHUNKS, entry['dest_counter']))
 
 
     handlers = {
@@ -721,6 +748,7 @@ class LocalTarget(object):
         self.handler = handler
         self.schedule = schedule
         self.ident = None
+        self.up = True
 
     def push(self, msg):
         msgtype, msg = msg
