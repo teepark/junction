@@ -643,7 +643,8 @@ class Dispatcher(object):
         targets = list(self.find_peer_routes(
                 const.MSG_TYPE_PUBLISH, service, routing_id))
 
-        self.proxying_channels[(peer.ident, source_counter)] = {
+        bypeer = self.proxying_channels.setdefault(peer.ident, {})
+        bypeer[source_counter] = {
                 'dest_counter': dest_counter, 'targets': targets}
 
         for target in targets:
@@ -658,15 +659,14 @@ class Dispatcher(object):
 
         source_counter, chunk = msg
 
-        if (peer.ident, source_counter) not in self.proxying_channels:
-            log.warn("received misdelivered proxy_publish_chunk %r from %r" %
-                    (source_counter, peer.ident))
-            return
+        entry = self.proxying_channels.get(peer.ident, {}).get(
+                source_counter, None)
+        if entry is None:
+            log.warn("received misdelivered proxy_publish_end_chunks " +
+                    "%r from %r" % (source_counter, peer.ident))
 
         log.debug("received proxy_publish_chunk %r from %r" %
                 (source_counter, peer.ident))
-
-        entry = self.proxying_channels[(peer.ident, source_counter)]
 
         for target in entry['targets']:
             if target.up:
@@ -680,10 +680,17 @@ class Dispatcher(object):
             return
 
         entry = self.proxying_channels.pop((peer.ident, msg), None)
+        entry = self.proxying_channels.get(peer.ident, {}).pop(msg, None)
         if entry is None:
-            log.debug("received misdelivered proxy_publish_end_chunks " +
+            log.warn("received misdelivered proxy_publish_end_chunks " +
                     "%r from %r" % (msg, peer.ident))
             return
+
+        log.debug("received proxy_publish_end_chunks %r from %r" %
+                (msg, peer.ident))
+
+        if not self.proxying_channels[peer.ident]:
+            del self.proxying_channels[peer.ident]
 
         for target in entry['targets']:
             if target.up:
