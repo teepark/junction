@@ -23,29 +23,19 @@ class RPCClient(object):
 
     def request(self, targets, msg, singular=False):
         counter = self.next_counter()
-        target_set = set()
 
-        msg = (self.REQUEST, (counter,) + msg)
-
-        target_count = 0
-        strings = []
-        for peer in targets:
-            target_set.add(peer)
-            strings.append(peer.dump(msg))
-            target_count += 1
-
-        if not target_set:
+        if not targets:
             return None
 
-        self.sent(counter, target_set)
+        msg = targets[0].dump((self.REQUEST, (counter,) + msg))
 
-        rpc = futures.RPC(self, counter, target_count, singular)
+        self.sent(counter, targets)
+
+        rpc = futures.RPC(self, counter, len(targets), singular)
         self.rpcs[counter] = rpc
 
-        # did all the serializing before any of the sending for
-        # atomicity in the case of unserializable arguments
-        for peer, string in zip(targets, strings):
-            peer.push_string(string)
+        for peer in targets:
+            peer.push_string(msg)
 
         return rpc
 

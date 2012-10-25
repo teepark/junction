@@ -270,10 +270,9 @@ class Dispatcher(object):
     def send_chunked_publish(self, service, routing_id, method,
             chunks, kwargs, targets, proxied=False):
         counter = self.rpc_client.next_counter()
+        msgtype = const.MSG_TYPE_PUBLISH_IS_CHUNKED
         if proxied:
-            msgtype = const.MSG_TYPE_PROXY_PUBLISH_IS_CHUNKED
-        else:
-            msgtype = const.MSG_TYPE_PUBLISH_IS_CHUNKED
+            msgtype += 9
 
         self.multipush(targets, (msgtype,
                 (service, routing_id, method, counter, kwargs)))
