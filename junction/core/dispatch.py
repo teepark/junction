@@ -133,6 +133,11 @@ class Dispatcher(object):
             if target.up:
                 target.push(msg)
 
+    def multipush_str(self, targets, msg):
+        for target in targets:
+            if target.up:
+                target.push_string(msg)
+
     def local_subscriptions(self):
         for key, value in self.local_subs.iteritems():
             msg_type, service = key
@@ -299,7 +304,14 @@ class Dispatcher(object):
                 greenhouse.handle_exception(*sys.exc_info())
                 err = True
 
-            self.multipush(targets, (msgtype + 3, (counter, rc, chunk)))
+            try:
+                msg = connection.dump((msgtype + 3, (counter, rc, chunk)))
+            except TypeError:
+                log.error("sending RPC_ERR_UNSER_RESP as final publish chunk")
+                msg = connection.dump((msgtype + 3,
+                    (counter, const.RPC_ERR_UNSER_RESP, repr(chunk))))
+
+            self.multipush_str(targets, msg)
             greenhouse.pause()
 
         if not err:
@@ -953,8 +965,8 @@ def _check_error(log, source_peer, rc, data):
     if rc == const.RPC_ERR_UNSER_RESP:
         log.error("handler at %r returned an unserializable object" %
                 (source_peer,))
-        return errors.UnserializableResponse(result)
+        return errors.UnserializableResponse(data)
 
     log.error("error message with unrecognized return code from %r" %
             (source_peer,))
-    return errors.UnrecognizedRemoteProblem(source_peer, rc, result)
+    return errors.UnrecognizedRemoteProblem(source_peer, rc, data)

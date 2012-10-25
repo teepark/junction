@@ -240,8 +240,7 @@ class Peer(object):
         return False
 
     def dump(self, msg):
-        msg = mummy.dumps(msg)
-        return struct.pack("!I", len(msg)) + msg
+        return dump(msg)
 
     def read_bytes(self, count):
         data = [self.sock.recv(count)]
@@ -267,3 +266,8 @@ def compare(peerA, peerB):
     if (peerA.ident < peerA.local_addr) == peerA.initiator:
         return peerA, peerB
     return peerB, peerA
+
+
+def dump(msg):
+    msg = mummy.dumps(msg)
+    return struct.pack("!I", len(msg)) + msg
