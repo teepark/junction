@@ -24,10 +24,10 @@ class RemoteException(Exception):
     "An unexpected exception occurred in the peer handling an RPC"
 
 class LostConnection(Exception):
-    "The connection closed while waiting for a response"
+    "The connection closed while waiting for a message"
 
 class UnrecognizedRemoteProblem(Exception):
-    "Improperly formatted RPC error response"
+    "Improperly formatted error message"
 
 class DependentCallbackException(Exception):
     "An exception in a Dependent's callback function"

@@ -152,6 +152,25 @@ class JunctionTests(object):
 
         self.assertEqual(results, [])
 
+    def test_chunked_publish_success(self):
+        results = []
+        ev = greenhouse.Event()
+
+        @self.peer.accept_publish("service", 0, 0, "method")
+        def handler(items):
+            for item in items:
+                results.append(item)
+            ev.set()
+
+        for i in xrange(4):
+            greenhouse.pause()
+
+        self.sender.publish("service", 0, "method", ((x for x in xrange(5)),))
+
+        assert not ev.wait(TIMEOUT)
+
+        self.assertEqual(results, [0, 1, 2, 3, 4])
+
     def test_rpc_success(self):
         handler_results = []
         sender_results = []
@@ -364,6 +383,15 @@ class NetworklessDependentTests(StateClearingTestCase):
 
 
 class DownedConnectionTests(StateClearingTestCase):
+    def kill_client(self, cli_list):
+        cli = cli_list.pop()
+        cli._peer.sock.close()
+
+    def kill_hub(self, hub_list):
+        hub = hub_list.pop()
+        for peer in hub._dispatcher.peers.values():
+            peer.sock.close()
+
     def test_unrelated_rpcs_are_unaffected(self):
         global PORT
         hub = junction.Hub(("127.0.0.1", PORT), [])
@@ -386,11 +414,7 @@ class DownedConnectionTests(StateClearingTestCase):
         client.wait_on_connections()
         client = [client]
 
-        @greenhouse.schedule
-        def kill_client():
-            # so it'll get GC'd
-            cli = client.pop()
-            cli._peer.sock.close()
+        greenhouse.schedule(self.kill_client, (client,))
 
         # hub does a self-rpc during which the client connection goes away
         result = peer.rpc('service', 0, 'method', singular=1)
@@ -424,6 +448,118 @@ class DownedConnectionTests(StateClearingTestCase):
         result = hub.rpc('service', 0, 'method', singular=1)
 
         self.assertEqual(result, 1)
+
+    def test_unrelated_client_chunked_publishes_are_unrelated(self):
+        global PORT
+        hub = junction.Hub(("127.0.0.1", PORT), [])
+        PORT += 2
+
+        d = {}
+
+        @hub.accept_publish('service', 0, 0, 'method')
+        def handle(x, source):
+            for item in x:
+                d.setdefault(source, 0)
+                d[source] += 1
+
+        hub.start()
+
+        c1 = junction.Client(("127.0.0.1", PORT - 2))
+        c1.connect()
+        c1.wait_on_connections()
+        c2 = junction.Client(("127.0.0.1", PORT - 2))
+        c2.connect()
+        c2.wait_on_connections()
+
+        def gen():
+            greenhouse.pause_for(TIMEOUT)
+            yield None
+            greenhouse.pause_for(TIMEOUT)
+            yield None
+            greenhouse.pause_for(TIMEOUT)
+            yield None
+
+        greenhouse.schedule(c1.publish, args=('service', 0, 'method'),
+                kwargs={'args': (gen(),), 'kwargs': {'source': 'a'}})
+        greenhouse.schedule(c2.publish, args=('service', 0, 'method'),
+                kwargs={'args': (gen(),), 'kwargs': {'source': 'b'}})
+
+        greenhouse.pause_for(TIMEOUT)
+
+        c2 = [c2]
+        self.kill_client(c2)
+
+        greenhouse.pause_for(TIMEOUT)
+        greenhouse.pause_for(TIMEOUT)
+        greenhouse.pause_for(TIMEOUT)
+
+        self.assertEquals(d, {'a': 3, 'b': 1})
+
+    def test_downed_hub_during_chunked_publish_terminates_correctly(self):
+        global PORT
+        hub = junction.Hub(("127.0.0.1", PORT), [])
+        PORT += 2
+        l = []
+        ev = greenhouse.Event()
+
+        @hub.accept_publish('service', 0, 0, 'method')
+        def handle(x):
+            for item in x:
+                l.append(item)
+            ev.set()
+
+        hub.start()
+
+        hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT-2)])
+        PORT += 2
+        hub2.start()
+        hub2.wait_on_connections()
+        hub2 = [hub2]
+
+        def gen():
+            yield 1
+            yield 2
+            self.kill_hub(hub2)
+
+        hub2[0].publish('service', 0, 'method', (gen(),))
+        ev.wait(TIMEOUT)
+
+        self.assertEqual(l[:2], [1,2])
+        self.assertEqual(len(l), 3)
+        self.assertIsInstance(l[-1], junction.errors.LostConnection)
+
+    def test_downed_hub_during_chunk_pub_to_client_terminates_correctly(self):
+        global PORT
+        hub = junction.Hub(("127.0.0.1", PORT), [])
+        PORT += 2
+        l = []
+        ev = greenhouse.Event()
+
+        @hub.accept_publish('service', 0, 0, 'method')
+        def handle(x):
+            for item in x:
+                l.append(item)
+            ev.set()
+
+        hub.start()
+
+        client = junction.Client(("127.0.0.1", PORT - 2))
+        PORT += 2
+        client.connect()
+        client.wait_on_connections()
+        client = [client]
+
+        def gen():
+            yield 1
+            yield 2
+            self.kill_client(client)
+
+        client[0].publish('service', 0, 'method', (gen(),))
+        ev.wait(TIMEOUT)
+
+        self.assertEqual(l[:2], [1,2])
+        self.assertEqual(len(l), 3)
+        self.assertIsInstance(l[-1], junction.errors.LostConnection)
 
 
 if __name__ == '__main__':

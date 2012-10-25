@@ -157,7 +157,7 @@ class Hub(object):
             :class:`Unroutable <junction.errors.Unroutable>` if no peers are
             registered to receive the message
         '''
-        if not self._dispatcher.send_publish(service, routing_id, method,
+        if not self._dispatcher.send_publish(None, service, routing_id, method,
                 args or (), kwargs or {}, singular=singular):
             raise errors.Unroutable()
 
