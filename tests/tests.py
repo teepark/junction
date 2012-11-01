@@ -332,6 +332,28 @@ class JunctionTests(object):
         self.assertEqual(handler_results, [1,2,3,4])
         self.assertEqual(sender_results, [1,4,9,16])
 
+    def test_chunked_publish(self):
+        results = []
+
+        @self.peer.accept_rpc('service', 0, 0, 'method')
+        def handler(chunks):
+            for chunk in chunks:
+                results.append(chunk)
+            return 5
+
+        for i in xrange(4):
+            greenhouse.pause()
+
+        def gen():
+            yield 1
+            yield 2
+
+        self.assertEqual(
+                self.sender.rpc('service', 0, 'method', (gen(),),
+                    timeout=TIMEOUT),
+                [5])
+
+        self.assertEqual(results, [1,2])
 
 
 class HubTests(JunctionTests, StateClearingTestCase):

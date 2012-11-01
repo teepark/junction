@@ -43,3 +43,7 @@ RPC_ERR_KNOWN = 4
 RPC_ERR_UNKNOWN = 5
 RPC_ERR_LOST_CONN = 6
 RPC_ERR_UNSER_RESP = 7
+
+REVERSE = dict((val, key)
+        for (key, val) in globals().items()
+        if key.startswith("MSG_TYPE"))

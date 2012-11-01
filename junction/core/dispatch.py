@@ -333,6 +333,20 @@ class Dispatcher(object):
 
     def send_proxied_rpc(
             self, service, routing_id, method, args, kwargs, singular):
+        if len(args) == 1 and \
+                hasattr(args[0], '__iter__') and \
+                not hasattr(args[0], '__len__'):
+            log.debug("sending proxied chunked rpc %r" %
+                    ((service, routing_id, method),))
+            counter = self.rpc_client.next_counter()
+            routes = [self.peers.values()[0]]
+            rpc = self.rpc_client.chunked_request(counter, routes, singular)
+            if rpc:
+                greenhouse.schedule(self.send_chunked_rpc,
+                        args=(service, routing_id, method, args[0], kwargs,
+                            routes, counter, singular, True))
+            return rpc
+
         log.debug("sending proxied_rpc %r" % ((service, routing_id, method),))
         return self.rpc_client.request(
                 [self.peers.values()[0]],
@@ -397,9 +411,12 @@ class Dispatcher(object):
         msgtype = const.MSG_TYPE_REQUEST_IS_CHUNKED
         if proxied:
             msgtype += 9
-
-        self.multipush_str(targets, connection.dump(
-            (msgtype, (service, routing_id, method, counter, kwargs))))
+            is_chunked_msg = (msgtype,
+                    (service, routing_id, method, singular, counter, kwargs))
+        else:
+            is_chunked_msg = (msgtype,
+                    (service, routing_id, method, counter, kwargs))
+        self.multipush_str(targets, connection.dump(is_chunked_msg))
 
         chunks = iter(chunks)
         err = False
@@ -508,14 +525,14 @@ class Dispatcher(object):
             event.wait()
 
     def handle_start_request_chunks(self, peer, counter, handler,
-            kwargs):
+            kwargs, proxied=False):
         ev = greenhouse.Event()
         deq = collections.deque()
         bypeer = self.received_channels.setdefault(peer.ident or id(peer), {})
         bypeer[counter] = (ev, deq)
         gen = self._generate_received_chunks(ev, deq)
         greenhouse.schedule(self.rpc_handler,
-                args=(peer, counter, handler, (gen,), kwargs, False, True))
+                args=(peer, counter, handler, (gen,), kwargs, proxied, True))
 
     def handle_start_chunks(self, peer_ident, counter, handler, kwargs):
         ev = greenhouse.Event()
@@ -634,7 +651,7 @@ class Dispatcher(object):
         elif (counter not in self.rpc_client.inflight or
                 peer.ident not in self.rpc_client.inflight[counter]):
             # drop mistaken responses
-            log.warn("received mis-delivered rpc_response %d from %r" %
+            log.warn("received mis-delivered rpc_response %r from %r" %
                     (msg[:2], peer.ident))
             return
 
@@ -816,7 +833,8 @@ class Dispatcher(object):
         if handler:
             targets.append(LocalTarget(self, handler, schedule, peer))
 
-        bypeer = self.proxying_channels.setdefault(peer.addr, {})
+        peer_addr = id(peer)
+        bypeer = self.proxying_channels.setdefault(peer_addr, {})
         bypeer[source_counter] = {
             'dest_counter': dest_counter,
             'targets': targets,
@@ -834,14 +852,19 @@ class Dispatcher(object):
 
         source_counter, rc, chunk = msg
 
-        entry = self.proxying_channels.get(peer.addr, {}).get(
+        peer_addr = id(peer)
+        entry = self.proxying_channels.get(peer_addr, {}).get(
                 source_counter, None)
         if entry is None:
-            log.warn("received misdelivered proxy_publish_end_chunks " +
+            log.warn("received misdelivered proxy_publish_chunk " +
                     "%r from %r" % (source_counter, peer.addr))
+            return
 
         log.debug("received proxy_publish_chunk %r from %r" %
                 (source_counter, peer.addr))
+
+        if rc:
+            self.cleanup_forwarded_chunk(peer_addr, source_counter)
 
         self.multipush(entry['targets'], (const.MSG_TYPE_PUBLISH_CHUNK,
             (entry['dest_counter'], rc, chunk)))
@@ -852,7 +875,7 @@ class Dispatcher(object):
                     (peer.addr,))
             return
 
-        entry = self.cleanup_forwarded_chunk(peer.addr, msg)
+        entry = self.cleanup_forwarded_chunk(id(peer), msg)
         if entry is None:
             log.warn("received misdelivered proxy_publish_end_chunks " +
                     "%r from %r" % (msg, peer.addr))
@@ -976,6 +999,109 @@ class Dispatcher(object):
 
         self.cleanup_incoming_chunks(peer.ident, msg)
 
+    def incoming_proxy_request_is_chunked(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 6:
+            log.warn("received malformed proxy_request_is_chunked from %r" %
+                    (peer.addr,))
+            return
+
+        service, routing_id, method, singular, source_counter, kwargs = msg
+
+        log.debug("received proxy_request_is_chunked %r from %r" %
+                (msg[:4], peer.addr))
+
+        dest_counter = self.rpc_client.next_counter()
+        peers = list(self.find_peer_routes(
+            const.MSG_TYPE_RPC_REQUEST, service, routing_id))
+        targets = peers[:]
+
+        handler, schedule = self.find_local_handler(
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
+        if handler:
+            targets.append(LocalTarget(self, handler, schedule, peer))
+
+        if len(targets) > 1 and singular:
+            targets = [self.target_selection(
+                    targets, service, routing_id, method)]
+
+        peer_addr = id(peer)
+        bypeer = self.proxying_channels.setdefault(peer_addr, {})
+        bypeer[source_counter] = {
+            'dest_counter': dest_counter,
+            'targets': targets,
+            'type': const.MSG_TYPE_REQUEST_IS_CHUNKED,
+        }
+
+        if peers:
+            self.inflight_proxies[dest_counter] = {
+                'awaiting': len(peers),
+                'client_counter': source_counter,
+                'peer': peer
+            }
+
+        send_nomethod = False
+        if handler is None and not targets and self.locally_handles(
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id):
+            # if there are no remote handlers and we only fail locally because
+            # of the method, send a NOMETHOD error and include ourselves in the
+            # target_count so the client can distinguish between "no method"
+            # and "unroutable"
+            log.warn("received proxy_request %r for unknown method" %
+                    (msg[:3],))
+            send_nomethod = True
+
+        peer.push((const.MSG_TYPE_PROXY_RESPONSE_COUNT,
+            (source_counter, len(targets) + bool(send_nomethod))))
+
+        if send_nomethod:
+            peer.push((const.MSG_TYPE_PROXY_RESPONSE,
+                (source_counter, const.RPC_ERR_NOMETHOD, None)))
+
+        self.multipush(targets, (const.MSG_TYPE_REQUEST_IS_CHUNKED,
+            (service, routing_id, method, dest_counter, kwargs)))
+
+    def incoming_proxy_request_chunk(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 3:
+            log.warn("received malformed proxy_request_chunk from %r" %
+                    (peer.ident,))
+
+        source_counter, rc, chunk = msg
+
+        peer_addr = id(peer)
+        entry = self.proxying_channels.get(peer_addr, {}).get(
+                source_counter, None)
+        if entry is None:
+            log.warn("received misdelivered proxy_request_chunk " +
+                    "%r from %r" % (source_counter, peer.addr))
+            return
+
+        log.debug("received proxy_request_chunk %r from %r" %
+                (source_counter, peer.addr))
+
+        if rc:
+            self.cleanup_forwarded_chunk(peer_addr, source_counter)
+
+        self.multipush(entry['targets'], (const.MSG_TYPE_REQUEST_CHUNK,
+            (entry['dest_counter'], rc, chunk)))
+
+    def incoming_proxy_request_end_chunks(self, peer, msg):
+        if not isinstance(msg, (int, long)):
+            log.warn("received malformed proxy_request_end_chunks from %r" %
+                    (peer.ident,))
+            return
+
+        entry = self.cleanup_forwarded_chunk(id(peer), msg)
+        if entry is None:
+            log.warn("received misdelivered proxy_request_end_chunks " +
+                    "%r from %r" % (msg, peer.addr))
+            return
+
+        log.debug("received proxy_request_end_chunks %r from %r" %
+                (msg, peer.addr))
+
+        self.multipush(entry['targets'],
+                (const.MSG_TYPE_REQUEST_END_CHUNKS, entry['dest_counter']))
+
 
     handlers = {
         const.MSG_TYPE_ANNOUNCE: incoming_announce,
@@ -1000,6 +1126,11 @@ class Dispatcher(object):
         const.MSG_TYPE_REQUEST_IS_CHUNKED: incoming_request_is_chunked,
         const.MSG_TYPE_REQUEST_CHUNK: incoming_request_chunk,
         const.MSG_TYPE_REQUEST_END_CHUNKS: incoming_request_end_chunks,
+        const.MSG_TYPE_PROXY_REQUEST_IS_CHUNKED:
+                incoming_proxy_request_is_chunked,
+        const.MSG_TYPE_PROXY_REQUEST_CHUNK: incoming_proxy_request_chunk,
+        const.MSG_TYPE_PROXY_REQUEST_END_CHUNKS:
+                incoming_proxy_request_end_chunks,
     }
 
 
@@ -1046,13 +1177,21 @@ class LocalTarget(object):
             self.dispatcher.handle_start_chunks(
                     client, counter, self.handler, kwargs)
 
-        elif msgtype == const.MSG_TYPE_PUBLISH_CHUNK:
+        elif msgtype == const.MSG_TYPE_REQUEST_IS_CHUNKED:
+            service, routing_id, method, counter, kwargs = msg
+            client = self.client or self
+            self.dispatcher.handle_start_request_chunks(
+                    client, counter, self.handler, kwargs, True)
+
+        elif msgtype in (
+                const.MSG_TYPE_PUBLISH_CHUNK, const.MSG_TYPE_REQUEST_CHUNK):
             counter, rc, chunk = msg
             client = id(self.client) if self.client else None
             self.dispatcher.handle_chunk_arrival(client, counter, rc,
                     _check_error(log, None, rc, chunk))
 
-        elif msgtype == const.MSG_TYPE_PUBLISH_END_CHUNKS:
+        elif msgtype in (const.MSG_TYPE_PUBLISH_END_CHUNKS,
+                const.MSG_TYPE_REQUEST_END_CHUNKS):
             client = id(self.client) if self.client else None
             self.dispatcher.cleanup_incoming_chunks(client, msg)
 
