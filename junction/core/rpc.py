@@ -3,12 +3,13 @@ from __future__ import absolute_import
 import weakref
 
 import greenhouse
-from . import const
+from . import connection, const
 from .. import errors, futures
 
 
 class RPCClient(object):
     REQUEST = const.MSG_TYPE_RPC_REQUEST
+    CHUNKED_REQUEST = const.MSG_TYPE_REQUEST_IS_CHUNKED
 
     def __init__(self):
         self.counter = 1
@@ -36,6 +37,17 @@ class RPCClient(object):
 
         for peer in targets:
             peer.push_string(msg)
+
+        return rpc
+
+    def chunked_request(self, counter, targets, singular=False):
+        if not targets:
+            return None
+
+        self.sent(counter, targets)
+
+        rpc = futures.RPC(self, counter, len(targets), singular)
+        self.rpcs[counter] = rpc
 
         return rpc
 
@@ -86,6 +98,7 @@ class RPCClient(object):
 
 class ProxiedClient(RPCClient):
     REQUEST = const.MSG_TYPE_PROXY_REQUEST
+    CHUNKED_REQUEST = const.MSG_TYPE_PROXY_REQUEST_IS_CHUNKED
 
     def __init__(self, client):
         super(ProxiedClient, self).__init__()

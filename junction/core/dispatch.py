@@ -253,8 +253,9 @@ class Dispatcher(object):
 
         if len(args) == 1 and hasattr(args[0], "__iter__") \
                 and not hasattr(args[0], "__len__"):
-            self.send_chunked_publish(service, routing_id, method, args[0],
-                    kwargs, targets, proxied=False)
+            greenhouse.schedule(self.send_chunked_publish,
+                    (service, routing_id, method,
+                        args[0], kwargs, targets, False))
             return bool(handler or peers)
 
         msg = (const.MSG_TYPE_PUBLISH,
@@ -279,6 +280,8 @@ class Dispatcher(object):
         if proxied:
             msgtype += 9
 
+        log.debug("sending publish_is_chunked %r" %
+                ((service, routing_id, method, counter),))
         self.multipush(targets, (msgtype,
                 (service, routing_id, method, counter, kwargs)))
 
@@ -309,12 +312,17 @@ class Dispatcher(object):
             except TypeError:
                 log.error("sending RPC_ERR_UNSER_RESP as final publish chunk")
                 msg = connection.dump((msgtype + 3,
-                    (counter, const.RPC_ERR_UNSER_RESP, repr(chunk))))
+                        (counter, const.RPC_ERR_UNSER_RESP, repr(chunk))))
+                err = True
+
+            if not err:
+                log.debug("sending publish_chunk %r" % ((counter, rc),))
 
             self.multipush_str(targets, msg)
             greenhouse.pause()
 
         if not err:
+            log.debug("sending publish_end_chunks %d" % counter)
             self.multipush(targets, (msgtype + 6, counter))
 
     def cleanup_forwarded_chunk(self, peer_ident, counter):
@@ -370,8 +378,65 @@ class Dispatcher(object):
                     ((service, routing_id, method),
                     len(routes) - bool(handler)))
 
+        if len(args) == 1 and \
+                hasattr(args[0], '__iter__') and \
+                not hasattr(args[0], '__len__'):
+            counter = self.rpc_client.next_counter()
+            rpc = self.rpc_client.chunked_request(counter, routes, singular)
+            if rpc:
+                greenhouse.schedule(self.send_chunked_rpc,
+                        args=(service, routing_id, method, args[0], kwargs,
+                            routes, counter, singular))
+            return rpc
+
         return self.rpc_client.request(
                 routes, (service, routing_id, method, args, kwargs), singular)
+
+    def send_chunked_rpc(self, service, routing_id, method, chunks, kwargs,
+            targets, counter, singular=False, proxied=False):
+        msgtype = const.MSG_TYPE_REQUEST_IS_CHUNKED
+        if proxied:
+            msgtype += 9
+
+        self.multipush_str(targets, connection.dump(
+            (msgtype, (service, routing_id, method, counter, kwargs))))
+
+        chunks = iter(chunks)
+        err = False
+        while not err:
+            try:
+                chunk = chunks.next()
+                rc = 0
+            except StopIteration:
+                break
+            except errors.HandledError, exc:
+                log.error("sending RPC_ERR_KNOWN(%d) as final request chunk" %
+                        (exc.code,))
+                rc = const.RPC_ERR_KNOWN
+                chunk = (exc.code, exc.args)
+                greenhouse.handle_exception(*sys.exc_info())
+                err = True
+            except Exception:
+                log.error("sending RPC_ERR_UNKNOWN as final request chunk")
+                rc = const.RPC_ERR_UNKNOWN
+                chunk = traceback.format_exception(*sys.exc_info())
+                greenhouse.handle_exception(*sys.exc_info())
+                err = True
+
+            try:
+                msg = connection.dump((msgtype + 3, (counter, rc, chunk)))
+            except TypeError:
+                log.error("sending RPC_ERR_UNSER_RESP as final request chunk")
+                msg = connection.dump((msgtype + 3,
+                        (counter, const.RPC_ERR_UNSER_RESP, repr(chunk))))
+                err = True
+
+            self.multipush_str(targets, msg)
+            if not err:
+                greenhouse.pause()
+
+        if not err:
+            self.multipush(targets, (msgtype + 6, counter))
 
     def send_proxied_publish(self, service, routing_id, method, args, kwargs,
             singular=False):
@@ -441,6 +506,16 @@ class Dispatcher(object):
                     return
                 yield item
             event.wait()
+
+    def handle_start_request_chunks(self, peer, counter, handler,
+            kwargs):
+        ev = greenhouse.Event()
+        deq = collections.deque()
+        bypeer = self.received_channels.setdefault(peer.ident or id(peer), {})
+        bypeer[counter] = (ev, deq)
+        gen = self._generate_received_chunks(ev, deq)
+        greenhouse.schedule(self.rpc_handler,
+                args=(peer, counter, handler, (gen,), kwargs, False, True))
 
     def handle_start_chunks(self, peer_ident, counter, handler, kwargs):
         ev = greenhouse.Event()
@@ -530,8 +605,7 @@ class Dispatcher(object):
                 rc = const.RPC_ERR_NOHANDLER
 
             # mis-delivered message
-            peer.push((const.MSG_TYPE_RPC_RESPONSE,
-                    (counter, rc, None)))
+            peer.push((const.MSG_TYPE_RPC_RESPONSE, (counter, rc, None)))
             return
 
         log.debug("handling rpc_request %r from %r %s" % (
@@ -832,11 +906,73 @@ class Dispatcher(object):
 
     def incoming_publish_end_chunks(self, peer, msg):
         if not isinstance(msg, (int, long)):
-            log.warn("received mis-delivered publish_end_chunks from %r" %
+            log.warn("received malformed publish_end_chunks from %r" %
                     (peer.ident,))
             return
 
         log.debug("received publish_end_chunks %r from %r" % (msg, peer.ident))
+
+        self.cleanup_incoming_chunks(peer.ident, msg)
+
+    def incoming_request_is_chunked(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 5:
+            log.warn("received malformed request_is_chunked from %r" %
+                    (peer.ident,))
+            return
+
+        service, routing_id, method, counter, kwargs = msg
+
+        handler, schedule = self.find_local_handler(
+                const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
+        if handler is None:
+            if any(routing_id & mask == value
+                    for mask, value, handlers in self.local_subs.get(
+                        (const.MSG_TYPE_RPC_REQUEST, service), [])):
+                log.warn("received request_is_chunked " +
+                        "%r for unknown method from %r" %
+                        (msg[:4], peer.ident))
+                rc = const.RPC_ERR_NOMETHOD
+            else:
+                log.warn("received mis-delivered request_is_chunked " +
+                        "%r from %r" % (msg[:4], peer.ident))
+                rc = const.RPC_ERR_NOHANDLER
+
+            # some form of mis-delivered message
+            peer.push((const.MSG_TYPE_RPC_RESPONSE, (counter, rc, None)))
+            return
+
+        log.debug("handling request_is_chunked %r from %r scheduled" % (
+                msg[:4], peer.ident))
+
+        self.handle_start_request_chunks(peer, counter, handler, kwargs)
+
+    def incoming_request_chunk(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 3:
+            log.warn("received malformed request_chunk from %r" %
+                    (peer.ident,))
+            return
+
+        counter, rc, chunk = msg
+
+        peer_ident = peer.ident or id(peer)
+        if counter not in self.received_channels.get(peer_ident, ()):
+            log.warn("received mis-delivered request_chunk %r from %r" %
+                    ((counter, rc), peer_ident))
+            return
+
+        log.debug("received request_chunk %r from %r" %
+                ((counter, rc), peer.ident))
+
+        self.handle_chunk_arrival(peer.ident, counter, rc,
+                _check_error(log, peer.ident, rc, chunk))
+
+    def incoming_request_end_chunks(self, peer, msg):
+        if not isinstance(msg, (int, long)):
+            log.warn("received malformed request_end_chunks from %r" %
+                    (peer.ident,))
+            return
+
+        log.debug("received request_end_chunks %r from %r" % (msg, peer.ident))
 
         self.cleanup_incoming_chunks(peer.ident, msg)
 
@@ -852,14 +988,18 @@ class Dispatcher(object):
         const.MSG_TYPE_PROXY_RESPONSE: incoming_proxy_response,
         const.MSG_TYPE_PROXY_RESPONSE_COUNT: incoming_proxy_response_count,
         const.MSG_TYPE_PROXY_QUERY_COUNT: incoming_proxy_query_count,
+        const.MSG_TYPE_PUBLISH_IS_CHUNKED: incoming_publish_is_chunked,
+        const.MSG_TYPE_PUBLISH_CHUNK: incoming_publish_chunk,
+        const.MSG_TYPE_PUBLISH_END_CHUNKS: incoming_publish_end_chunks,
         const.MSG_TYPE_PROXY_PUBLISH_IS_CHUNKED:
                 incoming_proxy_publish_is_chunked,
         const.MSG_TYPE_PROXY_PUBLISH_CHUNK: incoming_proxy_publish_chunk,
         const.MSG_TYPE_PROXY_PUBLISH_END_CHUNKS:
                 incoming_proxy_publish_end_chunks,
-        const.MSG_TYPE_PUBLISH_IS_CHUNKED: incoming_publish_is_chunked,
-        const.MSG_TYPE_PUBLISH_CHUNK: incoming_publish_chunk,
-        const.MSG_TYPE_PUBLISH_END_CHUNKS: incoming_publish_end_chunks,
+
+        const.MSG_TYPE_REQUEST_IS_CHUNKED: incoming_request_is_chunked,
+        const.MSG_TYPE_REQUEST_CHUNK: incoming_request_chunk,
+        const.MSG_TYPE_REQUEST_END_CHUNKS: incoming_request_end_chunks,
     }
 
 
