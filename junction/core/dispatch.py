@@ -198,9 +198,9 @@ class Dispatcher(object):
         # give a LostConnection error to any in-progress
         # chunked messages and cork them with a STOP
         channels = self.received_channels.get(peer_ident, {})
-        for counter, (ev, deq) in channels.items():
-            self.handle_chunk_arrival(peer_ident or id(peer), counter, 1,
-                    errors.LostConnection(peer.ident))
+        for (msgtype, counter), (ev, deq) in channels.items():
+            self.handle_chunk_arrival(peer_ident or id(peer), msgtype, counter,
+                    1, errors.LostConnection(peer.ident))
 
         self.rpc_client.connection_down(peer)
         return subs
@@ -494,6 +494,53 @@ class Dispatcher(object):
         self.unregister_outgoing_channel(targets,
                 const.MSG_TYPE_REQUEST_IS_CHUNKED, counter)
 
+    def send_chunked_response(self, peer, counter, chunks, proxied):
+        msgtype = const.MSG_TYPE_RESPONSE_IS_CHUNKED
+        if proxied:
+            msgtype += 9
+
+        peer.push((msgtype, counter))
+
+        chunks = iter(chunks)
+        err = False
+        while not err:
+            try:
+                chunk = chunks.next()
+                rc = 0
+            except StopIteration:
+                break
+            except errors.HandledError, exc:
+                log.error("sending RPC_ERR_KNOWN(%d) as final response chunk" %
+                        (exc.code,))
+                rc = const.RPC_ERR_KNOWN
+                chunk = (exc.code, exc.args)
+                greenhouse.handle_exception(*sys.exc_info())
+                err = True
+            except Exception:
+                log.error("sending RPC_ERR_UNKNOWN as final response chunk")
+                rc = const.RPC_ERR_UNKNOWN
+                chunk = traceback.format_exception(*sys.exc_info())
+                greenhouse.handle_exception(*sys.exc_info())
+                err = True
+
+            try:
+                msg = peer.dump((msgtype + 3, (counter, rc, chunk)))
+            except TypeError:
+                log.error("sending RPC_ERR_UNSER_RESP as final response chunk")
+                msg = peer.dump((msgtype + 3,
+                    (counter, const.RPC_ERR_UNSER_RESP, repr(chunk))))
+                err = True
+
+            peer.push_string(msg)
+            if not err:
+                greenhouse.pause()
+
+        if not err:
+            peer.push((msgtype + 6, counter))
+
+        self.unregister_outgoing_channel([peer],
+                const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter)
+
     def send_proxied_publish(self, service, routing_id, method, args, kwargs,
             singular=False):
         log.debug("sending proxied_publish %r" %
@@ -545,6 +592,20 @@ class Dispatcher(object):
             result = traceback.format_exception(*sys.exc_info())
             greenhouse.handle_exception(*sys.exc_info())
 
+        if hasattr(result, "__iter__") and not hasattr(result, "__len__"):
+            if scheduled:
+                self.register_outgoing_channel([peer],
+                        const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter,
+                        greenhouse.getcurrent())
+                self.send_chunked_response(peer, counter, result, proxied)
+            else:
+                glet = greenhouse.greenlet(self.send_chunked_response,
+                        args=(peer, counter, result, proxied))
+                self.register_outgoing_channel([peer],
+                        const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter, glet)
+                greenhouse.schedule(glet)
+            return
+
         try:
             msg = peer.dump((response, (counter, rc, result)))
         except TypeError:
@@ -573,30 +634,38 @@ class Dispatcher(object):
         ev = greenhouse.Event()
         deq = collections.deque()
         bypeer = self.received_channels.setdefault(peer.ident or id(peer), {})
-        bypeer[counter] = (ev, deq)
+        bypeer[(const.MSG_TYPE_REQUEST_IS_CHUNKED, counter)] = (ev, deq)
         gen = self._generate_received_chunks(ev, deq)
         greenhouse.schedule(self.rpc_handler,
                 args=(peer, counter, handler, (gen,), kwargs, proxied, True))
 
-    def handle_start_chunks(self, peer_ident, counter, handler, kwargs):
+    def handle_start_response_chunks(self, peer, counter):
+        ev = greenhouse.Event()
+        deq = collections.deque()
+        bypeer = self.received_channels.setdefault(peer.ident or id(peer), {})
+        bypeer[(const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter)] = (ev, deq)
+        return self._generate_received_chunks(ev, deq)
+
+    def handle_start_publish_chunks(
+            self, peer_ident, counter, handler, kwargs):
         ev = greenhouse.Event()
         deq = collections.deque()
         bypeer = self.received_channels.setdefault(peer_ident, {})
-        bypeer[counter] = (ev, deq)
+        bypeer[(const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter)] = (ev, deq)
         gen = self._generate_received_chunks(ev, deq)
         greenhouse.schedule(handler, args=(gen,), kwargs=kwargs)
 
-    def handle_chunk_arrival(self, peer_ident, counter, rc, chunk):
-        ev, deq = self.received_channels[peer_ident][counter]
+    def handle_chunk_arrival(self, peer_ident, msgtype, counter, rc, chunk):
+        ev, deq = self.received_channels[peer_ident][(msgtype, counter)]
         deq.append(chunk)
         ev.set()
         ev.clear()
         if rc:
-            self.cleanup_incoming_chunks(peer_ident, counter)
+            self.cleanup_incoming_chunks(peer_ident, msgtype, counter)
 
-    def cleanup_incoming_chunks(self, peer_ident, counter):
-        ev, deq = self.received_channels.get(peer_ident, {}).pop(counter,
-                (None, None))
+    def cleanup_incoming_chunks(self, peer_ident, msgtype, counter):
+        ev, deq = self.received_channels.get(peer_ident, {}).pop(
+                (msgtype, counter), (None, None))
         if ev is not None:
             deq.append(STOP)
             ev.set()
@@ -949,7 +1018,7 @@ class Dispatcher(object):
         log.debug("received publish_is_chunked %r from %r" %
                 (msg[:4], peer.ident))
 
-        self.handle_start_chunks(peer.ident, counter, handler, kwargs)
+        self.handle_start_publish_chunks(peer.ident, counter, handler, kwargs)
 
     def incoming_publish_chunk(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
@@ -960,7 +1029,8 @@ class Dispatcher(object):
         counter, rc, chunk = msg
 
         peer_ident = peer.ident or id(peer)
-        if counter not in self.received_channels.get(peer_ident, ()):
+        if ((const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter) not in
+                self.received_channels.get(peer_ident, ())):
             log.warn("received mis-delivered publish_chunk %r from %r" %
                     ((counter, rc), peer_ident))
             return
@@ -968,7 +1038,8 @@ class Dispatcher(object):
         log.debug("received publish_chunk %r from %r" %
                 ((counter, rc), peer.ident))
 
-        self.handle_chunk_arrival(peer.ident, counter, rc,
+        self.handle_chunk_arrival(peer.ident,
+                const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter, rc,
                 _check_error(log, peer.ident, rc, chunk))
 
     def incoming_publish_end_chunks(self, peer, msg):
@@ -979,7 +1050,8 @@ class Dispatcher(object):
 
         log.debug("received publish_end_chunks %r from %r" % (msg, peer.ident))
 
-        self.cleanup_incoming_chunks(peer.ident, msg)
+        self.cleanup_incoming_chunks(peer.ident,
+                const.MSG_TYPE_PUBLISH_IS_CHUNKED, msg)
 
     def incoming_request_is_chunked(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:
@@ -1022,7 +1094,8 @@ class Dispatcher(object):
         counter, rc, chunk = msg
 
         peer_ident = peer.ident or id(peer)
-        if counter not in self.received_channels.get(peer_ident, ()):
+        if ((const.MSG_TYPE_REQUEST_IS_CHUNKED, counter) not in
+                self.received_channels.get(peer_ident, ())):
             log.warn("received mis-delivered request_chunk %r from %r" %
                     ((counter, rc), peer_ident))
             return
@@ -1030,7 +1103,8 @@ class Dispatcher(object):
         log.debug("received request_chunk %r from %r" %
                 ((counter, rc), peer.ident))
 
-        self.handle_chunk_arrival(peer.ident, counter, rc,
+        self.handle_chunk_arrival(peer.ident,
+                const.MSG_TYPE_REQUEST_IS_CHUNKED, counter, rc,
                 _check_error(log, peer.ident, rc, chunk))
 
     def incoming_request_end_chunks(self, peer, msg):
@@ -1041,7 +1115,8 @@ class Dispatcher(object):
 
         log.debug("received request_end_chunks %r from %r" % (msg, peer.ident))
 
-        self.cleanup_incoming_chunks(peer.ident, msg)
+        self.cleanup_incoming_chunks(peer.ident,
+                const.MSG_TYPE_REQUEST_IS_CHUNKED, msg)
 
     def incoming_proxy_request_is_chunked(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 6:
@@ -1146,6 +1221,62 @@ class Dispatcher(object):
         self.multipush(entry['targets'],
                 (const.MSG_TYPE_REQUEST_END_CHUNKS, entry['dest_counter']))
 
+    def incoming_response_is_chunked(self, peer, msg):
+        if not isinstance(msg, (int, long)):
+            log.warn("received malformed response_is_chunked from %r" %
+                    (peer.ident,))
+            return
+
+        if msg in self.inflight_proxies:
+            log.debug("received a proxied response_is_chunked %r from %r" %
+                    (msg, peer.ident))
+            #TODO proxying chunked responses
+        elif (msg not in self.rpc_client.inflight or
+                peer.ident not in self.rpc_client.inflight[msg]):
+            # drop mistaken responses
+            log.warn("received mis-delivered response_is_chunked %r from %r" %
+                    (msg, peer.ident))
+            return
+
+        log.debug("received response_is_chunked %r from %r" % (msg, peer.ident))
+
+        self.rpc_client.response(peer, msg, 0,
+                self.handle_start_response_chunks(peer, msg))
+
+    def incoming_response_chunk(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 3:
+            log.warn("received malformed response_chunk from %r" %
+                    (peer.ident,))
+            return
+
+        counter, rc, chunk = msg
+
+        peer_ident = peer.ident or id(peer)
+        if ((const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter) not in
+                self.received_channels.get(peer_ident, ())):
+            log.warn("received mis-delivered response_chunk %r from %r" %
+                    ((counter, rc), peer_ident))
+            return
+
+        log.debug("received response_chunk %r from %r" %
+                ((counter, rc), peer_ident))
+
+        self.handle_chunk_arrival(peer.ident,
+                const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter, rc,
+                _check_error(log, peer.ident, rc, chunk))
+
+    def incoming_response_end_chunks(self, peer, msg):
+        if not isinstance(msg, (int, long)):
+            log.warn("received malformed response_end_chunks from %r" %
+                    (peer.ident,))
+            return
+
+        log.debug("received response_end_chunks %r from %r" %
+                (msg, peer.ident))
+
+        self.cleanup_incoming_chunks(peer.ident,
+                const.MSG_TYPE_RESPONSE_IS_CHUNKED, msg)
+
 
     handlers = {
         const.MSG_TYPE_ANNOUNCE: incoming_announce,
@@ -1175,6 +1306,9 @@ class Dispatcher(object):
         const.MSG_TYPE_PROXY_REQUEST_CHUNK: incoming_proxy_request_chunk,
         const.MSG_TYPE_PROXY_REQUEST_END_CHUNKS:
                 incoming_proxy_request_end_chunks,
+        const.MSG_TYPE_RESPONSE_IS_CHUNKED: incoming_response_is_chunked,
+        const.MSG_TYPE_RESPONSE_CHUNK: incoming_response_chunk,
+        const.MSG_TYPE_RESPONSE_END_CHUNKS: incoming_response_end_chunks,
     }
 
 
@@ -1218,7 +1352,7 @@ class LocalTarget(object):
         elif msgtype == const.MSG_TYPE_PUBLISH_IS_CHUNKED:
             service, routing_id, method, counter, kwargs = msg
             client = id(self.client) if self.client else None
-            self.dispatcher.handle_start_chunks(
+            self.dispatcher.handle_start_publish_chunks(
                     client, counter, self.handler, kwargs)
 
         elif msgtype == const.MSG_TYPE_REQUEST_IS_CHUNKED:
@@ -1230,14 +1364,14 @@ class LocalTarget(object):
         elif msgtype in (
                 const.MSG_TYPE_PUBLISH_CHUNK, const.MSG_TYPE_REQUEST_CHUNK):
             counter, rc, chunk = msg
-            client = id(self.client) if self.client else None
-            self.dispatcher.handle_chunk_arrival(client, counter, rc,
-                    _check_error(log, None, rc, chunk))
+            client_id = id(self.client) if self.client else None
+            self.dispatcher.handle_chunk_arrival(client_id, msgtype - 3,
+                    counter, rc, _check_error(log, None, rc, chunk))
 
         elif msgtype in (const.MSG_TYPE_PUBLISH_END_CHUNKS,
                 const.MSG_TYPE_REQUEST_END_CHUNKS):
             client = id(self.client) if self.client else None
-            self.dispatcher.cleanup_incoming_chunks(client, msg)
+            self.dispatcher.cleanup_incoming_chunks(client, msgtype - 6, msg)
 
     # trick RPCClient.request
     # in the case of a local handler it doesn't have to go over the wire, so
