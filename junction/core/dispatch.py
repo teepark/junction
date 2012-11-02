@@ -28,6 +28,7 @@ class Dispatcher(object):
         self.inflight_proxies = {}
         self.proxying_channels = {}
         self.received_channels = {}
+        self.outgoing_channels = {}
 
     def add_local_subscription(self, msg_type, service, mask, value, method,
             handler, schedule):
@@ -187,9 +188,15 @@ class Dispatcher(object):
             if counter in self.inflight_proxies:
                 self.proxied_response(counter, const.RPC_ERR_LOST_CONN, None)
 
+        peer_ident = peer.ident or id(peer)
+
+        # stop sender greenlets for any outgoing chunked messages to this peer
+        channels = self.outgoing_channels.pop(peer_ident, {})
+        for msgtype, counter in channels.keys():
+            greenhouse.end(channels.pop((msgtype, counter)))
+
         # give a LostConnection error to any in-progress
         # chunked messages and cork them with a STOP
-        peer_ident = peer.ident or id(peer)
         channels = self.received_channels.get(peer_ident, {})
         for counter, (ev, deq) in channels.items():
             self.handle_chunk_arrival(peer_ident or id(peer), counter, 1,
@@ -197,6 +204,23 @@ class Dispatcher(object):
 
         self.rpc_client.connection_down(peer)
         return subs
+
+    def register_outgoing_channel(self, peers, msgtype, counter, glet):
+        for peer in peers:
+            if isinstance(peer, LocalTarget):
+                continue
+            peer_addr = peer.ident or id(peer)
+            bypeer = self.outgoing_channels.setdefault(peer_addr, {})
+            bypeer[(msgtype, counter)] = glet
+
+    def unregister_outgoing_channel(self, peers, msgtype, counter):
+        for peer in peers:
+            if isinstance(peer, LocalTarget):
+                continue
+            peer_addr = peer.ident or id(peer)
+            bypeer = self.outgoing_channels.setdefault(peer_addr, {})
+            if bypeer.pop((msgtype, counter), None) and not bypeer:
+                del self.outgoing_channels[peer_addr]
 
     def incoming_announce(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 4:
@@ -253,9 +277,13 @@ class Dispatcher(object):
 
         if len(args) == 1 and hasattr(args[0], "__iter__") \
                 and not hasattr(args[0], "__len__"):
-            greenhouse.schedule(self.send_chunked_publish,
-                    (service, routing_id, method,
+            counter = self.rpc_client.next_counter()
+            glet = greenhouse.greenlet(self.send_chunked_publish,
+                    (service, routing_id, method, counter,
                         args[0], kwargs, targets, False))
+            self.register_outgoing_channel(peers,
+                    const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter, glet)
+            greenhouse.schedule(glet)
             return bool(handler or peers)
 
         msg = (const.MSG_TYPE_PUBLISH,
@@ -274,8 +302,7 @@ class Dispatcher(object):
         return bool(handler or peers)
 
     def send_chunked_publish(self, service, routing_id, method,
-            chunks, kwargs, targets, proxied=False):
-        counter = self.rpc_client.next_counter()
+            counter, chunks, kwargs, targets, proxied=False):
         msgtype = const.MSG_TYPE_PUBLISH_IS_CHUNKED
         if proxied:
             msgtype += 9
@@ -325,6 +352,9 @@ class Dispatcher(object):
             log.debug("sending publish_end_chunks %d" % counter)
             self.multipush(targets, (msgtype + 6, counter))
 
+        self.unregister_outgoing_channel(targets,
+                const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter)
+
     def cleanup_forwarded_chunk(self, peer_ident, counter):
         entry = self.proxying_channels.get(peer_ident, {}).pop(counter, None)
         if entry is not None and not self.proxying_channels[peer_ident]:
@@ -342,9 +372,12 @@ class Dispatcher(object):
             routes = [self.peers.values()[0]]
             rpc = self.rpc_client.chunked_request(counter, routes, singular)
             if rpc:
-                greenhouse.schedule(self.send_chunked_rpc,
+                glet = greenhouse.greenlet(self.send_chunked_rpc,
                         args=(service, routing_id, method, args[0], kwargs,
                             routes, counter, singular, True))
+                self.register_outgoing_channel(routes,
+                        const.MSG_TYPE_REQUEST_IS_CHUNKED, counter, glet)
+                greenhouse.schedule(glet)
             return rpc
 
         log.debug("sending proxied_rpc %r" % ((service, routing_id, method),))
@@ -398,9 +431,12 @@ class Dispatcher(object):
             counter = self.rpc_client.next_counter()
             rpc = self.rpc_client.chunked_request(counter, routes, singular)
             if rpc:
-                greenhouse.schedule(self.send_chunked_rpc,
+                glet = greenhouse.greenlet(self.send_chunked_rpc,
                         args=(service, routing_id, method, args[0], kwargs,
                             routes, counter, singular))
+                self.register_outgoing_channel(peers,
+                        const.MSG_TYPE_REQUEST_IS_CHUNKED, counter, glet)
+                greenhouse.schedule(glet)
             return rpc
 
         return self.rpc_client.request(
@@ -455,18 +491,26 @@ class Dispatcher(object):
         if not err:
             self.multipush(targets, (msgtype + 6, counter))
 
+        self.unregister_outgoing_channel(targets,
+                const.MSG_TYPE_REQUEST_IS_CHUNKED, counter)
+
     def send_proxied_publish(self, service, routing_id, method, args, kwargs,
             singular=False):
         log.debug("sending proxied_publish %r" %
                 ((service, routing_id, method),))
+        peer = self.peers.values()[0]
         if len(args) == 1 and hasattr(args[0], "__iter__") \
                 and not hasattr(args[0], "__len__"):
-            self.send_chunked_publish(service, routing_id, method, args[0],
-                    kwargs, [self.peers.values()[0]], proxied=True)
+            counter = self.rpc_client.next_counter()
+            glet = greenhouse.greenlet(self.send_chunked_publish,
+                    args=(service, routing_id, method, counter,
+                        args[0], kwargs, [peer], True))
+            self.register_outgoing_channel([peer],
+                    const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter, glet)
+            greenhouse.schedule(glet)
         else:
-            self.peers.values()[0].push(
-                    (const.MSG_TYPE_PROXY_PUBLISH,
-                        (service, routing_id, method, args, kwargs, singular)))
+            peer.push((const.MSG_TYPE_PROXY_PUBLISH,
+                    (service, routing_id, method, args, kwargs, singular)))
 
     def publish_handler(self, handler, msg, source, args, kwargs):
         log.debug("executing publish handler for %r from %r" % (msg, source))

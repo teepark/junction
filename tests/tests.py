@@ -547,7 +547,7 @@ class DownedConnectionTests(StateClearingTestCase):
         ev.wait(TIMEOUT)
 
         self.assertEqual(l[:2], [1,2])
-        self.assertEqual(len(l), 3)
+        self.assertEqual(len(l), 3, l)
         self.assertIsInstance(l[-1], junction.errors.LostConnection)
 
     def test_downed_hub_during_chunk_pub_to_client_terminates_correctly(self):
@@ -582,6 +582,77 @@ class DownedConnectionTests(StateClearingTestCase):
         self.assertEqual(l[:2], [1,2])
         self.assertEqual(len(l), 3)
         self.assertIsInstance(l[-1], junction.errors.LostConnection)
+
+    def test_downed_recipient_cancels_the_hub_sender_during_chunked_publish(self):
+        global PORT
+        hub = junction.Hub(("127.0.0.1", PORT), [])
+        PORT += 2
+        triggered = [False]
+
+        @hub.accept_publish('service', 0, 0, 'method')
+        def handle(chunks):
+            for item in chunks:
+                pass
+
+        hub.start()
+
+        hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT - 2)])
+        PORT += 2
+        hub2.start()
+        hub2.wait_on_connections()
+
+        def gen():
+            try:
+                while 1:
+                    yield None
+                    greenhouse.pause_for(TIMEOUT)
+            finally:
+                triggered[0] = True
+
+        hub2.publish('service', 0, 'method', (gen(),))
+
+        hub = [hub]
+        greenhouse.schedule_in(TIMEOUT * 4, self.kill_hub, args=(hub,))
+
+        greenhouse.pause_for(TIMEOUT * 5)
+
+        assert triggered[0]
+
+    def test_downed_recipient_cancels_the_hub_sender_during_chunked_request(self):
+        global PORT
+        hub = junction.Hub(("127.0.0.1", PORT), [])
+        PORT += 2
+        triggered = [False]
+
+        @hub.accept_rpc('service', 0, 0, 'method')
+        def handle(chunks):
+            for item in chunks:
+                pass
+            return "all done"
+
+        hub.start()
+
+        hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT - 2)])
+        PORT += 2
+        hub2.start()
+        hub2.wait_on_connections()
+
+        def gen():
+            try:
+                while 1:
+                    yield None
+                    greenhouse.pause_for(TIMEOUT)
+            finally:
+                triggered[0] = True
+
+        rpc = hub2.send_rpc('service', 0, 'method', (gen(),))
+
+        hub = [hub]
+        greenhouse.schedule_in(TIMEOUT * 4, self.kill_hub, args=(hub,))
+
+        greenhouse.pause_for(TIMEOUT * 5)
+
+        assert triggered[0]
 
 
 if __name__ == '__main__':
