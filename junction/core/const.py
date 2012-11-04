@@ -15,7 +15,7 @@ MSG_TYPE_PROXY_QUERY_COUNT = 11
 #  - <msgtype>            + 9 == <corresponding proxy msgtype>
 #  - <is chunked msgtype> + 3 == <corresponding chunk msgtype>
 #  - <chunk msgtype>      + 3 == <corresponding end chunks msgtype>
-# (these save us from a bunch of mapping table lookups)
+# these save us from a bunch of mapping table lookups
 MSG_TYPE_PUBLISH_IS_CHUNKED = 12
 MSG_TYPE_REQUEST_IS_CHUNKED = 13
 MSG_TYPE_RESPONSE_IS_CHUNKED = 14
