@@ -637,14 +637,16 @@ class Dispatcher(object):
             event.wait()
 
     def handle_start_request_chunks(self, peer, counter, handler,
-            kwargs, proxied=False):
+            kwargs, proxied=False, client_counter=None):
         ev = greenhouse.Event()
         deq = collections.deque()
         bypeer = self.received_channels.setdefault(peer.ident or id(peer), {})
         bypeer[(const.MSG_TYPE_REQUEST_IS_CHUNKED, counter)] = (ev, deq)
         gen = self._generate_received_chunks(ev, deq)
+        client_counter = client_counter or counter
         greenhouse.schedule(self.rpc_handler,
-                args=(peer, counter, handler, (gen,), kwargs, proxied, True))
+                args=(peer, client_counter, handler, (gen,), kwargs,
+                        proxied, True))
 
     def handle_start_response_chunks(self, peer_ident, counter):
         ev = greenhouse.Event()
@@ -1175,15 +1177,18 @@ class Dispatcher(object):
         log.debug("received proxy_request_is_chunked %r from %r" %
                 (msg[:4], peer.addr))
 
-        dest_counter = self.rpc_client.next_counter()
         peers = list(self.find_peer_routes(
             const.MSG_TYPE_RPC_REQUEST, service, routing_id))
         targets = peers[:]
 
+        dest_counter = self.rpc_client.next_counter()
+        self.rpc_client.sent(dest_counter, peers)
+
         handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
         if handler:
-            targets.append(LocalTarget(self, handler, schedule, peer))
+            targets.append(LocalTarget(self, handler, schedule, peer,
+                source_counter))
 
         if len(targets) > 1 and singular:
             targets = [self.target_selection(
@@ -1429,13 +1434,15 @@ class Dispatcher(object):
 
 
 class LocalTarget(object):
-    def __init__(self, dispatcher, handler, schedule, client=None):
+    def __init__(self, dispatcher, handler, schedule, client=None,
+            client_counter=None):
         self.dispatcher = dispatcher
         self.handler = handler
         self.schedule = schedule
         self.ident = None
         self.up = True
         self.client = client
+        self.client_counter = client_counter
 
     def push(self, msg):
         msgtype, msg = msg
@@ -1475,7 +1482,8 @@ class LocalTarget(object):
             service, routing_id, method, counter, kwargs = msg
             client = self.client or self
             self.dispatcher.handle_start_request_chunks(
-                    client, counter, self.handler, kwargs, True)
+                    client, counter, self.handler, kwargs, True,
+                    self.client_counter)
 
         elif msgtype in (
                 const.MSG_TYPE_PUBLISH_CHUNK, const.MSG_TYPE_REQUEST_CHUNK):
