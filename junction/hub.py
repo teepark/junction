@@ -5,9 +5,8 @@ import random
 import socket
 import time
 
-import greenhouse
 from . import errors, futures
-from .core import connection, const, dispatch, rpc
+from .core import backend, connection, const, dispatch, rpc
 
 
 log = logging.getLogger("junction.hub")
@@ -62,7 +61,7 @@ class Hub(object):
             peer.go_down(reconnect=False)
 
         if self._listener_coro:
-            greenhouse.schedule_exception(
+            backend.schedule_exception(
                     errors._BailOutOfListener(), self._listener_coro)
 
     def accept_publish(
@@ -379,8 +378,8 @@ class Hub(object):
         "Start up the hub's server, and have it start initiating connections"
         log.info("starting")
 
-        self._listener_coro = greenhouse.greenlet(self._listener)
-        greenhouse.schedule(self._listener_coro)
+        self._listener_coro = backend.greenlet(self._listener)
+        backend.schedule(self._listener_coro)
 
         for addr in self._peers:
             self.add_peer(addr)
@@ -388,12 +387,12 @@ class Hub(object):
     def add_peer(self, peer_addr):
         "Build a connection to the Hub at a given ``(host, port)`` address"
         peer = connection.Peer(
-                self._ident, self._dispatcher, peer_addr, greenhouse.Socket())
+                self._ident, self._dispatcher, peer_addr, backend.Socket())
         peer.start()
         self._started_peers[peer_addr] = peer
 
     def _listener(self):
-        server = greenhouse.Socket()
+        server = backend.Socket()
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         server.bind(self.addr)

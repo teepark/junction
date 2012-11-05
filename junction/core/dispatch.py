@@ -5,8 +5,7 @@ import logging
 import sys
 import traceback
 
-import greenhouse
-from . import connection, const
+from . import backend, connection, const
 from .. import errors, hooks
 
 
@@ -193,7 +192,7 @@ class Dispatcher(object):
         # stop sender greenlets for any outgoing chunked messages to this peer
         channels = self.outgoing_channels.pop(peer_ident, {})
         for msgtype, counter in channels.keys():
-            greenhouse.end(channels.pop((msgtype, counter)))
+            backend.end(channels.pop((msgtype, counter)))
 
         # give a LostConnection error to any in-progress
         # chunked messages and cork them with a STOP
@@ -278,12 +277,12 @@ class Dispatcher(object):
         if len(args) == 1 and hasattr(args[0], "__iter__") \
                 and not hasattr(args[0], "__len__"):
             counter = self.rpc_client.next_counter()
-            glet = greenhouse.greenlet(self.send_chunked_publish,
+            glet = backend.greenlet(self.send_chunked_publish,
                     (service, routing_id, method, counter,
                         args[0], kwargs, targets, False))
             self.register_outgoing_channel(peers,
                     const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter, glet)
-            greenhouse.schedule(glet)
+            backend.schedule(glet)
             return bool(handler or peers)
 
         msg = (const.MSG_TYPE_PUBLISH,
@@ -325,13 +324,13 @@ class Dispatcher(object):
                         (exc.code,))
                 rc = const.RPC_ERR_KNOWN
                 chunk = (exc.code, exc.args)
-                greenhouse.handle_exception(*sys.exc_info())
+                backend.handle_exception(*sys.exc_info())
                 err = True
             except Exception:
                 log.error("sending RPC_ERR_UNKNOWN as final publish chunk")
                 rc = const.RPC_ERR_UNKOWN
                 chunk = ''.join(traceback.format_exception(*sys.exc_info()))
-                greenhouse.handle_exception(*sys.exc_info())
+                backend.handle_exception(*sys.exc_info())
                 err = True
 
             try:
@@ -346,7 +345,7 @@ class Dispatcher(object):
                 log.debug("sending publish_chunk %r" % ((counter, rc),))
 
             self.multipush_str(targets, msg)
-            greenhouse.pause()
+            backend.pause()
 
         if not err:
             log.debug("sending publish_end_chunks %d" % counter)
@@ -372,12 +371,12 @@ class Dispatcher(object):
             routes = [self.peers.values()[0]]
             rpc = self.rpc_client.chunked_request(counter, routes, singular)
             if rpc:
-                glet = greenhouse.greenlet(self.send_chunked_rpc,
+                glet = backend.greenlet(self.send_chunked_rpc,
                         args=(service, routing_id, method, args[0], kwargs,
                             routes, counter, singular, True))
                 self.register_outgoing_channel(routes,
                         const.MSG_TYPE_REQUEST_IS_CHUNKED, counter, glet)
-                greenhouse.schedule(glet)
+                backend.schedule(glet)
             return rpc
 
         log.debug("sending proxied_rpc %r" % ((service, routing_id, method),))
@@ -431,12 +430,12 @@ class Dispatcher(object):
             counter = self.rpc_client.next_counter()
             rpc = self.rpc_client.chunked_request(counter, routes, singular)
             if rpc:
-                glet = greenhouse.greenlet(self.send_chunked_rpc,
+                glet = backend.greenlet(self.send_chunked_rpc,
                         args=(service, routing_id, method, args[0], kwargs,
                             routes, counter, singular))
                 self.register_outgoing_channel(peers,
                         const.MSG_TYPE_REQUEST_IS_CHUNKED, counter, glet)
-                greenhouse.schedule(glet)
+                backend.schedule(glet)
             return rpc
 
         return self.rpc_client.request(
@@ -467,13 +466,13 @@ class Dispatcher(object):
                         (exc.code,))
                 rc = const.RPC_ERR_KNOWN
                 chunk = (exc.code, exc.args)
-                greenhouse.handle_exception(*sys.exc_info())
+                backend.handle_exception(*sys.exc_info())
                 err = True
             except Exception:
                 log.error("sending RPC_ERR_UNKNOWN as final request chunk")
                 rc = const.RPC_ERR_UNKNOWN
                 chunk = ''.join(traceback.format_exception(*sys.exc_info()))
-                greenhouse.handle_exception(*sys.exc_info())
+                backend.handle_exception(*sys.exc_info())
                 err = True
 
             try:
@@ -486,7 +485,7 @@ class Dispatcher(object):
 
             self.multipush_str(targets, msg)
             if not err:
-                greenhouse.pause()
+                backend.pause()
 
         if not err:
             self.multipush(targets, (msgtype + 6, counter))
@@ -518,13 +517,13 @@ class Dispatcher(object):
                         (exc.code,))
                 rc = const.RPC_ERR_KNOWN
                 chunk = (exc.code, exc.args)
-                greenhouse.handle_exception(*sys.exc_info())
+                backend.handle_exception(*sys.exc_info())
                 err = True
             except Exception:
                 log.error("sending RPC_ERR_UNKNOWN as final response chunk")
                 rc = const.RPC_ERR_UNKNOWN
                 chunk = ''.join(traceback.format_exception(*sys.exc_info()))
-                greenhouse.handle_exception(*sys.exc_info())
+                backend.handle_exception(*sys.exc_info())
                 err = True
 
             try:
@@ -537,7 +536,7 @@ class Dispatcher(object):
 
             peer.push_string(msg)
             if not err:
-                greenhouse.pause()
+                backend.pause()
 
         if not err:
             msg = (counter, ident)
@@ -556,12 +555,12 @@ class Dispatcher(object):
         if len(args) == 1 and hasattr(args[0], "__iter__") \
                 and not hasattr(args[0], "__len__"):
             counter = self.rpc_client.next_counter()
-            glet = greenhouse.greenlet(self.send_chunked_publish,
+            glet = backend.greenlet(self.send_chunked_publish,
                     args=(service, routing_id, method, counter,
                         args[0], kwargs, [peer], True))
             self.register_outgoing_channel([peer],
                     const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter, glet)
-            greenhouse.schedule(glet)
+            backend.schedule(glet)
         else:
             peer.push((const.MSG_TYPE_PROXY_PUBLISH,
                     (service, routing_id, method, args, kwargs, singular)))
@@ -572,7 +571,7 @@ class Dispatcher(object):
             handler(*args, **kwargs)
         except Exception:
             log.error("exception handling publish %r from %r" % (msg, source))
-            greenhouse.handle_exception(*sys.exc_info())
+            backend.handle_exception(*sys.exc_info())
 
     def rpc_handler(self, peer, counter, handler, args, kwargs,
             proxied=False, scheduled=False):
@@ -591,26 +590,26 @@ class Dispatcher(object):
                     (exc.code, req_type, counter))
             rc = const.RPC_ERR_KNOWN
             result = (exc.code, exc.args)
-            greenhouse.handle_exception(*sys.exc_info())
+            backend.handle_exception(*sys.exc_info())
         except Exception:
             log.error("responding with RPC_ERR_UNKNOWN to %s %d" %
                     (req_type, counter))
             rc = const.RPC_ERR_UNKNOWN
             result = ''.join(traceback.format_exception(*sys.exc_info()))
-            greenhouse.handle_exception(*sys.exc_info())
+            backend.handle_exception(*sys.exc_info())
 
         if hasattr(result, "__iter__") and not hasattr(result, "__len__"):
             if scheduled:
                 self.register_outgoing_channel([peer],
                         const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter,
-                        greenhouse.getcurrent())
+                        backend.getcurrent())
                 self.send_chunked_response(peer, counter, result, proxied)
             else:
-                glet = greenhouse.greenlet(self.send_chunked_response,
+                glet = backend.greenlet(self.send_chunked_response,
                         args=(peer, counter, result, proxied))
                 self.register_outgoing_channel([peer],
                         const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter, glet)
-                greenhouse.schedule(glet)
+                backend.schedule(glet)
             return
 
         try:
@@ -620,7 +619,7 @@ class Dispatcher(object):
                     (req_type, counter))
             msg = peer.dump((response,
                 (counter, const.RPC_ERR_UNSER_RESP, repr(result))))
-            greenhouse.handle_exception(*sys.exc_info())
+            backend.handle_exception(*sys.exc_info())
         else:
             log.debug("responding with MSG_TYPE_RESPONSE to %s %d" %
                     (req_type, counter))
@@ -638,18 +637,18 @@ class Dispatcher(object):
 
     def handle_start_request_chunks(self, peer, counter, handler,
             kwargs, proxied=False, client_counter=None):
-        ev = greenhouse.Event()
+        ev = backend.Event()
         deq = collections.deque()
         bypeer = self.received_channels.setdefault(peer.ident or id(peer), {})
         bypeer[(const.MSG_TYPE_REQUEST_IS_CHUNKED, counter)] = (ev, deq)
         gen = self._generate_received_chunks(ev, deq)
         client_counter = client_counter or counter
-        greenhouse.schedule(self.rpc_handler,
+        backend.schedule(self.rpc_handler,
                 args=(peer, client_counter, handler, (gen,), kwargs,
                         proxied, True))
 
     def handle_start_response_chunks(self, peer_ident, counter):
-        ev = greenhouse.Event()
+        ev = backend.Event()
         deq = collections.deque()
         bypeer = self.received_channels.setdefault(peer_ident, {})
         bypeer[(const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter)] = (ev, deq)
@@ -657,12 +656,12 @@ class Dispatcher(object):
 
     def handle_start_publish_chunks(
             self, peer_ident, counter, handler, kwargs):
-        ev = greenhouse.Event()
+        ev = backend.Event()
         deq = collections.deque()
         bypeer = self.received_channels.setdefault(peer_ident, {})
         bypeer[(const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter)] = (ev, deq)
         gen = self._generate_received_chunks(ev, deq)
-        greenhouse.schedule(handler, args=(gen,), kwargs=kwargs)
+        backend.schedule(handler, args=(gen,), kwargs=kwargs)
 
     def handle_chunk_arrival(self, peer_ident, msgtype, counter, rc, chunk):
         ev, deq = self.received_channels[peer_ident][(msgtype, counter)]
@@ -755,7 +754,7 @@ class Dispatcher(object):
                 "scheduled" if schedule else "immediately"))
 
         if schedule:
-            greenhouse.schedule(self.publish_handler,
+            backend.schedule(self.publish_handler,
                     args=(handler, msg[:3], peer.ident, args, kwargs))
         else:
             self.publish_handler(handler, msg[:3], peer.ident, args, kwargs)
@@ -791,7 +790,7 @@ class Dispatcher(object):
                 "scheduled" if schedule else "immediately"))
 
         if schedule:
-            greenhouse.schedule(self.rpc_handler,
+            backend.schedule(self.rpc_handler,
                     args=(peer, counter, handler, args, kwargs),
                     kwargs={'scheduled': True})
         else:
@@ -878,7 +877,7 @@ class Dispatcher(object):
             log.debug("locally handling proxy_request %r %s" % (
                     msg[:4], "scheduled" if schedule else "immediately"))
             if schedule:
-                greenhouse.schedule(self.rpc_handler,
+                backend.schedule(self.rpc_handler,
                         args=(peer, cli_counter, handler, args, kwargs),
                         kwargs={'proxied': True, 'scheduled': True})
             else:
@@ -1449,7 +1448,7 @@ class LocalTarget(object):
         if msgtype == const.MSG_TYPE_RPC_REQUEST:
             counter, service, routing_id, method, args, kwargs = msg
             if self.schedule:
-                greenhouse.schedule(self.dispatcher.rpc_handler,
+                backend.schedule(self.dispatcher.rpc_handler,
                         args=(self, counter, self.handler, args, kwargs))
             else:
                 self.dispatcher.rpc_handler(
@@ -1463,14 +1462,14 @@ class LocalTarget(object):
         elif msgtype == const.MSG_TYPE_PUBLISH:
             service, routing_id, method, args, kwargs = msg
             if self.schedule:
-                greenhouse.schedule(self.handler, args=args, kwargs=kwargs)
+                backend.schedule(self.handler, args=args, kwargs=kwargs)
             else:
                 try:
                     self.handler(*args, **kwargs)
                 except Exception:
                     log.error("exception handling local publish %r" %
                             ((service, routing_id, method),))
-                    greenhouse.handle_exception(*sys.exc_info())
+                    backend.handle_exception(*sys.exc_info())
 
         elif msgtype == const.MSG_TYPE_PUBLISH_IS_CHUNKED:
             service, routing_id, method, counter, kwargs = msg

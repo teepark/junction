@@ -5,10 +5,9 @@ import random
 import socket
 import struct
 
-import greenhouse
 import mummy
 
-from . import const
+from . import backend, const
 from .. import errors
 
 
@@ -30,9 +29,9 @@ class Peer(object):
         self._closing = False
 
         self.attempt_reconnects = reconnect
-        self.send_queue = greenhouse.Queue()
-        self.established = greenhouse.Event()
-        self.reconnect_waiter = greenhouse.Event()
+        self.send_queue = backend.Queue()
+        self.established = backend.Event()
+        self.reconnect_waiter = backend.Event()
 
         self._sender_coro = None
         self._receiver_coro = None
@@ -45,7 +44,7 @@ class Peer(object):
     ##
 
     def start(self):
-        greenhouse.schedule(self.starter_coro)
+        backend.schedule(self.starter_coro)
 
     def go_down(self, reconnect=False, expected=False):
         self.up = False
@@ -57,7 +56,7 @@ class Peer(object):
             self._closing = True
             self.reconnect_waiter.set()
             self.reconnect_waiter.clear()
-            greenhouse.schedule_in(1.0, self.sock.close)
+            backend.schedule_in(1.0, self.sock.close)
         elif self.initiator:
             self.schedule_restarter()
 
@@ -133,21 +132,21 @@ class Peer(object):
         self.sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 5)
 
     def schedule_io_coros(self):
-        self._sender_coro = greenhouse.greenlet(self.sender_coro)
-        greenhouse.schedule(self._sender_coro)
+        self._sender_coro = backend.greenlet(self.sender_coro)
+        backend.schedule(self._sender_coro)
 
-        self._receiver_coro = greenhouse.greenlet(self.receiver_coro)
-        greenhouse.schedule(self._receiver_coro)
+        self._receiver_coro = backend.greenlet(self.receiver_coro)
+        backend.schedule(self._receiver_coro)
 
     def end_io_coros(self):
         if self._sender_coro:
-            greenhouse.end(self._sender_coro)
+            backend.end(self._sender_coro)
 
         if self._receiver_coro:
-            greenhouse.end(self._receiver_coro)
+            backend.end(self._receiver_coro)
 
     def schedule_restarter(self):
-        greenhouse.schedule(self.restarter_coro)
+        backend.schedule(self.restarter_coro)
 
     def attempt_connect(self):
         log.info("attempting to connect to %r" % (self.target,))
@@ -224,7 +223,7 @@ class Peer(object):
         for pause in self.pause_chain():
             # reset
             self.sock.close()
-            self.sock = greenhouse.Socket()
+            self.sock = backend.Socket()
             self.init_sock()
             self.established.clear()
             self.up = False

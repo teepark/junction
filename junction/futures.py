@@ -3,9 +3,8 @@ from __future__ import absolute_import
 import logging
 import weakref
 
-import greenhouse
 import mummy
-from .core import const, dispatch
+from .core import backend, const, dispatch
 from . import errors
 
 
@@ -29,7 +28,7 @@ class RPC(object):
         self._counter = counter
         self._target_count = target_count
 
-        self._arrival = greenhouse.Event()
+        self._arrival = backend.Event()
 
     def wait(self, timeout=None):
         """Block the current greenlet until the response arrives
@@ -130,7 +129,7 @@ class RPC(object):
 
     @property
     def arrival(self):
-        """A greenhouse.Event for waiting on partial results
+        """An Event for waiting on partial results
 
         this event is is triggered whenever a response arrives, so it can be
         used to wake a blocking greenlet whenever :attr:`partial_results` gets
@@ -384,7 +383,7 @@ class Dependent(object):
         # wait on something that would need to come back through the connection
         # whose receiver coro it just blocked, resulting in deadlock. so run
         # the callback in a separate coro just in case.
-        greenhouse.schedule(self._func_runner)
+        backend.schedule(self._func_runner)
 
     def _transfer(self, source, target):
         for i, parent in enumerate(self._parents):
