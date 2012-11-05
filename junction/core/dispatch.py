@@ -330,7 +330,7 @@ class Dispatcher(object):
             except Exception:
                 log.error("sending RPC_ERR_UNKNOWN as final publish chunk")
                 rc = const.RPC_ERR_UNKOWN
-                chunk = traceback.format_exception(*sys.exc_info())
+                chunk = ''.join(traceback.format_exception(*sys.exc_info()))
                 greenhouse.handle_exception(*sys.exc_info())
                 err = True
 
@@ -472,7 +472,7 @@ class Dispatcher(object):
             except Exception:
                 log.error("sending RPC_ERR_UNKNOWN as final request chunk")
                 rc = const.RPC_ERR_UNKNOWN
-                chunk = traceback.format_exception(*sys.exc_info())
+                chunk = ''.join(traceback.format_exception(*sys.exc_info()))
                 greenhouse.handle_exception(*sys.exc_info())
                 err = True
 
@@ -523,7 +523,7 @@ class Dispatcher(object):
             except Exception:
                 log.error("sending RPC_ERR_UNKNOWN as final response chunk")
                 rc = const.RPC_ERR_UNKNOWN
-                chunk = traceback.format_exception(*sys.exc_info())
+                chunk = ''.join(traceback.format_exception(*sys.exc_info()))
                 greenhouse.handle_exception(*sys.exc_info())
                 err = True
 
@@ -596,7 +596,7 @@ class Dispatcher(object):
             log.error("responding with RPC_ERR_UNKNOWN to %s %d" %
                     (req_type, counter))
             rc = const.RPC_ERR_UNKNOWN
-            result = traceback.format_exception(*sys.exc_info())
+            result = ''.join(traceback.format_exception(*sys.exc_info()))
             greenhouse.handle_exception(*sys.exc_info())
 
         if hasattr(result, "__iter__") and not hasattr(result, "__len__"):

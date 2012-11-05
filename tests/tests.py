@@ -278,7 +278,7 @@ class JunctionTests(object):
         self.assertEqual(len(result), 1)
         self.assert_(isinstance(result[0], junction.errors.RemoteException))
         self.assertEqual(result[0].args[0], self.connection.addr)
-        self.assertEqual(result[0].args[1][-1], "CustomError: DAMMIT\n")
+        self.assertEqual(result[0].args[1].splitlines()[-1], "CustomError: DAMMIT")
 
     def test_async_rpc_success(self):
         handler_results = []
