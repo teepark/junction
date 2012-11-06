@@ -33,7 +33,7 @@ def activate_greenhouse():
     globals()['end'] = greenhouse.end
     globals()['handle_exception'] = greenhouse.handle_exception
     globals()['pause'] = greenhouse.pause
-    globals()['getcurrent'] = greenhouse.getcurrent()
+    globals()['getcurrent'] = greenhouse.getcurrent
     globals()['active'] = "greenhouse"
 
 
