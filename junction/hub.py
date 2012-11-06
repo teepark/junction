@@ -218,7 +218,7 @@ class Hub(object):
 
         return handler
 
-    def unsubscribe_rpc(self, service, mask, value, handler):
+    def unsubscribe_rpc(self, service, mask, value):
         '''Remove a rpc subscription
 
         :param service: the service of the subscription to remove
@@ -236,7 +236,7 @@ class Hub(object):
         '''
         log.info("unsubscribing from RPC %r" % ((service, (mask, value)),))
         return self._dispatcher.remove_local_subscription(
-                const.MSG_TYPE_RPC_REQUEST, service, mask, value, handler)
+                const.MSG_TYPE_RPC_REQUEST, service, mask, value)
 
     def send_rpc(self, service, routing_id, method, args=None, kwargs=None,
             singular=False):

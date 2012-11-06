@@ -67,8 +67,7 @@ class Dispatcher(object):
             peer.push((const.MSG_TYPE_ANNOUNCE,
                     (msg_type, service, mask, value)))
 
-    def remove_local_subscription(
-            self, msg_type, service, mask, value):
+    def remove_local_subscription(self, msg_type, service, mask, value):
         group = self.local_subs.get((msg_type, service), 0)
         if not group:
             return False
@@ -86,7 +85,7 @@ class Dispatcher(object):
         return False
 
     def incoming_unsubscribe(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 5:
+        if not isinstance(msg, tuple) or len(msg) != 4:
             # badly formatted message
             log.warn("received malformed unsubscribe from %r" % (peer.ident,))
             return
