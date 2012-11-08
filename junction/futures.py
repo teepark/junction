@@ -348,7 +348,7 @@ class Dependent(object):
             self._result = self._func(*self._parent_results)
         except Exception:
             self.abort(errors.DependentCallbackException(
-                    traceback.format_exception(*sys.exc_info())))
+                    ''.join(traceback.format_exception(*sys.exc_info()))))
 
         self._parent_result = self._parents = None
 
