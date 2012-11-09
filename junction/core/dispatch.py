@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import collections
+import inspect
 import logging
 import sys
 import traceback
@@ -590,6 +591,22 @@ class Dispatcher(object):
             rc = const.RPC_ERR_KNOWN
             result = (exc.code, exc.args)
             backend.handle_exception(*sys.exc_info())
+        except TypeError:
+            if len(traceback.extract_tb(sys.exc_info()[2])) == 1:
+                log.error("responding with RPC_ERR_BADARGS to %s %d" %
+                        (req_type, counter))
+                rc = const.RPC_ERR_BADARGS
+                spec = inspect.getargspec(handler)
+                result = (len(spec.args) - len(spec.defaults or ()),
+                        (spec.defaults or ())[len(spec.args):],
+                        bool(spec.varargs), bool(spec.keywords))
+                backend.handle_exception(*sys.exc_info())
+            else:
+                log.error("responding with RPC_ERR_UNKNOWN to %s %d" %
+                        (req_type, counter))
+                rc = const.RPC_ERR_UNKNOWN
+                result = ''.join(traceback.format_exception(*sys.exc_info()))
+                backend.handle_exception(*sys.exc_info())
         except Exception:
             log.error("responding with RPC_ERR_UNKNOWN to %s %d" %
                     (req_type, counter))
@@ -1547,6 +1564,11 @@ def _check_error(log, source_peer, rc, data):
         log.error("handler at %r returned an unserializable object" %
                 (source_peer,))
         return errors.UnserializableResponse(data)
+
+    if rc == const.RPC_ERR_BADARGS:
+        log.error("wrong arguments provided for handler at %r" %
+                (source_peer,))
+        return errors.BadArguments(data)
 
     log.error("error message with unrecognized return code from %r" %
             (source_peer,))

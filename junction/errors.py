@@ -47,6 +47,9 @@ class UnsupportedRemoteMethod(Exception):
 class UnserializableResponse(Exception):
     "Service handler returned an unserializable object"
 
+class BadArguments(Exception):
+    "Service client provided arguments incompatible with the handler"
+
 
 HANDLED_ERROR_TYPES = {}
 
