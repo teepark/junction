@@ -361,8 +361,7 @@ class Dispatcher(object):
 
     def send_proxied_rpc(
             self, service, routing_id, method, args, kwargs, singular):
-        if len(args) == 1 and \
-                hasattr(args[0], '__iter__') and \
+        if args and hasattr(args[0], '__iter__') and \
                 not hasattr(args[0], '__len__'):
             log.debug("sending proxied chunked rpc %r" %
                     ((service, routing_id, method),))
@@ -371,7 +370,7 @@ class Dispatcher(object):
             rpc = self.rpc_client.chunked_request(counter, routes, singular)
             if rpc:
                 glet = backend.greenlet(self.send_chunked_rpc,
-                        args=(service, routing_id, method, args[0], kwargs,
+                        args=(service, routing_id, method, args, kwargs,
                             routes, counter, singular, True))
                 self.register_outgoing_channel(routes,
                         const.MSG_TYPE_REQUEST_IS_CHUNKED, counter, glet)
@@ -423,14 +422,13 @@ class Dispatcher(object):
                     ((service, routing_id, method),
                     len(routes) - bool(handler)))
 
-        if len(args) == 1 and \
-                hasattr(args[0], '__iter__') and \
+        if args and hasattr(args[0], '__iter__') and \
                 not hasattr(args[0], '__len__'):
             counter = self.rpc_client.next_counter()
             rpc = self.rpc_client.chunked_request(counter, routes, singular)
             if rpc:
                 glet = backend.greenlet(self.send_chunked_rpc,
-                        args=(service, routing_id, method, args[0], kwargs,
+                        args=(service, routing_id, method, args, kwargs,
                             routes, counter, singular))
                 self.register_outgoing_channel(peers,
                         const.MSG_TYPE_REQUEST_IS_CHUNKED, counter, glet)
@@ -440,16 +438,17 @@ class Dispatcher(object):
         return self.rpc_client.request(
                 routes, (service, routing_id, method, args, kwargs), singular)
 
-    def send_chunked_rpc(self, service, routing_id, method, chunks, kwargs,
+    def send_chunked_rpc(self, service, routing_id, method, args, kwargs,
             targets, counter, singular=False, proxied=False):
+        chunks, args = args[0], args[1:]
         msgtype = const.MSG_TYPE_REQUEST_IS_CHUNKED
         if proxied:
             msgtype += 9
-            is_chunked_msg = (msgtype,
-                    (service, routing_id, method, singular, counter, kwargs))
+            is_chunked_msg = (msgtype, (service, routing_id, method, singular,
+                    counter, args, kwargs))
         else:
             is_chunked_msg = (msgtype,
-                    (service, routing_id, method, counter, kwargs))
+                    (service, routing_id, method, counter, args, kwargs))
         self.multipush_str(targets, connection.dump(is_chunked_msg))
 
         chunks = iter(chunks)
@@ -634,7 +633,7 @@ class Dispatcher(object):
                 yield item
             event.wait()
 
-    def handle_start_request_chunks(self, peer, counter, handler,
+    def handle_start_request_chunks(self, peer, counter, handler, args,
             kwargs, proxied=False, client_counter=None):
         ev = backend.Event()
         deq = collections.deque()
@@ -643,7 +642,7 @@ class Dispatcher(object):
         gen = self._generate_received_chunks(ev, deq)
         client_counter = client_counter or counter
         backend.schedule(self.rpc_handler,
-                args=(peer, client_counter, handler, (gen,), kwargs,
+                args=(peer, client_counter, handler, (gen,) + args, kwargs,
                         proxied, True))
 
     def handle_start_response_chunks(self, peer_ident, counter):
@@ -1100,12 +1099,12 @@ class Dispatcher(object):
                 const.MSG_TYPE_PUBLISH_IS_CHUNKED, msg)
 
     def incoming_request_is_chunked(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 5:
+        if not isinstance(msg, tuple) or len(msg) != 6:
             log.warn("received malformed request_is_chunked from %r" %
                     (peer.ident,))
             return
 
-        service, routing_id, method, counter, kwargs = msg
+        service, routing_id, method, counter, args, kwargs = msg
 
         handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_RPC_REQUEST, service, routing_id, method)
@@ -1129,7 +1128,7 @@ class Dispatcher(object):
         log.debug("handling request_is_chunked %r from %r scheduled" % (
                 msg[:4], peer.ident))
 
-        self.handle_start_request_chunks(peer, counter, handler, kwargs)
+        self.handle_start_request_chunks(peer, counter, handler, args, kwargs)
 
     def incoming_request_chunk(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
@@ -1165,12 +1164,13 @@ class Dispatcher(object):
                 const.MSG_TYPE_REQUEST_IS_CHUNKED, msg)
 
     def incoming_proxy_request_is_chunked(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 6:
+        if not isinstance(msg, tuple) or len(msg) != 7:
             log.warn("received malformed proxy_request_is_chunked from %r" %
                     (peer.addr,))
             return
 
-        service, routing_id, method, singular, source_counter, kwargs = msg
+        (service, routing_id, method, singular,
+                source_counter, args, kwargs) = msg
 
         log.debug("received proxy_request_is_chunked %r from %r" %
                 (msg[:4], peer.addr))
@@ -1226,7 +1226,7 @@ class Dispatcher(object):
                 (source_counter, const.RPC_ERR_NOMETHOD, None)))
 
         self.multipush(targets, (const.MSG_TYPE_REQUEST_IS_CHUNKED,
-            (service, routing_id, method, dest_counter, kwargs)))
+            (service, routing_id, method, dest_counter, args, kwargs)))
 
     def incoming_proxy_request_chunk(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
@@ -1477,10 +1477,10 @@ class LocalTarget(object):
                     client, counter, self.handler, kwargs)
 
         elif msgtype == const.MSG_TYPE_REQUEST_IS_CHUNKED:
-            service, routing_id, method, counter, kwargs = msg
+            service, routing_id, method, counter, args, kwargs = msg
             client = self.client or self
             self.dispatcher.handle_start_request_chunks(
-                    client, counter, self.handler, kwargs, True,
+                    client, counter, self.handler, args, kwargs, True,
                     self.client_counter)
 
         elif msgtype in (
