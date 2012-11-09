@@ -273,12 +273,12 @@ class Dispatcher(object):
             if not isinstance(targets[0], LocalTarget):
                 handler = None
 
-        if len(args) == 1 and hasattr(args[0], "__iter__") \
+        if args and hasattr(args[0], "__iter__") \
                 and not hasattr(args[0], "__len__"):
             counter = self.rpc_client.next_counter()
             glet = backend.greenlet(self.send_chunked_publish,
                     (service, routing_id, method, counter,
-                        args[0], kwargs, targets, False))
+                        args, kwargs, targets, False))
             self.register_outgoing_channel(peers,
                     const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter, glet)
             backend.schedule(glet)
@@ -300,7 +300,8 @@ class Dispatcher(object):
         return bool(handler or peers)
 
     def send_chunked_publish(self, service, routing_id, method,
-            counter, chunks, kwargs, targets, proxied=False):
+            counter, args, kwargs, targets, proxied=False):
+        chunks, args = args[0], args[1:]
         msgtype = const.MSG_TYPE_PUBLISH_IS_CHUNKED
         if proxied:
             msgtype += 9
@@ -308,7 +309,7 @@ class Dispatcher(object):
         log.debug("sending publish_is_chunked %r" %
                 ((service, routing_id, method, counter),))
         self.multipush(targets, (msgtype,
-                (service, routing_id, method, counter, kwargs)))
+                (service, routing_id, method, counter, args, kwargs)))
 
         chunks = iter(chunks)
         err = False
@@ -550,12 +551,12 @@ class Dispatcher(object):
         log.debug("sending proxied_publish %r" %
                 ((service, routing_id, method),))
         peer = self.peers.values()[0]
-        if len(args) == 1 and hasattr(args[0], "__iter__") \
+        if args and hasattr(args[0], "__iter__") \
                 and not hasattr(args[0], "__len__"):
             counter = self.rpc_client.next_counter()
             glet = backend.greenlet(self.send_chunked_publish,
                     args=(service, routing_id, method, counter,
-                        args[0], kwargs, [peer], True))
+                        args, kwargs, [peer], True))
             self.register_outgoing_channel([peer],
                     const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter, glet)
             backend.schedule(glet)
@@ -653,13 +654,13 @@ class Dispatcher(object):
         return self._generate_received_chunks(ev, deq)
 
     def handle_start_publish_chunks(
-            self, peer_ident, counter, handler, kwargs):
+            self, peer_ident, counter, handler, args, kwargs):
         ev = backend.Event()
         deq = collections.deque()
         bypeer = self.received_channels.setdefault(peer_ident, {})
         bypeer[(const.MSG_TYPE_PUBLISH_IS_CHUNKED, counter)] = (ev, deq)
         gen = self._generate_received_chunks(ev, deq)
-        backend.schedule(handler, args=(gen,), kwargs=kwargs)
+        backend.schedule(handler, args=(gen,) + args, kwargs=kwargs)
 
     def handle_chunk_arrival(self, peer_ident, msgtype, counter, rc, chunk):
         ev, deq = self.received_channels[peer_ident][(msgtype, counter)]
@@ -971,12 +972,12 @@ class Dispatcher(object):
         self.rpc_client.expect(peer, counter, target_count)
 
     def incoming_proxy_publish_is_chunked(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 5:
+        if not isinstance(msg, tuple) or len(msg) != 6:
             log.warn("received malformed proxy_publish_is_chunked from %r" %
                     (peer.addr,))
             return
 
-        service, routing_id, method, source_counter, kwargs = msg
+        service, routing_id, method, source_counter, args, kwargs = msg
 
         log.debug("received proxy_publish_is_chunked %r from %r" %
                 (msg[:4], peer.addr))
@@ -1000,7 +1001,7 @@ class Dispatcher(object):
         }
 
         self.multipush(targets, (const.MSG_TYPE_PUBLISH_IS_CHUNKED,
-                (service, routing_id, method, dest_counter, kwargs)))
+                (service, routing_id, method, dest_counter, args, kwargs)))
 
     def incoming_proxy_publish_chunk(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
@@ -1046,12 +1047,12 @@ class Dispatcher(object):
                 (const.MSG_TYPE_PUBLISH_END_CHUNKS, entry['dest_counter']))
 
     def incoming_publish_is_chunked(self, peer, msg):
-        if not isinstance(msg, tuple) or len(msg) != 5:
+        if not isinstance(msg, tuple) or len(msg) != 6:
             log.warn("received malformed publish_is_chunked from %r" %
                     (peer.ident,))
             return
 
-        service, routing_id, method, counter, kwargs = msg
+        service, routing_id, method, counter, args, kwargs = msg
 
         handler, schedule = self.find_local_handler(
                 const.MSG_TYPE_PUBLISH, service, routing_id, method)
@@ -1063,7 +1064,8 @@ class Dispatcher(object):
         log.debug("received publish_is_chunked %r from %r" %
                 (msg[:4], peer.ident))
 
-        self.handle_start_publish_chunks(peer.ident, counter, handler, kwargs)
+        self.handle_start_publish_chunks(
+                peer.ident, counter, handler, args, kwargs)
 
     def incoming_publish_chunk(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 3:
@@ -1471,10 +1473,10 @@ class LocalTarget(object):
                     backend.handle_exception(*sys.exc_info())
 
         elif msgtype == const.MSG_TYPE_PUBLISH_IS_CHUNKED:
-            service, routing_id, method, counter, kwargs = msg
+            service, routing_id, method, counter, args, kwargs = msg
             client = id(self.client) if self.client else None
             self.dispatcher.handle_start_publish_chunks(
-                    client, counter, self.handler, kwargs)
+                    client, counter, self.handler, args, kwargs)
 
         elif msgtype == const.MSG_TYPE_REQUEST_IS_CHUNKED:
             service, routing_id, method, counter, args, kwargs = msg
