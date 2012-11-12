@@ -1537,7 +1537,7 @@ def _check_error(log, source_peer, rc, data):
                 (source_peer,))
 
     if rc == const.RPC_ERR_NOMETHOD:
-        log.warn("'unsupported method' error from %r" % (source_peer,))
+        log.error("'unsupported method' error from %r" % (source_peer,))
         return errors.UnsupportedRemoteMethod(
                 "peer at %r doesn't support the method" % (source_peer,))
 
