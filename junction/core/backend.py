@@ -80,7 +80,7 @@ def activate_gevent():
     globals()['active'] = "gevent"
 
 
-def activate_best():
+def activate():
     if greenhouse:
         activate_greenhouse()
     elif gevent:
@@ -89,4 +89,4 @@ def activate_best():
         raise RuntimeError("no supported greenlet runtime " +
                 "(%s) found" % ", ".join(supported))
 
-activate_best()
+activate()
