@@ -5,35 +5,27 @@ import logging
 import traceback
 import unittest
 
-import greenhouse
+import gevent.coros
 import junction
 import junction.errors
+from junction.core import backend
 
 
 TIMEOUT = 0.015
 PORT = 5000
 
-GTL = greenhouse.Lock()
+GTL = gevent.coros.Semaphore(1)
 
-#junction.configure_logging(level=1)
-#greenhouse.global_exception_handler(traceback.print_exception)
-
-# base class stolen from the greenhouse test suite
-class StateClearingTestCase(unittest.TestCase):
+class GeventTestCase(unittest.TestCase):
     def setUp(self):
         GTL.acquire()
-
-        state = greenhouse.scheduler.state
-        state.awoken_from_events.clear()
-        state.timed_paused.clear()
-        state.paused[:] = []
-        state.descriptormap.clear()
-        state.to_run.clear()
-
-        greenhouse.reset_poller()
+        junction.activate_gevent()
+        self._tbprint = traceback.print_exception
+        traceback.print_exception = lambda *a: None
 
     def tearDown(self):
         GTL.release()
+        traceback.print_exception = self._tbprint
 
 
 class JunctionTests(object):
@@ -65,7 +57,7 @@ class JunctionTests(object):
 
     def test_publish_success(self):
         results = []
-        ev = greenhouse.Event()
+        ev = backend.Event()
 
         @self.peer.accept_publish("service", 0, 0, "method")
         def handler(item):
@@ -74,7 +66,7 @@ class JunctionTests(object):
                 ev.set()
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         self.sender.publish("service", 0, "method", (1,), {})
         self.sender.publish("service", 0, "method", (2,), {})
@@ -87,7 +79,7 @@ class JunctionTests(object):
 
     def test_publish_ruled_out_by_service(self):
         results = []
-        ev = greenhouse.Event()
+        ev = backend.Event()
 
         @self.peer.accept_publish("service1", 0, 0, "method")
         def handler(item):
@@ -95,7 +87,7 @@ class JunctionTests(object):
             ev.set()
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         try:
             self.sender.publish("service2", 0, "method", (1,), {})
@@ -109,7 +101,7 @@ class JunctionTests(object):
 
     def test_publish_ruled_out_by_method(self):
         results = []
-        ev = greenhouse.Event()
+        ev = backend.Event()
 
         @self.peer.accept_publish("service", 0, 0, "method1")
         def handler(item):
@@ -117,7 +109,7 @@ class JunctionTests(object):
             ev.set()
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         try:
             self.sender.publish("service", 0, "method2", (1,), {})
@@ -131,7 +123,7 @@ class JunctionTests(object):
 
     def test_publish_ruled_out_by_routing_id(self):
         results = []
-        ev = greenhouse.Event()
+        ev = backend.Event()
 
         # only sign up for even routing ids
         @self.peer.accept_publish("service", 1, 0, "method")
@@ -140,7 +132,7 @@ class JunctionTests(object):
             ev.set()
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         try:
             self.sender.publish("service", 1, "method", (1,), {})
@@ -154,7 +146,7 @@ class JunctionTests(object):
 
     def test_chunked_publish_success(self):
         results = []
-        ev = greenhouse.Event()
+        ev = backend.Event()
 
         @self.peer.accept_publish("service", 0, 0, "method")
         def handler(items):
@@ -163,7 +155,7 @@ class JunctionTests(object):
             ev.set()
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         self.sender.publish("service", 0, "method", ((x for x in xrange(5)),))
 
@@ -181,7 +173,7 @@ class JunctionTests(object):
             return x ** 2
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         sender_results.append(self.sender.rpc("service", 0, "method", (1,), {},
             timeout=TIMEOUT))
@@ -197,7 +189,7 @@ class JunctionTests(object):
 
     def test_rpc_ruled_out_by_service(self):
         results = []
-        ev = greenhouse.Event()
+        ev = backend.Event()
 
         @self.peer.accept_rpc("service1", 0, 0, "method")
         def handler(item):
@@ -205,7 +197,7 @@ class JunctionTests(object):
             ev.set()
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         self.assertRaises(junction.errors.Unroutable,
                 self.sender.rpc, "service2", 0, "method", (1,), {}, TIMEOUT)
@@ -220,7 +212,7 @@ class JunctionTests(object):
         self.peer.accept_rpc("service", 0, 0, "method1", results.append)
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         result = self.sender.rpc("service", 0, "method2", (1,), {}, TIMEOUT)
         assert isinstance(result, list)
@@ -235,7 +227,7 @@ class JunctionTests(object):
         self.peer.accept_rpc("service", 1, 0, "method", results.append)
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         self.assertRaises(junction.errors.Unroutable,
                 self.sender.rpc, "service", 1, "method", (1,), {}, TIMEOUT)
@@ -252,7 +244,7 @@ class JunctionTests(object):
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
 
@@ -271,7 +263,7 @@ class JunctionTests(object):
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
 
@@ -291,7 +283,7 @@ class JunctionTests(object):
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         rpcs = []
 
@@ -318,7 +310,7 @@ class JunctionTests(object):
             return x ** 2
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         sender_results.append(self.sender.rpc("service", 0, "method", (1,), {},
             timeout=TIMEOUT, singular=True))
@@ -342,7 +334,7 @@ class JunctionTests(object):
             return 5
 
         for i in xrange(4):
-            greenhouse.pause()
+            backend.pause()
 
         def gen():
             yield 1
@@ -356,7 +348,7 @@ class JunctionTests(object):
         self.assertEqual(results, [1,2])
 
 
-class HubTests(JunctionTests, StateClearingTestCase):
+class HubTests(JunctionTests, GeventTestCase):
     def build_sender(self):
         self.sender = junction.Hub(("127.0.0.1", 8000), [self.peer.addr])
         self.sender.start()
@@ -367,14 +359,14 @@ class HubTests(JunctionTests, StateClearingTestCase):
                 self.sender.publish, "service", "method", 0, (), {})
 
 
-class ClientTests(JunctionTests, StateClearingTestCase):
+class ClientTests(JunctionTests, GeventTestCase):
     def build_sender(self):
         self.sender = junction.Client(self.peer.addr)
         self.sender.connect()
         self.sender.wait_on_connections()
 
 
-class RelayedClientTests(JunctionTests, StateClearingTestCase):
+class RelayedClientTests(JunctionTests, GeventTestCase):
     def build_sender(self):
         self.relayer = junction.Hub(
                 ("127.0.0.1", self.peer.addr[1] + 1), [self.peer.addr])
@@ -392,7 +384,7 @@ class RelayedClientTests(JunctionTests, StateClearingTestCase):
         super(RelayedClientTests, self).tearDown()
 
 
-class NetworklessDependentTests(StateClearingTestCase):
+class NetworklessDependentTests(GeventTestCase):
     def test_some_math(self):
         client = junction.Client(())
         dep = client.dependency_root(
@@ -404,7 +396,7 @@ class NetworklessDependentTests(StateClearingTestCase):
         self.assertEqual(dep.wait(TIMEOUT), 62)
 
 
-class DownedConnectionTests(StateClearingTestCase):
+class DownedConnectionTests(GeventTestCase):
     def kill_client(self, cli_list):
         cli = cli_list.pop()
         cli._peer.sock.close()
@@ -421,7 +413,7 @@ class DownedConnectionTests(StateClearingTestCase):
 
         @hub.accept_rpc('service', 0, 0, 'method')
         def handle():
-            greenhouse.pause_for(TIMEOUT)
+            backend.pause_for(TIMEOUT)
             return 1
 
         hub.start()
@@ -436,7 +428,7 @@ class DownedConnectionTests(StateClearingTestCase):
         client.wait_on_connections()
         client = [client]
 
-        greenhouse.schedule(self.kill_client, (client,))
+        backend.schedule(self.kill_client, (client,))
 
         # hub does a self-rpc during which the client connection goes away
         result = peer.rpc('service', 0, 'method', singular=1)
@@ -450,7 +442,7 @@ class DownedConnectionTests(StateClearingTestCase):
 
         @hub.accept_rpc('service', 0, 0, 'method')
         def handle():
-            greenhouse.pause_for(TIMEOUT)
+            backend.pause_for(TIMEOUT)
             return 1
 
         hub.start()
@@ -460,7 +452,7 @@ class DownedConnectionTests(StateClearingTestCase):
         client.wait_on_connections()
         client = [client]
 
-        @greenhouse.schedule
+        @backend.schedule
         def kill_client():
             # so it'll get GC'd
             cli = client.pop()
@@ -494,26 +486,26 @@ class DownedConnectionTests(StateClearingTestCase):
         c2.wait_on_connections()
 
         def gen():
-            greenhouse.pause_for(TIMEOUT)
+            backend.pause_for(TIMEOUT)
             yield None
-            greenhouse.pause_for(TIMEOUT)
+            backend.pause_for(TIMEOUT)
             yield None
-            greenhouse.pause_for(TIMEOUT)
+            backend.pause_for(TIMEOUT)
             yield None
 
-        greenhouse.schedule(c1.publish, args=('service', 0, 'method'),
+        backend.schedule(c1.publish, args=('service', 0, 'method'),
                 kwargs={'args': (gen(),), 'kwargs': {'source': 'a'}})
-        greenhouse.schedule(c2.publish, args=('service', 0, 'method'),
+        backend.schedule(c2.publish, args=('service', 0, 'method'),
                 kwargs={'args': (gen(),), 'kwargs': {'source': 'b'}})
 
-        greenhouse.pause_for(TIMEOUT)
+        backend.pause_for(TIMEOUT)
 
         c2 = [c2]
         self.kill_client(c2)
 
-        greenhouse.pause_for(TIMEOUT)
-        greenhouse.pause_for(TIMEOUT)
-        greenhouse.pause_for(TIMEOUT)
+        backend.pause_for(TIMEOUT)
+        backend.pause_for(TIMEOUT)
+        backend.pause_for(TIMEOUT)
 
         self.assertEquals(d, {'a': 3, 'b': 1})
 
@@ -522,7 +514,7 @@ class DownedConnectionTests(StateClearingTestCase):
         hub = junction.Hub(("127.0.0.1", PORT), [])
         PORT += 2
         l = []
-        ev = greenhouse.Event()
+        ev = backend.Event()
 
         @hub.accept_publish('service', 0, 0, 'method')
         def handle(x):
@@ -555,7 +547,7 @@ class DownedConnectionTests(StateClearingTestCase):
         hub = junction.Hub(("127.0.0.1", PORT), [])
         PORT += 2
         l = []
-        ev = greenhouse.Event()
+        ev = backend.Event()
 
         @hub.accept_publish('service', 0, 0, 'method')
         def handle(x):
@@ -605,16 +597,16 @@ class DownedConnectionTests(StateClearingTestCase):
             try:
                 while 1:
                     yield None
-                    greenhouse.pause_for(TIMEOUT)
+                    backend.pause_for(TIMEOUT)
             finally:
                 triggered[0] = True
 
         hub2.publish('service', 0, 'method', (gen(),))
 
         hub = [hub]
-        greenhouse.schedule_in(TIMEOUT * 4, self.kill_hub, args=(hub,))
+        backend.schedule_in(TIMEOUT * 4, self.kill_hub, args=(hub,))
 
-        greenhouse.pause_for(TIMEOUT * 5)
+        backend.pause_for(TIMEOUT * 5)
 
         assert triggered[0]
 
@@ -641,16 +633,16 @@ class DownedConnectionTests(StateClearingTestCase):
             try:
                 while 1:
                     yield None
-                    greenhouse.pause_for(TIMEOUT)
+                    backend.pause_for(TIMEOUT)
             finally:
                 triggered[0] = True
 
         rpc = hub2.send_rpc('service', 0, 'method', (gen(),))
 
         hub = [hub]
-        greenhouse.schedule_in(TIMEOUT * 4, self.kill_hub, args=(hub,))
+        backend.schedule_in(TIMEOUT * 4, self.kill_hub, args=(hub,))
 
-        greenhouse.pause_for(TIMEOUT * 5)
+        backend.pause_for(TIMEOUT * 5)
 
         assert triggered[0]
 

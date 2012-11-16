@@ -5,7 +5,7 @@ import sys
 
 from .hub import Hub
 from .client import Client
-from .core.backend import activate_greenhouse, activate_gevent
+from .core.backend import activate_greenhouse, activate_gevent, activate_eventlet
 
 
 VERSION = (0, 1, 0, "")
