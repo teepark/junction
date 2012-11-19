@@ -139,10 +139,11 @@ class Peer(object):
         backend.schedule(self._receiver_coro)
 
     def end_io_coros(self):
-        if self._sender_coro:
+        if self._sender_coro and backend.getcurrent() is not self._sender_coro:
             backend.end(self._sender_coro)
 
-        if self._receiver_coro:
+        if self._receiver_coro and \
+                backend.getcurrent() is not self._receiver_coro:
             backend.end(self._receiver_coro)
 
     def schedule_restarter(self):
