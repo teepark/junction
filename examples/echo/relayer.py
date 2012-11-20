@@ -24,7 +24,7 @@ hub = Hub((HOST, PORT), [(SERVICE_HOST, SERVICE_PORT)])
 
 def main():
     hub.start()
-    hub.wait_on_connections()
+    hub.wait_connected()
 
     greenhouse.schedule(greenhouse.run_backdoor,
             args=((BDHOST, BDPORT), {'hub': hub}))

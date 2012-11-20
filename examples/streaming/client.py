@@ -27,7 +27,7 @@ def main(environ, argv):
 
     client = junction.Client(("", port))
     client.connect()
-    client.wait_on_connections()
+    client.wait_connected()
 
     for line in client.rpc(
             'service', 0, 'echostream', (gen_input(),), singular=1):

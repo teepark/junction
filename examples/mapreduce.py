@@ -243,7 +243,7 @@ if __name__ == '__main__':
     elif sys.argv[1] == "client":
         cli = junction.Client(("", 9092)) # only need the coordinator
         cli.connect()
-        cli.wait_on_connections()
+        cli.wait_connected()
         result = map_reduce(cli, 'map-reduce',
                 lambda i: range(1,8),
                 lambda x: x ** 2,

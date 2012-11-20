@@ -101,7 +101,7 @@ First the code.
     hub = junction.Hub(("127.0.0.1", 9001), [("127.0.0.1", 9000)])
     hub.start()
 
-    hub.wait_on_connections()
+    hub.wait_connected()
 
     print hub.rpc("ECHO", 0, "echo", ("first request",), {})[0]
 
@@ -119,7 +119,7 @@ they all accept connections from peers. This time we do provide a peer
 for it to make a connection to; we give it the ``(host, port)`` of the
 service we created before.
 
-:meth:`wait_on_connections <junction.hub.Hub.wait_on_connections>`
+:meth:`wait_connected <junction.hub.Hub.wait_connected>`
 will block until it has finished connecting to the list of peers we gave
 it. This is necessary, otherwise it would raise :class:`Unroutable
 <junction.errors.Unroutable>` from the first :meth:`rpc
@@ -180,7 +180,7 @@ client-only hub.
     client = junction.Client(("127.0.0.1", 9000))
     client.start()
 
-    client.wait_on_connections()
+    client.wait_connected()
 
     print client.rpc("ECHO", 0, "echo", ("first request",), {})[0]
 

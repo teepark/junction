@@ -37,7 +37,7 @@ class Client(object):
                 backend.Socket(), reconnect=False)
         self._peer.start()
 
-    def wait_on_connections(self, timeout=None):
+    def wait_connected(self, timeout=None):
         '''Wait for connections to be made and their handshakes to finish
 
         :param timeout:

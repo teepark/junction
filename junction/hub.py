@@ -25,7 +25,7 @@ class Hub(object):
         self._rpc_client = rpc.RPCClient()
         self._dispatcher = dispatch.Dispatcher(self._rpc_client, self, hooks)
 
-    def wait_on_connections(self, conns=None, timeout=None):
+    def wait_connected(self, conns=None, timeout=None):
         '''Wait for connections to be made and their handshakes to finish
 
         :param conns:

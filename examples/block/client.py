@@ -17,7 +17,7 @@ WAIT_SERVICE = 1
 def main():
     client = junction.Client(("localhost", SERVICE_PORT))
     client.connect()
-    client.wait_on_connections()
+    client.wait_connected()
 
     print "wait 2"
     client.rpc(WAIT_SERVICE, 0, "wait", (2,), {})

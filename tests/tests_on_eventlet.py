@@ -356,7 +356,7 @@ class HubTests(JunctionTests, EventletTestCase):
     def build_sender(self):
         self.sender = junction.Hub(("127.0.0.1", 8000), [self.peer.addr])
         self.sender.start()
-        self.sender.wait_on_connections()
+        self.sender.wait_connected()
 
     def test_publish_unroutable(self):
         self.assertRaises(junction.errors.Unroutable,
@@ -367,7 +367,7 @@ class ClientTests(JunctionTests, EventletTestCase):
     def build_sender(self):
         self.sender = junction.Client(self.peer.addr)
         self.sender.connect()
-        self.sender.wait_on_connections()
+        self.sender.wait_connected()
 
 
 class RelayedClientTests(JunctionTests, EventletTestCase):
@@ -380,8 +380,8 @@ class RelayedClientTests(JunctionTests, EventletTestCase):
         self.sender = junction.Client(self.relayer.addr)
         self.sender.connect()
 
-        self.relayer.wait_on_connections()
-        self.sender.wait_on_connections()
+        self.relayer.wait_connected()
+        self.sender.wait_connected()
 
     def tearDown(self):
         self.relayer.shutdown()
@@ -425,11 +425,11 @@ class DownedConnectionTests(EventletTestCase):
         peer = junction.Hub(("127.0.0.1", PORT), [hub.addr])
         PORT += 2
         peer.start()
-        peer.wait_on_connections()
+        peer.wait_connected()
 
         client = junction.Client(hub.addr)
         client.connect()
-        client.wait_on_connections()
+        client.wait_connected()
         client = [client]
 
         backend.schedule(self.kill_client, (client,))
@@ -453,7 +453,7 @@ class DownedConnectionTests(EventletTestCase):
 
         client = junction.Client(hub.addr)
         client.connect()
-        client.wait_on_connections()
+        client.wait_connected()
         client = [client]
 
         @backend.schedule
@@ -484,10 +484,10 @@ class DownedConnectionTests(EventletTestCase):
 
         c1 = junction.Client(("127.0.0.1", PORT - 2))
         c1.connect()
-        c1.wait_on_connections()
+        c1.wait_connected()
         c2 = junction.Client(("127.0.0.1", PORT - 2))
         c2.connect()
-        c2.wait_on_connections()
+        c2.wait_connected()
 
         def gen():
             backend.pause_for(TIMEOUT)
@@ -531,7 +531,7 @@ class DownedConnectionTests(EventletTestCase):
         hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT-2)])
         PORT += 2
         hub2.start()
-        hub2.wait_on_connections()
+        hub2.wait_connected()
         hub2 = [hub2]
 
         def gen():
@@ -564,7 +564,7 @@ class DownedConnectionTests(EventletTestCase):
         client = junction.Client(("127.0.0.1", PORT - 2))
         PORT += 2
         client.connect()
-        client.wait_on_connections()
+        client.wait_connected()
         client = [client]
 
         def gen():
@@ -595,7 +595,7 @@ class DownedConnectionTests(EventletTestCase):
         hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT - 2)])
         PORT += 2
         hub2.start()
-        hub2.wait_on_connections()
+        hub2.wait_connected()
 
         def gen():
             try:
@@ -631,7 +631,7 @@ class DownedConnectionTests(EventletTestCase):
         hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT - 2)])
         PORT += 2
         hub2.start()
-        hub2.wait_on_connections()
+        hub2.wait_connected()
 
         def gen():
             try:
