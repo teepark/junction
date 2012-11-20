@@ -135,7 +135,7 @@ rpc-sending client methods, or to return from <a class="reference internal" href
 <span class="n">hub</span> <span class="o">=</span> <span class="n">junction</span><span class="o">.</span><span class="n">Hub</span><span class="p">((</span><span class="s">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">9001</span><span class="p">),</span> <span class="p">[(</span><span class="s">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">9000</span><span class="p">)])</span>
 <span class="n">hub</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
-<span class="n">hub</span><span class="o">.</span><span class="n">wait_on_connections</span><span class="p">()</span>
+<span class="n">hub</span><span class="o">.</span><span class="n">wait_connected</span><span class="p">()</span>
 
 <span class="k">print</span> <span class="n">hub</span><span class="o">.</span><span class="n">rpc</span><span class="p">(</span><span class="s">&quot;ECHO&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;echo&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s">&quot;first request&quot;</span><span class="p">,),</span> <span class="p">{})[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -153,7 +153,7 @@ a server. All <a class="reference internal" href="junction/hub.html#junction.hub
 they all accept connections from peers. This time we do provide a peer
 for it to make a connection to; we give it the <tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)</span></tt> of the
 service we created before.</p>
-<p><a class="reference internal" href="junction/hub.html#junction.hub.Hub.wait_on_connections" title="junction.hub.Hub.wait_on_connections"><tt class="xref py py-meth docutils literal"><span class="pre">wait_on_connections</span></tt></a>
+<p><a class="reference internal" href="junction/hub.html#junction.hub.Hub.wait_connected" title="junction.hub.Hub.wait_connected"><tt class="xref py py-meth docutils literal"><span class="pre">wait_connected</span></tt></a>
 will block until it has finished connecting to the list of peers we gave
 it. This is necessary, otherwise it would raise <a class="reference internal" href="junction/errors.html#junction.errors.Unroutable" title="junction.errors.Unroutable"><tt class="xref py py-class docutils literal"><span class="pre">Unroutable</span></tt></a> from the first <a class="reference internal" href="junction/hub.html#junction.hub.Hub.rpc" title="junction.hub.Hub.rpc"><tt class="xref py py-meth docutils literal"><span class="pre">rpc</span></tt></a> call. Not having connected to its peer yet, it
 wouldn&#8217;t have collected its subscription information and so it wouldn&#8217;t
@@ -198,7 +198,7 @@ client-only hub.</p>
 <span class="n">client</span> <span class="o">=</span> <span class="n">junction</span><span class="o">.</span><span class="n">Client</span><span class="p">((</span><span class="s">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">9000</span><span class="p">))</span>
 <span class="n">client</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
 
-<span class="n">client</span><span class="o">.</span><span class="n">wait_on_connections</span><span class="p">()</span>
+<span class="n">client</span><span class="o">.</span><span class="n">wait_connected</span><span class="p">()</span>
 
 <span class="k">print</span> <span class="n">client</span><span class="o">.</span><span class="n">rpc</span><span class="p">(</span><span class="s">&quot;ECHO&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&quot;echo&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s">&quot;first request&quot;</span><span class="p">,),</span> <span class="p">{})[</span><span class="mi">0</span><span class="p">]</span>
 

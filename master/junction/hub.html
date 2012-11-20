@@ -331,7 +331,7 @@ removed, or not (False)</p>
 
 <dl class="method">
 <dt id="junction.hub.Hub.unsubscribe_rpc">
-<tt class="descname">unsubscribe_rpc</tt><big>(</big><em>service</em>, <em>mask</em>, <em>value</em>, <em>handler</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.unsubscribe_rpc" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">unsubscribe_rpc</tt><big>(</big><em>service</em>, <em>mask</em>, <em>value</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.unsubscribe_rpc" title="Permalink to this definition">¶</a></dt>
 <dd><p>Remove a rpc subscription</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -388,8 +388,8 @@ was provided and it expires</li>
 </dd></dl>
 
 <dl class="method">
-<dt id="junction.hub.Hub.wait_on_connections">
-<tt class="descname">wait_on_connections</tt><big>(</big><em>conns=None</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.wait_on_connections" title="Permalink to this definition">¶</a></dt>
+<dt id="junction.hub.Hub.wait_connected">
+<tt class="descname">wait_connected</tt><big>(</big><em>conns=None</em>, <em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.hub.Hub.wait_connected" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wait for connections to be made and their handshakes to finish</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -403,8 +403,8 @@ peers the <a class="reference internal" href="#junction.hub.Hub" title="junction
 </ul>
 </td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><tt class="docutils literal"><span class="pre">True</span></tt> if all connections were made, <tt class="docutils literal"><span class="pre">False</span></tt> if it hit the
-timeout instead.</p>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"><tt class="docutils literal"><span class="pre">True</span></tt> if all connections were made, <tt class="docutils literal"><span class="pre">False</span></tt> one or more
+failed.</p>
 </td>
 </tr>
 </tbody>

@@ -292,8 +292,8 @@ was provided and it expires</li>
 </dd></dl>
 
 <dl class="method">
-<dt id="junction.client.Client.wait_on_connections">
-<tt class="descname">wait_on_connections</tt><big>(</big><em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.client.Client.wait_on_connections" title="Permalink to this definition">¶</a></dt>
+<dt id="junction.client.Client.wait_connected">
+<tt class="descname">wait_connected</tt><big>(</big><em>timeout=None</em><big>)</big><a class="headerlink" href="#junction.client.Client.wait_connected" title="Permalink to this definition">¶</a></dt>
 <dd><p>Wait for connections to be made and their handshakes to finish</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
@@ -301,8 +301,8 @@ was provided and it expires</li>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait in seconds. with None, there is no timeout.</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><tt class="docutils literal"><span class="pre">True</span></tt> if all connections were made, <tt class="docutils literal"><span class="pre">False</span></tt> if it hit the
-timeout instead.</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><tt class="docutils literal"><span class="pre">True</span></tt> if all connections were made, <tt class="docutils literal"><span class="pre">False</span></tt> if one or more
+failed.</td>
 </tr>
 </tbody>
 </table>
