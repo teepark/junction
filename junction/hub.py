@@ -37,8 +37,8 @@ class Hub(object):
         :type timeout: float or None
 
         :returns:
-            ``True`` if all connections were made, ``False`` if it hit the
-            timeout instead.
+            ``True`` if all connections were made, ``False`` one or more
+            failed.
         '''
         if timeout:
             deadline = time.time() + timeout
@@ -49,7 +49,8 @@ class Hub(object):
         for peer_addr in conns:
             remaining = max(0, deadline - time.time()) if timeout else None
             if not self._started_peers[peer_addr].wait_connected(remaining):
-                log.warn("connect wait timed out after %.2f seconds" % timeout)
+                if timeout:
+                    log.warn("connect wait timed out after %.2f seconds" % timeout)
                 return False
         return True
 

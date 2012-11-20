@@ -45,12 +45,13 @@ class Client(object):
         :type timeout: float or None
 
         :returns:
-            ``True`` if all connections were made, ``False`` if it hit the
-            timeout instead.
+            ``True`` if all connections were made, ``False`` if one or more
+            failed.
         '''
         result = self._peer.wait_connected(timeout)
         if not result:
-            log.warn("connect wait timed out after %.2f seconds" % timeout)
+            if timeout is not None:
+                log.warn("connect wait timed out after %.2f seconds" % timeout)
         return result
 
     def reset(self):

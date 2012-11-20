@@ -57,14 +57,15 @@ class Peer(object):
             self.reconnect_waiter.set()
             self.reconnect_waiter.clear()
             backend.schedule_in(1.0, self.sock.close)
-        elif self.initiator:
+        elif self.initiator and self.attempt_reconnects:
             self.schedule_restarter()
 
         if not expected:
             self.dispatcher.connection_lost(self, subs)
 
     def wait_connected(self, timeout=None):
-        return not self.established.wait(timeout)
+        self.established.wait(timeout)
+        return self.up
 
     def push(self, msg):
         self.send_queue.put(self.dump(msg))
@@ -86,8 +87,11 @@ class Peer(object):
 
         if success:
             self.schedule_io_coros()
-        elif self.initiator and not self._closing:
+        elif self.initiator and not self._closing and self.attempt_reconnects:
             self.schedule_restarter()
+        else:
+            self.up = False
+            self.established.set()
 
     def restarter_coro(self):
         if self.reconnect():
@@ -218,9 +222,6 @@ class Peer(object):
             yield 30
 
     def reconnect(self):
-        if not self.attempt_reconnects:
-            return False
-
         for pause in self.pause_chain():
             # reset
             self.sock.close()
