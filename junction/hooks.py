@@ -31,11 +31,9 @@ def select_peer(peer_addrs, service, routing_id, method):
         return None
     return random.choice(peer_addrs)
 
-def connection_lost(hub, peer, subscriptions):
+def connection_lost(peer, subscriptions):
     '''A connection has gone down unexpectedly
 
-    :param hub: the hub that owned the connection
-    :type hub: :class:`Hub<junction.hub.Hub>`
     :param peer: the ``(host, port)`` with which the peer identified itself
     :type peer: (host, port) tuple
     :param subscriptions:

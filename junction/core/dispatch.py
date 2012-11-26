@@ -169,8 +169,7 @@ class Dispatcher(object):
         return True
 
     def connection_lost(self, peer, subs):
-        hooks._get(self.hooks, "connection_lost")(
-                self.hub, peer.ident, subs)
+        hooks._get(self.hooks, "connection_lost")(peer.ident, subs)
 
     def drop_peer(self, peer):
         self.peers.pop(peer.ident, None)
