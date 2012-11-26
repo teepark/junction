@@ -178,7 +178,7 @@ client-only hub.
     import junction
 
     client = junction.Client(("127.0.0.1", 9000))
-    client.start()
+    client.connect()
 
     client.wait_connected()
 
