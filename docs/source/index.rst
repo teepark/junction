@@ -24,6 +24,7 @@ API Reference
    junction/client
    junction/futures
    junction/errors
+   junction/hooks
 
 Indices and tables
 ------------------
