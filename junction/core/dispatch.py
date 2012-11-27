@@ -166,7 +166,13 @@ class Dispatcher(object):
 
         self.peers[peer.ident] = peer
         self.add_peer_subscriptions(peer, subscriptions)
+        self.connection_received(peer, subscriptions)
         return True
+
+    def connection_received(self, peer, subs):
+        if not peer.initiator and peer.ident not in self.hub._started_peers:
+            backend.schedule(hooks._get(self.hooks, "connection_received"),
+                    (peer.ident, subs))
 
     def connection_lost(self, peer, subs):
         backend.schedule(hooks._get(self.hooks, "connection_lost"),

@@ -44,6 +44,18 @@ def connection_lost(peer, subscriptions):
     '''
     pass
 
+def connection_received(peer, subscriptions):
+    '''A connection was received from a Hub that was not in our to_connect list
+
+    :param peer: the ``(host, port)`` with which the peer identified itself
+    :type peer: ``(host, port)`` tuple
+    :param subscriptions:
+        the subscriptions the peer sent in its handshake message; this is a
+        list of four-tuples of ``(msg_type, service, mask, value)`` where
+        msg_type may be 4 for publish, or 5 for rpc
+    '''
+    pass
+
 
 def _get(hooks, name):
     log.info("invoking hook %s" % name)
