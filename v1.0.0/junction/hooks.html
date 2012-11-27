@@ -1,0 +1,176 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>junction.hooks – Extension Points for Hub Functionality &mdash; junction 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../static/jquery.js"></script>
+    <script type="text/javascript" src="../static/underscore.js"></script>
+    <script type="text/javascript" src="../static/doctools.js"></script>
+    <link rel="top" title="junction 1.0.0 documentation" href="../index.html" />
+    <link rel="prev" title="junction.errors – Standard Error classes" href="errors.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="errors.html" title="junction.errors – Standard Error classes"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">junction 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="module-junction.hooks">
+<span id="junction-hooks-extension-points-for-hub-functionality"></span><h1><a class="reference internal" href="#module-junction.hooks" title="junction.hooks"><tt class="xref py py-mod docutils literal"><span class="pre">junction.hooks</span></tt></a> &#8211; Extension Points for Hub Functionality<a class="headerlink" href="#module-junction.hooks" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="junction.hooks.connection_lost">
+<tt class="descclassname">junction.hooks.</tt><tt class="descname">connection_lost</tt><big>(</big><em>peer</em>, <em>subscriptions</em><big>)</big><a class="headerlink" href="#junction.hooks.connection_lost" title="Permalink to this definition">¶</a></dt>
+<dd><p>A connection has gone down unexpectedly</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>peer</strong> (<em>(host, port) tuple</em>) &#8211; the <tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)</span></tt> with which the peer identified itself</li>
+<li><strong>subscriptions</strong> &#8211; the subscriptions the peer had when it went down; this is a list of
+four-tuples of <tt class="docutils literal"><span class="pre">(msg_type,</span> <span class="pre">service,</span> <span class="pre">mask,</span> <span class="pre">value)</span></tt> where msg_type
+may be 4 for publish, or 5 for rpc (these constants are found in
+<tt class="docutils literal"><span class="pre">junction.core.const</span></tt>).</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="junction.hooks.connection_received">
+<tt class="descclassname">junction.hooks.</tt><tt class="descname">connection_received</tt><big>(</big><em>peer</em>, <em>subscriptions</em><big>)</big><a class="headerlink" href="#junction.hooks.connection_received" title="Permalink to this definition">¶</a></dt>
+<dd><p>A connection was received from a Hub that was not in our to_connect list</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>peer</strong> (<tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)</span></tt> tuple) &#8211; the <tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)</span></tt> with which the peer identified itself</li>
+<li><strong>subscriptions</strong> &#8211; the subscriptions the peer sent in its handshake message; this is a
+list of four-tuples of <tt class="docutils literal"><span class="pre">(msg_type,</span> <span class="pre">service,</span> <span class="pre">mask,</span> <span class="pre">value)</span></tt> where
+msg_type may be 4 for publish, or 5 for rpc</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="junction.hooks.select_peer">
+<tt class="descclassname">junction.hooks.</tt><tt class="descname">select_peer</tt><big>(</big><em>peer_addrs</em>, <em>service</em>, <em>routing_id</em>, <em>method</em><big>)</big><a class="headerlink" href="#junction.hooks.select_peer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Choose a target from the available peers for a singular message</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>peer_addrs</strong> (<em>list</em>) &#8211; the <tt class="docutils literal"><span class="pre">(host,</span> <span class="pre">port)``s</span> <span class="pre">of</span> <span class="pre">the</span> <span class="pre">peers</span> <span class="pre">eligible</span> <span class="pre">to</span> <span class="pre">handle</span> <span class="pre">the</span> <span class="pre">RPC,</span> <span class="pre">and</span>
+<span class="pre">possibly</span> <span class="pre">a</span> <span class="pre">``None</span></tt> entry if this hub can handle it locally</li>
+<li><strong>service</strong> (<em>anything hash-able</em>) &#8211; the service of the message</li>
+<li><strong>routing_id</strong> (<em>int</em>) &#8211; the routing_id of the message</li>
+<li><strong>method</strong> (<em>string</em>) &#8211; the message method name</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">one of the provided peer_addrs</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>There is no reason to call this method directly, but it may be useful to
+override it in a Hub subclass.</p>
+<p>This default implementation uses <tt class="docutils literal"><span class="pre">None</span></tt> if it is available (prefer local
+handling), then falls back to a random selection.</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="errors.html"
+                        title="previous chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">junction.errors</span></tt> &#8211; Standard Error classes</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="../sources/junction/hooks.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="errors.html" title="junction.errors – Standard Error classes"
+             >previous</a> |</li>
+        <li><a href="../index.html">junction 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2010, Travis J Parker.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
