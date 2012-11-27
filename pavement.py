@@ -21,7 +21,7 @@ setup(
         "Natural Language :: English",
         "Programming Language :: Python",
     ],
-    install_requires=['greenhouse', 'mummy', 'greenlet'],
+    install_requires=['mummy'],
 )
 
 MANIFEST = (
