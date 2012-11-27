@@ -8,7 +8,7 @@ from .client import Client
 from .core.backend import activate_greenhouse, activate_gevent, activate_eventlet
 
 
-VERSION = (0, 1, 0, "")
+VERSION = (1, 0, 0, "")
 __version__ = ".".join(filter(None, map(str, VERSION)))
 
 
