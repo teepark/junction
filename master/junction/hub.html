@@ -26,7 +26,7 @@
     <script type="text/javascript" src="../static/doctools.js"></script>
     <link rel="top" title="junction 1.0.0 documentation" href="../index.html" />
     <link rel="next" title="junction.client – A Sender-Only Client Object" href="client.html" />
-    <link rel="prev" title="Programming With Futures" href="../programming_with_futures.html" /> 
+    <link rel="prev" title="Chunked Messages" href="../chunked_messages.html" /> 
   </head>
   <body>
     <div class="related">
@@ -42,7 +42,7 @@
           <a href="client.html" title="junction.client – A Sender-Only Client Object"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="../programming_with_futures.html" title="Programming With Futures"
+          <a href="../chunked_messages.html" title="Chunked Messages"
              accesskey="P">previous</a> |</li>
         <li><a href="../index.html">junction 1.0.0 documentation</a> &raquo;</li> 
       </ul>
@@ -169,7 +169,9 @@ immediately in a separate coroutine)</td>
 <li><strong>routing_id</strong> (<em>int</em>) &#8211; the id used for routing within the registered handlers of the
 service</li>
 <li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
-<li><strong>args</strong> (<em>tuple</em>) &#8211; the positional arguments to send along with the request</li>
+<li><strong>args</strong> (<em>tuple</em>) &#8211; The positional arguments to send along with the request. If the
+first positional argument is a generator object, the publish will
+be sent in chunks <a class="reference internal" href="../chunked_messages.html#chunked-messages"><em>(more info)</em></a>.</li>
 <li><strong>kwargs</strong> (<em>dict</em>) &#8211; keyword arguments to send along with the request</li>
 <li><strong>singular</strong> (<em>bool</em>) &#8211; if <tt class="docutils literal"><span class="pre">True</span></tt>, only send the message to a single peer</li>
 </ul>
@@ -218,7 +220,9 @@ registered to receive the message</p>
 <li><strong>routing_id</strong> (<em>int</em>) &#8211; The id used for routing within the registered handlers of the
 service.</li>
 <li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
-<li><strong>args</strong> (<em>tuple</em>) &#8211; the positional arguments to send along with the request</li>
+<li><strong>args</strong> (<em>tuple</em>) &#8211; The positional arguments to send along with the request. If the
+first argument is a generator, the request will be sent in chunks
+<a class="reference internal" href="../chunked_messages.html#chunked-messages"><em>(more info)</em></a>.</li>
 <li><strong>kwargs</strong> (<em>dict</em>) &#8211; keyword arguments to send along with the request</li>
 <li><strong>timeout</strong> (<em>float or None</em>) &#8211; maximum time to wait for a response in seconds. with None, there is
 no timeout.</li>
@@ -276,7 +280,9 @@ was provided and it expires</li>
 <li><strong>routing_id</strong> (<em>int</em>) &#8211; The id used for routing within the registered handlers of the
 service.</li>
 <li><strong>method</strong> (<em>string</em>) &#8211; the method name to call</li>
-<li><strong>args</strong> (<em>tuple</em>) &#8211; the positional arguments to send along with the request</li>
+<li><strong>args</strong> (<em>tuple</em>) &#8211; The positional arguments to send along with the request. If the
+first argument is a generator, the request will be sent in chunks
+<a class="reference internal" href="../chunked_messages.html#chunked-messages"><em>(more info)</em></a>.</li>
 <li><strong>kwargs</strong> (<em>dict</em>) &#8211; keyword arguments to send along with the request</li>
 <li><strong>singular</strong> (<em>bool</em>) &#8211; if <tt class="docutils literal"><span class="pre">True</span></tt>, only send the request to a single peer</li>
 </ul>
@@ -422,8 +428,8 @@ failed.</p>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
   <h4>Previous topic</h4>
-  <p class="topless"><a href="../programming_with_futures.html"
-                        title="previous chapter">Programming With Futures</a></p>
+  <p class="topless"><a href="../chunked_messages.html"
+                        title="previous chapter">Chunked Messages</a></p>
   <h4>Next topic</h4>
   <p class="topless"><a href="client.html"
                         title="next chapter"><tt class="docutils literal docutils literal docutils literal"><span class="pre">junction.client</span></tt> &#8211; A Sender-Only Client Object</a></p>
@@ -462,7 +468,7 @@ failed.</p>
           <a href="client.html" title="junction.client – A Sender-Only Client Object"
              >next</a> |</li>
         <li class="right" >
-          <a href="../programming_with_futures.html" title="Programming With Futures"
+          <a href="../chunked_messages.html" title="Chunked Messages"
              >previous</a> |</li>
         <li><a href="../index.html">junction 1.0.0 documentation</a> &raquo;</li> 
       </ul>

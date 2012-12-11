@@ -1,0 +1,190 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Chunked Messages &mdash; junction 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="static/jquery.js"></script>
+    <script type="text/javascript" src="static/underscore.js"></script>
+    <script type="text/javascript" src="static/doctools.js"></script>
+    <link rel="top" title="junction 1.0.0 documentation" href="index.html" />
+    <link rel="next" title="junction.hub – A Hub In The Server Mesh" href="junction/hub.html" />
+    <link rel="prev" title="Programming With Futures" href="programming_with_futures.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="junction/hub.html" title="junction.hub – A Hub In The Server Mesh"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="programming_with_futures.html" title="Programming With Futures"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">junction 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="chunked-messages">
+<span id="id1"></span><h1>Chunked Messages<a class="headerlink" href="#chunked-messages" title="Permalink to this headline">¶</a></h1>
+<p>All of Junction&#8217;s message types (publish, RPC request, RPC response) can
+be sent in chunks, rather than atomically in whole. This can be useful
+when transferring large amounts of data, or when something that can be
+incrementally processed becomes available a little bit at a time.</p>
+<p>There are no methods that support this capability explicitly, rather it
+is activated by using generators with the existing
+<a class="reference internal" href="junction/hub.html#junction.hub.Hub" title="junction.hub.Hub"><tt class="xref py py-class docutils literal"><span class="pre">Hub</span></tt></a> and
+<a class="reference internal" href="junction/client.html#junction.client.Client" title="junction.client.Client"><tt class="xref py py-class docutils literal"><span class="pre">Client</span></tt></a> APIs.</p>
+<div class="section" id="from-the-client-end">
+<h2>From The Client End<a class="headerlink" href="#from-the-client-end" title="Permalink to this headline">¶</a></h2>
+<p>For publish and RPC request messages, to cause them to transfer chunked
+you must provide a generator object as the first positional argument
+(that is, the first element of the <tt class="docutils literal"><span class="pre">args</span></tt> tuple in
+<a class="reference internal" href="junction/hub.html#junction.hub.Hub.rpc" title="junction.hub.Hub.rpc"><tt class="xref py py-meth docutils literal"><span class="pre">rpc</span></tt></a>,
+<a class="reference internal" href="junction/hub.html#junction.hub.Hub.send_rpc" title="junction.hub.Hub.send_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">send_rpc</span></tt></a>, or
+<a class="reference internal" href="junction/hub.html#junction.hub.Hub.publish" title="junction.hub.Hub.publish"><tt class="xref py py-meth docutils literal"><span class="pre">publish</span></tt></a>.</p>
+<p>If an RPC response is coming back from a particular server chunked, the
+RPC&#8217;s result for that server will be a generator object, which can block
+(waiting for chunks to arrive) when iterated over.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The iteration over the chunk generator will occur in its own
+greenlet started specifically for this purpose, to ensure that
+the sending method doesn&#8217;t block, even if the generator that
+produces the chunks does.</p>
+</div>
+<p>The APIs around blocking on the results of an RPC
+(<a class="reference internal" href="junction/hub.html#junction.hub.Hub.rpc" title="junction.hub.Hub.rpc"><tt class="xref py py-meth docutils literal"><span class="pre">rpc</span></tt></a>,
+<a class="reference internal" href="junction/hub.html#junction.hub.Hub.wait_any" title="junction.hub.Hub.wait_any"><tt class="xref py py-meth docutils literal"><span class="pre">wait_any</span></tt></a>,
+<a class="reference internal" href="junction/futures.html#junction.futures.RPC.wait" title="junction.futures.RPC.wait"><tt class="xref py py-meth docutils literal"><span class="pre">RPC.wait</span></tt></a>,
+<a class="reference internal" href="junction/futures.html#junction.futures.RPC.after" title="junction.futures.RPC.after"><tt class="xref py py-meth docutils literal"><span class="pre">RPC.after</span></tt></a>) will stop blocking as
+soon as the message <em>indicating that the response is chunked</em> is
+received. They will not wait for any actual chunks to arrive.</p>
+</div>
+<div class="section" id="from-the-server-side">
+<h2>From The Server Side<a class="headerlink" href="#from-the-server-side" title="Permalink to this headline">¶</a></h2>
+<p>Any handler which receives a chunked publish or RPC request will receive
+a generator object as the first argument, and iteration over that
+generator may block waiting for chunks to arrive.</p>
+<p>To send back a chunked RPC response, the return value of the handler
+function should be a generator. The easiest way to achieve this is to
+<tt class="docutils literal"><span class="pre">yield</span></tt> from the handler itself.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Whether or not a handler was registered with <tt class="docutils literal"><span class="pre">schedule=False</span></tt>
+given to <a class="reference internal" href="junction/hub.html#junction.hub.Hub.accept_rpc" title="junction.hub.Hub.accept_rpc"><tt class="xref py py-meth docutils literal"><span class="pre">accept_rpc</span></tt></a> or
+<a class="reference internal" href="junction/hub.html#junction.hub.Hub.accept_publish" title="junction.hub.Hub.accept_publish"><tt class="xref py py-meth docutils literal"><span class="pre">accept_publish</span></tt></a>, when a
+chunked publish or RPC request starts coming in, the handler
+will be run in its own greenlet.</p>
+</div>
+</div>
+<div class="section" id="failure-cases">
+<h2>Failure Cases<a class="headerlink" href="#failure-cases" title="Permalink to this headline">¶</a></h2>
+<p>If there is an exception in a generator which is producing chunks to be
+sent, a corresponding exception object will be yielded out of the
+generator at the destination as the final chunk.</p>
+<p>If the connection goes down while chunks are being sent, the greenlet
+iterating over the producer generator will be exited immediately (via a
+<tt class="docutils literal"><span class="pre">GreenletExit</span></tt> exception), and the generator yielding chunks at the
+destination will provide a
+<a class="reference internal" href="junction/errors.html#junction.errors.LostConnection" title="junction.errors.LostConnection"><tt class="xref py py-class docutils literal"><span class="pre">LostConnection</span></tt></a> exception as
+the final chunk.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Chunked Messages</a><ul>
+<li><a class="reference internal" href="#from-the-client-end">From The Client End</a></li>
+<li><a class="reference internal" href="#from-the-server-side">From The Server Side</a></li>
+<li><a class="reference internal" href="#failure-cases">Failure Cases</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="programming_with_futures.html"
+                        title="previous chapter">Programming With Futures</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="junction/hub.html"
+                        title="next chapter"><tt class="docutils literal"><span class="pre">junction.hub</span></tt> &#8211; A Hub In The Server Mesh</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="sources/chunked_messages.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="junction/hub.html" title="junction.hub – A Hub In The Server Mesh"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="programming_with_futures.html" title="Programming With Futures"
+             >previous</a> |</li>
+        <li><a href="index.html">junction 1.0.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2010, Travis J Parker.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
