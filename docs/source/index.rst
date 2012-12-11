@@ -20,6 +20,7 @@ API Reference
 
    getting_started
    programming_with_futures
+   chunked_messages
    junction/hub
    junction/client
    junction/futures

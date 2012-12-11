@@ -144,7 +144,10 @@ class Hub(object):
         :type routing_id: int
         :param method: the method name to call
         :type method: string
-        :param args: the positional arguments to send along with the request
+        :param args:
+            The positional arguments to send along with the request. If the
+            first positional argument is a generator object, the publish will
+            be sent in chunks :ref:`(more info) <chunked-messages>`.
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
@@ -251,7 +254,10 @@ class Hub(object):
         :type routing_id: int
         :param method: the method name to call
         :type method: string
-        :param args: the positional arguments to send along with the request
+        :param args:
+            The positional arguments to send along with the request. If the
+            first argument is a generator, the request will be sent in chunks
+            :ref:`(more info) <chunked-messages>`.
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
@@ -315,7 +321,10 @@ class Hub(object):
         :type routing_id: int
         :param method: the method name to call
         :type method: string
-        :param args: the positional arguments to send along with the request
+        :param args:
+            The positional arguments to send along with the request. If the
+            first argument is a generator, the request will be sent in chunks
+            :ref:`(more info) <chunked-messages>`.
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
