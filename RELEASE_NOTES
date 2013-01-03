@@ -3,3 +3,5 @@
 1.0.1 (01/03/2013)
     - fix an issue with {rpc,publish}_receiver_count of hubs not including
       themselves even though they would handle it
+1.0.2 (01/03/2013)
+    - packaging issue with 1.0.1
