@@ -75,9 +75,12 @@ def gevent_schedule_exception(exception, target):
 def gevent_greenlet(func, args=(), kwargs=None):
     return gevent.Greenlet(func, *args, **(kwargs or {}))
 
-class gevent_event(gevent.event.Event):
-    def wait(self, *args, **kwargs):
-        return not super(gevent_event, self).wait(*args, **kwargs)
+if gevent:
+    class gevent_event(gevent.event.Event):
+        def wait(self, *args, **kwargs):
+            return not super(gevent_event, self).wait(*args, **kwargs)
+else:
+    gevent_event = None
 
 def activate_gevent():
     globals()['Socket'] = gevent.socket.socket
