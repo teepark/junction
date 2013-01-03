@@ -5,3 +5,5 @@
       themselves even though they would handle it
 1.0.2 (01/03/2013)
     - packaging issue with 1.0.1
+1.0.3 (01/03/2013)
+    - backend module fix so we don't demand that gevent be installed
