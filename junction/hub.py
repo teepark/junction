@@ -172,8 +172,12 @@ class Hub(object):
         :param routing_id: the id used for limiting the service handlers
         :type routing_id: int
         '''
-        return len(list(self._dispatcher.find_peer_routes(
+        peers = len(list(self._dispatcher.find_peer_routes(
             const.MSG_TYPE_PUBLISH, service, routing_id)))
+        if self._dispatcher.locally_handles(const.MSG_TYPE_PUBLISH,
+                service, routing_id):
+            return peers + 1
+        return peers
 
     def accept_rpc(self, service, mask, value, method, handler=None, schedule=True):
         '''Set a handler for incoming RPCs
@@ -360,8 +364,12 @@ class Hub(object):
         :returns:
             the integer number of peers that would receive the described RPC
         '''
-        return len(list(self._dispatcher.find_peer_routes(
+        peers = len(list(self._dispatcher.find_peer_routes(
             const.MSG_TYPE_RPC_REQUEST, service, routing_id)))
+        if self._dispatcher.locally_handles(const.MSG_TYPE_RPC_REQUEST,
+                service, routing_id):
+            return peers + 1
+        return peers
 
     def dependency_root(self, func):
         '''Create a parent-less :class:`Dependent <junction.futures.Dependent>`

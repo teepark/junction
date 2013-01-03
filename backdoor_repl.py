@@ -51,8 +51,7 @@ def main(environ, argv):
     # getting a port, so this can just be a simple pause
     greenhouse.pause()
 
-    telnet = subprocess.Popen(['telnet',
-        '-4', '127.0.0.1', str(BACKDOOR_PORT)])
+    telnet = subprocess.Popen(['telnet', '127.0.0.1', str(BACKDOOR_PORT)])
     rc = telnet.wait()
 
     greenhouse.end(backdoor)

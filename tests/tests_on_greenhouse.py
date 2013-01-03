@@ -368,6 +368,34 @@ class HubTests(JunctionTests, StateClearingTestCase):
         self.assertRaises(junction.errors.Unroutable,
                 self.sender.publish, "service", "method", 0, (), {})
 
+    def test_rpc_receiver_count_includes_self(self):
+        @self.peer.accept_rpc('service', 0, 0, 'method')
+        def handler():
+            return 8
+
+        @self.sender.accept_rpc('service', 0, 0, 'method')
+        def handler():
+            return 9
+
+        greenhouse.pause_for(TIMEOUT)
+
+        self.assertEqual(2,
+                self.sender.rpc_receiver_count('service', 0))
+
+    def test_publish_receiver_count_includes_self(self):
+        @self.peer.accept_publish('service', 0, 0, 'method')
+        def handler():
+            return 8
+
+        @self.sender.accept_publish('service', 0, 0, 'method')
+        def handler():
+            return 9
+
+        greenhouse.pause_for(TIMEOUT)
+
+        self.assertEqual(2,
+                self.sender.publish_receiver_count('service', 0))
+
 
 class ClientTests(JunctionTests, StateClearingTestCase):
     def build_sender(self):
