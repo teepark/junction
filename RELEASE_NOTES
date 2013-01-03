@@ -1,2 +1,5 @@
 1.0.0 (11/27/2012)
     - first official release
+1.0.1 (01/03/2013)
+    - fix an issue with {rpc,publish}_receiver_count of hubs not including
+      themselves even though they would handle it
