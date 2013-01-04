@@ -27,15 +27,13 @@ class RPCClient(object):
         if not targets:
             return None
 
-        msg = targets[0].dump((self.REQUEST, (counter,) + msg))
-
         self.sent(counter, targets)
 
         rpc = futures.RPC(self, counter, len(targets), singular)
         self.rpcs[counter] = rpc
 
         for peer in targets:
-            peer.push_string(msg)
+            peer.push((self.REQUEST, (counter,) + msg))
 
         return rpc
 

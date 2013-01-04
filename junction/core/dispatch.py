@@ -414,7 +414,7 @@ class Dispatcher(object):
             const.MSG_TYPE_RPC_REQUEST, service, routing_id))
         routes.extend(peers)
 
-        if singular and len(peers) > 1:
+        if singular and len(routes) > 1:
             routes = [self.target_selection(
                     routes, service, routing_id, method)]
             if not isinstance(routes[0], LocalTarget):
