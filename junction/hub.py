@@ -409,6 +409,11 @@ class Hub(object):
         peer.start()
         self._started_peers[peer_addr] = peer
 
+    @property
+    def peers(self):
+        "list of the (host, port) pairs of all connected peer Hubs"
+        return [addr for (addr, peer) in self._dispatcher.items() if peer.up]
+
     def _listener(self):
         server = backend.Socket()
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
