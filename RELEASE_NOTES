@@ -10,3 +10,6 @@
 1.0.4 (01/03/2013)
     - broadcast RPC bugfixes, particularly when the sending hub itself
       is one of the handlers
+1.1.0 (01/31/2013)
+    - added a .peers() method to Hub, which returns the list of
+      connected peers' (host, port) pairs
