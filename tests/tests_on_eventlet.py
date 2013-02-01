@@ -2,6 +2,7 @@
 # vim: fileencoding=utf8:et:sta:ai:sw=4:ts=4:sts=4
 
 import logging
+import socket
 import traceback
 import unittest
 
@@ -14,9 +15,19 @@ from junction.core import backend
 
 
 TIMEOUT = 0.015
-PORT = 9000
+STARTPORT = 9000
 
 GTL = eventlet.semaphore.Semaphore(1)
+
+def _free_port():
+    port = STARTPORT
+    while 1:
+        try:
+            socket.socket().bind(("127.0.0.1", port))
+        except socket.error:
+            port += 1
+        else:
+            return port
 
 class EventletTestCase(unittest.TestCase):
     def setUp(self):
@@ -24,19 +35,14 @@ class EventletTestCase(unittest.TestCase):
         junction.activate_eventlet()
         eventlet.hubs.hub.g_prevent_multiple_readers = False
         self._tbprint = traceback.print_exception
-        traceback.print_exception = lambda *a: None
-
 
     def tearDown(self):
         GTL.release()
-        traceback.print_exception = self._tbprint
 
 
 class JunctionTests(object):
     def create_hub(self, peers=None):
-        global PORT
-        peer = junction.Hub(("127.0.0.1", PORT), peers or [])
-        PORT += 2
+        peer = junction.Hub(("127.0.0.1", _free_port()), peers or [])
         peer.start()
         return peer
 
@@ -439,9 +445,7 @@ class DownedConnectionTests(EventletTestCase):
             peer.sock.close()
 
     def test_unrelated_rpcs_are_unaffected(self):
-        global PORT
-        hub = junction.Hub(("127.0.0.1", PORT), [])
-        PORT += 2
+        hub = junction.Hub(("127.0.0.1", _free_port()), [])
 
         @hub.accept_rpc('service', 0, 0, 'method')
         def handle():
@@ -450,8 +454,7 @@ class DownedConnectionTests(EventletTestCase):
 
         hub.start()
 
-        peer = junction.Hub(("127.0.0.1", PORT), [hub.addr])
-        PORT += 2
+        peer = junction.Hub(("127.0.0.1", _free_port()), [hub.addr])
         peer.start()
         peer.wait_connected()
 
@@ -468,9 +471,7 @@ class DownedConnectionTests(EventletTestCase):
         self.assertEqual(result, 1)
 
     def test_unrelated_self_rpcs_are_unaffected(self):
-        global PORT
-        hub = junction.Hub(("127.0.0.1", PORT), [])
-        PORT += 2
+        hub = junction.Hub(("127.0.0.1", _free_port()), [])
 
         @hub.accept_rpc('service', 0, 0, 'method')
         def handle():
@@ -496,9 +497,8 @@ class DownedConnectionTests(EventletTestCase):
         self.assertEqual(result, 1)
 
     def test_unrelated_client_chunked_publishes_are_unrelated(self):
-        global PORT
-        hub = junction.Hub(("127.0.0.1", PORT), [])
-        PORT += 2
+        port = _free_port()
+        hub = junction.Hub(("127.0.0.1", port), [])
 
         d = {}
 
@@ -510,10 +510,10 @@ class DownedConnectionTests(EventletTestCase):
 
         hub.start()
 
-        c1 = junction.Client(("127.0.0.1", PORT - 2))
+        c1 = junction.Client(("127.0.0.1", port))
         c1.connect()
         c1.wait_connected()
-        c2 = junction.Client(("127.0.0.1", PORT - 2))
+        c2 = junction.Client(("127.0.0.1", port))
         c2.connect()
         c2.wait_connected()
 
@@ -542,9 +542,8 @@ class DownedConnectionTests(EventletTestCase):
         self.assertEquals(d, {'a': 3, 'b': 1})
 
     def test_downed_hub_during_chunked_publish_terminates_correctly(self):
-        global PORT
-        hub = junction.Hub(("127.0.0.1", PORT), [])
-        PORT += 2
+        port = _free_port()
+        hub = junction.Hub(("127.0.0.1", port), [])
         l = []
         ev = backend.Event()
 
@@ -556,8 +555,8 @@ class DownedConnectionTests(EventletTestCase):
 
         hub.start()
 
-        hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT-2)])
-        PORT += 2
+        port2 = _free_port()
+        hub2 = junction.Hub(("127.0.0.1", port2), [("127.0.0.1", port)])
         hub2.start()
         hub2.wait_connected()
         hub2 = [hub2]
@@ -575,9 +574,8 @@ class DownedConnectionTests(EventletTestCase):
         self.assertIsInstance(l[-1], junction.errors.LostConnection)
 
     def test_downed_hub_during_chunk_pub_to_client_terminates_correctly(self):
-        global PORT
-        hub = junction.Hub(("127.0.0.1", PORT), [])
-        PORT += 2
+        port = _free_port()
+        hub = junction.Hub(("127.0.0.1", port), [])
         l = []
         ev = backend.Event()
 
@@ -589,8 +587,7 @@ class DownedConnectionTests(EventletTestCase):
 
         hub.start()
 
-        client = junction.Client(("127.0.0.1", PORT - 2))
-        PORT += 2
+        client = junction.Client(("127.0.0.1", port))
         client.connect()
         client.wait_connected()
         client = [client]
@@ -608,9 +605,8 @@ class DownedConnectionTests(EventletTestCase):
         self.assertIsInstance(l[-1], junction.errors.LostConnection)
 
     def test_downed_recipient_cancels_the_hub_sender_during_chunked_publish(self):
-        global PORT
-        hub = junction.Hub(("127.0.0.1", PORT), [])
-        PORT += 2
+        port = _free_port()
+        hub = junction.Hub(("127.0.0.1", port), [])
         triggered = [False]
 
         @hub.accept_publish('service', 0, 0, 'method')
@@ -620,8 +616,8 @@ class DownedConnectionTests(EventletTestCase):
 
         hub.start()
 
-        hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT - 2)])
-        PORT += 2
+        port2 = _free_port()
+        hub2 = junction.Hub(("127.0.0.1", port2), [("127.0.0.1", port)])
         hub2.start()
         hub2.wait_connected()
 
@@ -643,9 +639,8 @@ class DownedConnectionTests(EventletTestCase):
         assert triggered[0]
 
     def test_downed_recipient_cancels_the_hub_sender_during_chunked_request(self):
-        global PORT
-        hub = junction.Hub(("127.0.0.1", PORT), [])
-        PORT += 2
+        port = _free_port()
+        hub = junction.Hub(("127.0.0.1", port), [])
         triggered = [False]
 
         @hub.accept_rpc('service', 0, 0, 'method')
@@ -656,8 +651,8 @@ class DownedConnectionTests(EventletTestCase):
 
         hub.start()
 
-        hub2 = junction.Hub(("127.0.0.1", PORT), [("127.0.0.1", PORT - 2)])
-        PORT += 2
+        port2 = _free_port()
+        hub2 = junction.Hub(("127.0.0.1", port2), [("127.0.0.1", port)])
         hub2.start()
         hub2.wait_connected()
 
