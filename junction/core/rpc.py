@@ -73,7 +73,7 @@ class RPCClient(object):
             if rpc.complete:
                 return rpc
 
-        wait = Wait(self, [r._counter for r in rpc_list])
+        wait = futures.Wait(rpc_list)
 
         for rpc in rpc_list:
             rpc._waits.append(wait)
@@ -146,41 +146,3 @@ class ProxiedClient(RPCClient):
         client = self._client()
         if client:
             client.reset()
-
-
-class Wait(object):
-    def __init__(self, client, counters):
-        self.client = client
-        self.counters = counters
-        self.done = backend.Event()
-        self.transfers = {}
-        self.completed_rpc = None
-        self.finished = False
-
-    def finish(self, rpc):
-        if self.finished:
-            return
-        self.finished = True
-
-        if rpc in self.transfers:
-            self.completed_rpc = self.transfers[rpc]
-        else:
-            self.completed_rpc = rpc
-
-        for counter in self.counters:
-            rpc = self.client.rpcs.get(counter, None)
-            if rpc:
-                rpc._waits.remove(self)
-
-        self.done.set()
-
-    def transfer(self, source, target):
-        for i, c in enumerate(self.counters):
-            if c == source._counter:
-                self.counters[i] = target
-                break
-        target._waits.append(self)
-        self.transfers[target] = source
-
-        if target.complete:
-            self.finish(target)

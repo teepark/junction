@@ -307,6 +307,7 @@ class JunctionTests(object):
             rpcs.remove(rpc)
             sender_results.append(rpc.results)
 
+        self.assertEqual(rpcs, [])
         self.assertEqual(handler_results, [1, 2, 3, 4])
         self.assertEqual(sender_results, [[1], [4], [9], [16]])
 

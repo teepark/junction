@@ -395,5 +395,40 @@ class Dependent(object):
                 break
 
 
+class Wait(object):
+    def __init__(self, futures):
+        self.futures = futures
+        self.done = backend.Event()
+        self.transfers = {}
+        self.completed_rpc = None
+        self.finished = False
+
+    def finish(self, rpc):
+        if self.finished:
+            return
+        self.finished = True
+
+        if rpc in self.transfers:
+            self.completed_rpc = self.transfers[rpc]
+        else:
+            self.completed_rpc = rpc
+
+        for future in self.futures:
+            future._waits.remove(self)
+
+        self.done.set()
+
+    def transfer(self, source, target):
+        for i, f in enumerate(self.futures):
+            if f is source:
+                self.futures[i] = target
+                break
+        target._waits.append(self)
+        self.transfers[target] = source
+
+        if target.complete:
+            self.finish(target)
+
+
 def deepcopy(item):
     return mummy.loads(mummy.dumps(item))
