@@ -2,6 +2,7 @@
 # vim: fileencoding=utf8:et:sta:ai:sw=4:ts=4:sts=4
 
 import logging
+import sys
 import traceback
 import unittest
 
@@ -21,11 +22,16 @@ class GeventTestCase(unittest.TestCase):
         GTL.acquire()
         junction.activate_gevent()
         self._tbprint = traceback.print_exception
+        self._stderr = sys.stderr
+        sys.stderr = sys.stdin
         traceback.print_exception = lambda *a: None
+        backend.handle_exception = traceback.print_exception
 
     def tearDown(self):
         GTL.release()
+        sys.stderr = self._stderr
         traceback.print_exception = self._tbprint
+        backend.handle_exception = traceback.print_exception
 
 
 class JunctionTests(object):

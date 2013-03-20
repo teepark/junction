@@ -3,6 +3,7 @@
 
 import logging
 import socket
+import sys
 import traceback
 import unittest
 
@@ -34,9 +35,16 @@ class EventletTestCase(unittest.TestCase):
         GTL.acquire()
         junction.activate_eventlet()
         eventlet.hubs.hub.g_prevent_multiple_readers = False
+        self._stderr = sys.stderr
+        sys.stderr = sys.stdin
         self._tbprint = traceback.print_exception
+        traceback.print_exception = lambda *a: None
+        backend.handle_exception = traceback.print_exception
 
     def tearDown(self):
+        sys.stderr = self._stderr
+        traceback.print_exception = self._tbprint
+        backend.handle_exception = traceback.print_exception
         GTL.release()
 
 
