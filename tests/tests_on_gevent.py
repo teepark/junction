@@ -65,8 +65,7 @@ class JunctionTests(object):
             if len(results) == 4:
                 ev.set()
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         self.sender.publish("service", 0, "method", (1,), {})
         self.sender.publish("service", 0, "method", (2,), {})
@@ -86,8 +85,7 @@ class JunctionTests(object):
             results.append(item)
             ev.set()
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         try:
             self.sender.publish("service2", 0, "method", (1,), {})
@@ -108,8 +106,7 @@ class JunctionTests(object):
             results.append(item)
             ev.set()
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         try:
             self.sender.publish("service", 0, "method2", (1,), {})
@@ -131,8 +128,7 @@ class JunctionTests(object):
             results.append(item)
             ev.set()
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         try:
             self.sender.publish("service", 1, "method", (1,), {})
@@ -154,8 +150,7 @@ class JunctionTests(object):
                 results.append(item)
             ev.set()
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         self.sender.publish("service", 0, "method", ((x for x in xrange(5)),))
 
@@ -172,8 +167,7 @@ class JunctionTests(object):
             handler_results.append(x)
             return x ** 2
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         sender_results.append(self.sender.rpc("service", 0, "method", (1,), {},
             timeout=TIMEOUT))
@@ -196,8 +190,7 @@ class JunctionTests(object):
             results.append(item)
             ev.set()
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         self.assertRaises(junction.errors.Unroutable,
                 self.sender.rpc, "service2", 0, "method", (1,), {}, TIMEOUT)
@@ -211,8 +204,7 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 0, 0, "method1", results.append)
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         result = self.sender.rpc("service", 0, "method2", (1,), {}, TIMEOUT)
         assert isinstance(result, list)
@@ -226,8 +218,7 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 1, 0, "method", results.append)
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         self.assertRaises(junction.errors.Unroutable,
                 self.sender.rpc, "service", 1, "method", (1,), {}, TIMEOUT)
@@ -243,8 +234,7 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
 
@@ -262,8 +252,7 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
 
@@ -282,8 +271,7 @@ class JunctionTests(object):
 
         self.peer.accept_rpc("service", 0, 0, "method", handler)
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         rpcs = []
 
@@ -295,7 +283,7 @@ class JunctionTests(object):
         while rpcs:
             rpc = self.sender.wait_any(rpcs, TIMEOUT)
             rpcs.remove(rpc)
-            sender_results.append(rpc.results)
+            sender_results.append(rpc.value)
 
         self.assertEqual(handler_results, [1, 2, 3, 4])
         self.assertEqual(sender_results, [[1], [4], [9], [16]])
@@ -309,8 +297,7 @@ class JunctionTests(object):
             handler_results.append(x)
             return x ** 2
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         sender_results.append(self.sender.rpc("service", 0, "method", (1,), {},
             timeout=TIMEOUT, singular=True))
@@ -333,8 +320,7 @@ class JunctionTests(object):
                 results.append(chunk)
             return 5
 
-        for i in xrange(4):
-            backend.pause()
+        backend.pause_for(TIMEOUT)
 
         def gen():
             yield 1
@@ -414,14 +400,15 @@ class RelayedClientTests(JunctionTests, GeventTestCase):
 
 class NetworklessDependentTests(GeventTestCase):
     def test_some_math(self):
-        client = junction.Client(())
-        dep = client.dependency_root(
-                lambda: 4).after(
+        fut = junction.Future()
+        fut.finish(4)
+        dep = fut.after(
                 lambda x: x * 3).after(
                 lambda x: x - 7).after(
                 lambda x: x ** 3).after(
                 lambda x: x // 2)
-        self.assertEqual(dep.wait(TIMEOUT), 62)
+        dep.wait(TIMEOUT)
+        self.assertEqual(dep.value, 62)
 
 
 class DownedConnectionTests(GeventTestCase):

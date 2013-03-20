@@ -140,6 +140,10 @@ class eventlet_event(object):
     def clear(self):
         self._is_set = False
 
+    def is_set(self):
+        return self._is_set
+    isSet = is_set
+
     def wait(self, timeout=None):
         if self._is_set:
             return False

@@ -305,7 +305,7 @@ class JunctionTests(object):
         while rpcs:
             rpc = self.sender.wait_any(rpcs, TIMEOUT)
             rpcs.remove(rpc)
-            sender_results.append(rpc.results)
+            sender_results.append(rpc.value)
 
         self.assertEqual(handler_results, [1, 2, 3, 4])
         self.assertEqual(sender_results, [[1], [4], [9], [16]])
@@ -424,14 +424,15 @@ class RelayedClientTests(JunctionTests, EventletTestCase):
 
 class NetworklessDependentTests(EventletTestCase):
     def test_some_math(self):
-        client = junction.Client(())
-        dep = client.dependency_root(
-                lambda: 4).after(
+        fut = junction.Future()
+        fut.finish(4)
+        dep = fut.after(
                 lambda x: x * 3).after(
                 lambda x: x - 7).after(
                 lambda x: x ** 3).after(
                 lambda x: x // 2)
-        self.assertEqual(dep.wait(TIMEOUT), 62)
+        dep.wait(TIMEOUT)
+        self.assertEqual(dep.value, 62)
 
 
 class DownedConnectionTests(EventletTestCase):

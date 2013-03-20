@@ -389,7 +389,7 @@ class Dispatcher(object):
         return self.rpc_client.request(
                 [self.peers.values()[0]],
                 (service, routing_id, method, bool(singular), args, kwargs),
-                singular)
+                singular)[1]
 
     def target_selection(self, peers, service, routing_id, method):
         by_addr = {}
@@ -443,8 +443,8 @@ class Dispatcher(object):
                 backend.schedule(glet)
             return rpc
 
-        return self.rpc_client.request(
-                routes, (service, routing_id, method, args, kwargs), singular)
+        return self.rpc_client.request(routes,
+                (service, routing_id, method, args, kwargs), singular)[1]
 
     def send_chunked_rpc(self, service, routing_id, method, args, kwargs,
             targets, counter, singular=False, proxied=False):
@@ -910,10 +910,10 @@ class Dispatcher(object):
             log.debug("forwarding proxy_request %r to %d peers" %
                     (msg[:4], target_count - bool(handler)))
 
-            rpc = self.rpc_client.request(
+            counter, rpc = self.rpc_client.request(
                     targets, (service, routing_id, method, args, kwargs))
 
-            self.inflight_proxies[rpc.counter] = {
+            self.inflight_proxies[counter] = {
                 'awaiting': len(targets),
                 'client_counter': cli_counter,
                 'peer': peer,

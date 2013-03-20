@@ -22,20 +22,20 @@ class RPCClient(object):
         return counter
 
     def request(self, targets, msg, singular=False):
-        counter = self.next_counter()
-
         if not targets:
-            return None
+            return 0, None
+
+        counter = self.next_counter()
 
         self.sent(counter, targets)
 
-        rpc = futures.RPC(self, counter, len(targets), singular)
+        rpc = futures.RPC(len(targets), singular)
         self.rpcs[counter] = rpc
 
         for peer in targets:
             peer.push((self.REQUEST, (counter,) + msg))
 
-        return rpc
+        return counter, rpc
 
     def chunked_request(self, counter, targets, singular=False):
         if not targets:
@@ -43,7 +43,7 @@ class RPCClient(object):
 
         self.sent(counter, targets)
 
-        rpc = futures.RPC(self, counter, len(targets), singular)
+        rpc = futures.RPC(len(targets), singular)
         self.rpcs[counter] = rpc
 
         return rpc
@@ -58,30 +58,12 @@ class RPCClient(object):
         if counter in self.rpcs:
             self.rpcs[counter]._incoming(peer.ident, rc, result)
             if not self.inflight[counter]:
-                self.rpcs[counter]._complete()
                 del self.inflight[counter]
             if not self.by_peer[id(peer)]:
                 del self.by_peer[id(peer)]
 
     def wait(self, rpc_list, timeout=None):
-        if not hasattr(rpc_list, "__iter__"):
-            rpc_list = [rpc_list]
-        else:
-            rpc_list = list(rpc_list)
-
-        for rpc in rpc_list:
-            if rpc.complete:
-                return rpc
-
-        wait = futures.Wait(rpc_list)
-
-        for rpc in rpc_list:
-            rpc._waits.append(wait)
-
-        if wait.done.wait(timeout):
-            raise errors.WaitTimeout()
-
-        return wait.completed_rpc
+        return futures.wait_first(rpc_list, timeout)
 
     def sent(self, counter, targets):
         self.inflight[counter] = set(x.ident for x in targets)
@@ -120,10 +102,7 @@ class ProxiedClient(RPCClient):
         self.by_peer[id(peer)][counter] += target_count
 
         if counter in self.rpcs:
-            self.rpcs[counter]._target_count = target_count
-
-            if not self.inflight[counter]:
-                self.rpcs[counter]._complete()
+            self.rpcs[counter]._expect(target_count)
 
     def recipient_count(self, target, msg_type, service, routing_id, method):
         counter = self.next_counter()
@@ -133,7 +112,7 @@ class ProxiedClient(RPCClient):
 
         self.sent(counter, set([target]))
 
-        rpc = futures.RPC(self, counter, 1)
+        rpc = futures.RPC(1, False)
         self.rpcs[counter] = rpc
 
         self.expect(target, counter, 1)

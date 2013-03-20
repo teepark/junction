@@ -33,7 +33,6 @@ def run_backdoor(finished):
             try:
                 greenhouse.run_backdoor(("127.0.0.1", BACKDOOR_PORT),
                         {'greenhouse': greenhouse, 'junction': junction})
-                break
             except EnvironmentError, exc:
                 if exc.args[0] != errno.EADDRINUSE:
                     raise
