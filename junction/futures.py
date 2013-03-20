@@ -376,6 +376,7 @@ def wait_first(futures, timeout=None):
 
     return wait.completed_future
 
+
 class _Wait(object):
     def __init__(self, futures):
         self.futures = set(futures)

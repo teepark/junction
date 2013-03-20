@@ -31,6 +31,7 @@ def select_peer(peer_addrs, service, routing_id, method):
         return None
     return random.choice(peer_addrs)
 
+
 def connection_lost(peer, subscriptions):
     '''A connection has gone down unexpectedly
 
@@ -43,6 +44,7 @@ def connection_lost(peer, subscriptions):
         ``junction.core.const``).
     '''
     pass
+
 
 def connection_received(peer, subscriptions):
     '''A connection was received from a Hub that was not in our to_connect list

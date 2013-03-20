@@ -506,7 +506,8 @@ class Dispatcher(object):
             msgtype += 9
 
         msg = (counter, ident)
-        if not proxied: msg = msg[0]
+        if not proxied:
+            msg = msg[0]
         peer.push((msgtype, msg))
 
         chunks = iter(chunks)
@@ -546,12 +547,12 @@ class Dispatcher(object):
 
         if not err:
             msg = (counter, ident)
-            if not proxied: msg = msg[0]
+            if not proxied:
+                msg = msg[0]
             peer.push((msgtype + 6, msg))
 
         self.unregister_outgoing_channel([peer],
                 const.MSG_TYPE_RESPONSE_IS_CHUNKED, counter)
-
 
     def send_proxied_publish(self, service, routing_id, method, args, kwargs,
             singular=False):
@@ -1525,6 +1526,7 @@ class LocalTarget(object):
     # there's no issue with unserializable arguments (or return values). so
     # we'll skip the "dump" phase and just "push" the object itself
     push_string = push
+
     def dump(self, msg):
         return msg
 

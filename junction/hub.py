@@ -50,7 +50,8 @@ class Hub(object):
             remaining = max(0, deadline - time.time()) if timeout else None
             if not self._started_peers[peer_addr].wait_connected(remaining):
                 if timeout:
-                    log.warn("connect wait timed out after %.2f seconds" % timeout)
+                    log.warn("connect wait timed out after %.2f seconds" %
+                            timeout)
                 return False
         return True
 
@@ -179,7 +180,8 @@ class Hub(object):
             return peers + 1
         return peers
 
-    def accept_rpc(self, service, mask, value, method, handler=None, schedule=True):
+    def accept_rpc(self, service, mask, value, method,
+            handler=None, schedule=True):
         '''Set a handler for incoming RPCs
 
         :param service: the incoming RPC must have this service

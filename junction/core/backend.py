@@ -58,6 +58,7 @@ def gevent_schedule(target=None, args=(), kwargs=None):
         gevent.spawn(target, *args, **(kwargs or {}))
     return target
 
+
 def gevent_schedule_in(secs, target=None, args=(), kwargs=None):
     if target is None:
         def decorator(target):
@@ -69,8 +70,10 @@ def gevent_schedule_in(secs, target=None, args=(), kwargs=None):
         gevent.spawn_later(secs, target, *args, **(kwargs or {}))
     return target
 
+
 def gevent_schedule_exception(exception, target):
     gevent.kill(target, exception)
+
 
 def gevent_greenlet(func, args=(), kwargs=None):
     return gevent.Greenlet(func, *args, **(kwargs or {}))
@@ -81,6 +84,7 @@ if gevent:
             return not super(gevent_event, self).wait(*args, **kwargs)
 else:
     gevent_event = None
+
 
 def activate_gevent():
     globals()['Socket'] = gevent.socket.socket
@@ -107,6 +111,7 @@ def eventlet_schedule(target=None, args=(), kwargs=None):
         eventlet.spawn(target, *args, **(kwargs or {}))
     return target
 
+
 def eventlet_schedule_in(secs, target=None, args=(), kwargs=None):
     if target is None:
         def decorator(target):
@@ -116,11 +121,14 @@ def eventlet_schedule_in(secs, target=None, args=(), kwargs=None):
         eventlet.spawn_after(secs, target, *args, **(kwargs or {}))
     return target
 
+
 def eventlet_schedule_exception(exception, target):
     eventlet.hubs.get_hub().schedule_call_global(0, target.throw, exception)
 
+
 def eventlet_greenlet(func, args=(), kwargs=None):
     return eventlet.spawn(func, *args, **(kwargs or {}))
+
 
 class eventlet_event(object):
     def __init__(self):
@@ -170,6 +178,7 @@ class eventlet_event(object):
         if waiter:
             self._waiters.remove(waiter)
             eventlet.hubs.get_hub().schedule_call_global(0, waiter.switch)
+
 
 def activate_eventlet():
     globals()['Socket'] = eventlet.greenio.GreenSocket
