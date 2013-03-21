@@ -156,7 +156,8 @@ class Dispatcher(object):
                 peer.established.set()
                 return False
         elif peer.ident in self.reconnecting and not peer.initiator:
-            log.info("terminating reconnect loop in favor of incoming conn")
+            log.info("terminating reconnect loop in favor of incoming "
+                    "connection")
             loser = self.reconnecting.pop(peer.ident)
 
         peer.established.set()

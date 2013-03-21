@@ -48,7 +48,7 @@ def main():
     while dependents:
         dep = client.wait_any(dependents)
         dependents.remove(dep)
-        print dep.results
+        print dep.value
 
 if __name__ == '__main__':
     main()

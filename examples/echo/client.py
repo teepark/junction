@@ -35,7 +35,7 @@ def main():
     while rpcs:
         rpc = client.wait_any(rpcs)
         rpcs.remove(rpc)
-        print rpc.results
+        print rpc.value
 
 if __name__ == '__main__':
     main()

@@ -120,7 +120,10 @@ class Peer(object):
         return self.ident or self.addr
 
     def connection_failure(self):
-        log.warn("connection to %r went down" % (self.ident,))
+        if self.ident is None:
+            log.warn("client connection went down")
+        else:
+            log.warn("connection to %r went down" % (self.ident,))
         self.go_down(reconnect=True, expected=False)
 
     def init_sock(self):

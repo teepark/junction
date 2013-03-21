@@ -21,7 +21,7 @@ def main(environ, argv):
     greenhouse.global_exception_handler(traceback.print_exception)
     junction.configure_logging(level=1)
 
-    port = 9056
+    port = 9057
     if argv[1:] and argv[1] == 'relay':
         port += 1
 

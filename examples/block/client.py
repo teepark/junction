@@ -25,7 +25,9 @@ def main():
     rpcs = []
     for i in xrange(5):
         wait = random.random() * 5
-        rpcs.append(client.send_rpc(WAIT_SERVICE, 0, "wait", (wait,), {}))
+        rpc = client.send_rpc(WAIT_SERVICE, 0, "wait", (wait,), {})
+        rpc.counter = i
+        rpcs.append(rpc)
         print "queued a wait %r: %r" % (rpcs[-1].counter, wait)
 
     while rpcs:

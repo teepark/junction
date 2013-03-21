@@ -4,7 +4,7 @@
 import traceback
 
 import greenhouse
-from junction import Hub
+import junction
 
 HOST = "127.0.0.1"
 PORT = 9000
@@ -19,13 +19,14 @@ SERVICE = 1
 
 
 greenhouse.global_exception_handler(traceback.print_exception)
+junction.configure_logging()
 
 def handler(x):
     return "echo: %s" % x
 
 
 def main():
-    hub = Hub((HOST, PORT), [(RELAY_HOST, RELAY_PORT)])
+    hub = junction.Hub((HOST, PORT), [(RELAY_HOST, RELAY_PORT)])
     hub.start()
 
     hub.accept_rpc(SERVICE, 0, 0, "echo", handler)
