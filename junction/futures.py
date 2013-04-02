@@ -8,7 +8,7 @@ from .core import backend, dispatch
 from . import errors
 
 
-__all__ = ["Future", "after", "wait_first"]
+__all__ = ["Future", "after", "wait_any"]
 
 
 log = logging.getLogger("junction.futures")
@@ -350,7 +350,7 @@ def after(parents, func=None):
     return dep
 
 
-def wait_first(futures, timeout=None):
+def wait_any(futures, timeout=None):
     '''Wait for the completion of any (the first) one of multiple futures
 
     :param list futures: A list of :class:`Future`\s

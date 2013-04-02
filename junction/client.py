@@ -162,33 +162,6 @@ class Client(object):
         return self._dispatcher.send_proxied_rpc(service, routing_id, method,
                 args or (), kwargs or {}, singular)
 
-    def wait_any(self, futures, timeout=None):
-        '''Wait for the response for any (the first) of multiple futures
-
-        This method will block until a response has been received.
-
-        :param futures:
-            a list made up of rpc :class:`rpc <junction.futures.RPC>` and
-            :class:`dependent <junction.futures.Dependent>` objects on which to
-            wait (only for the first one)
-        :type futures: list
-        :param timeout:
-            maximum time to wait for a response in seconds. with None, there is
-            no timeout.
-        :type timeout: float or None
-
-        :returns:
-            one of the :class:`RPC <junction.futures.RPC>`\s or
-            :class:`Dependent <junction.futures.Dependent>`\s from ``futures``
-            -- the first one to be completed (or any of the ones that were
-            already completed) for which ``completed`` is ``True``.
-
-        :raises:
-            - :class:`WaitTimeout <junction.errors.WaitTimeout>` if a timeout
-              was provided and it expires
-        '''
-        return self._rpc_client.wait(futures, timeout)
-
     def rpc(self, service, routing_id, method, args=None, kwargs=None,
             timeout=None, singular=False):
         '''Send an RPC request and return the corresponding response

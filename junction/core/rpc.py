@@ -62,9 +62,6 @@ class RPCClient(object):
             if not self.by_peer[id(peer)]:
                 del self.by_peer[id(peer)]
 
-    def wait(self, rpc_list, timeout=None):
-        return futures.wait_first(rpc_list, timeout)
-
     def sent(self, counter, targets):
         self.inflight[counter] = set(x.ident for x in targets)
         for peer in targets:
