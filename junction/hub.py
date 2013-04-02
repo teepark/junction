@@ -368,7 +368,8 @@ class Hub(object):
     @property
     def peers(self):
         "list of the (host, port) pairs of all connected peer Hubs"
-        return [addr for (addr, peer) in self._dispatcher.items() if peer.up]
+        return [addr for (addr, peer) in self._dispatcher.peers.items()
+                if peer.up]
 
     def _listener(self):
         server = backend.Socket()
