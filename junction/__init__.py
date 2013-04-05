@@ -10,7 +10,7 @@ from .core.backend import \
 from .futures import Future, after, wait_any
 
 
-VERSION = (1, 1, 0, "")
+VERSION = (2, 0, 0, "")
 __version__ = ".".join(filter(None, map(str, VERSION)))
 
 

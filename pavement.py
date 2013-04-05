@@ -3,7 +3,7 @@ from paver.path import path
 from paver.setuputils import setup
 
 
-VERSION = (1, 1, 0, "")
+VERSION = (2, 0, 0, "")
 
 setup(
     name="junction",
@@ -15,7 +15,7 @@ setup(
     url="http://github.com/teepark/junction",
     license="BSD",
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: BSD License",
         "Natural Language :: English",

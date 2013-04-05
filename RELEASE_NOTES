@@ -1,15 +1,62 @@
 1.0.0 (11/27/2012)
     - first official release
-1.0.1 (01/03/2013)
+1.0.1 (1/3/2013)
     - fix an issue with {rpc,publish}_receiver_count of hubs not
       including themselves even though they would handle it
-1.0.2 (01/03/2013)
+1.0.2 (1/3/2013)
     - packaging issue with 1.0.1
-1.0.3 (01/03/2013)
+1.0.3 (1/3/2013)
     - backend module fix so we don't demand that gevent be installed
-1.0.4 (01/03/2013)
+1.0.4 (1/3/2013)
     - broadcast RPC bugfixes, particularly when the sending hub itself
       is one of the handlers
-1.1.0 (01/31/2013)
+
+1.1.0 (1/31/2013)
     - added a .peers() method to Hub, which returns the list of
       connected peers' (host, port) pairs
+1.1.1 (4/4/2013)
+    - fix the peers() function, it was very broken
+    - backport of the 2.0 futures implementation but with shims to clean
+        up backwards-incompatibilities
+        - improvements:
+            - new Future class is the base for RPC and Dependents, and
+                is also useful on its own for building out APIs that can
+                cooperatively wait together with RPCs and Dependents.
+            - wait_any can now collectively wait on a list of *any*
+                futures (including RPCs, Dependents), even if they came
+                from different Hubs/Clients.
+            - futures.after (new function) can now create a Dependent
+                with dependencies on RPCs (and their descendents) which
+                came from different Hubs/Clients.
+            - RPCs and Dependents inherit from Future the methods
+                on_finish and on_abort which will line up callbacks to
+                run but don't create Dependents.
+
+2.0.0 (4/4/2013
+    - new futures implementation, with some backwards-incompatibilities
+        - improvements:
+            - new Future class is the base for RPC and Dependents, and
+                is also useful on its own for building out APIs that can
+                cooperatively wait together with RPCs and Dependents.
+            - wait_any can now collectively wait on a list of *any*
+                futures (including RPCs, Dependents), even if they came
+                from different Hubs/Clients.
+            - futures.after (new function, see below in backwards
+                incompatibilities) can now create a Dependent with
+                dependencies on RPCs (and their descendents) which came
+                from different Hubs/Clients.
+            - RPCs and Dependents inherit from Future the methods
+                on_finish and on_abort which will line up callbacks to
+                run but don't create Dependents.
+        - accompanying backwards incompatibilities:
+            - RPC no longer has a "counter" attribute, this is now a private
+                implementation detail
+            - Hub.wait_any and Client.wait_any are no more, there is now a
+                module-level function futures.wait_any that does the same job
+            - Hub.dependency_root and Client.dependency_root are no more, now
+                you would create a Future and call its finish() method right
+                away.
+            - new function futures.after(parents, func) works like
+                parents[0].after(func, other_parents=parents[1:])
+            - RPCs and Dependents no longer have a 'results' attribute, this
+                attribute is called 'value' (like their parent class Future)
