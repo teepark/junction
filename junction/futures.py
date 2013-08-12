@@ -184,6 +184,21 @@ class Future(object):
             parents += other_parents
         return after(parents, func)
 
+    def get(self, timeout=None):
+        '''Get the Future's value, blocking the current coroutine if necessary
+
+        :param timeout: maximum time to block in seconds
+        :type timeout: int, float or None
+
+        :returns: the Future's :attr:`value <junction.futures.Future.value>`
+
+        :raises:
+            :class:`WaitTimeout <junction.errors.WaitTimeout>` if ``timeout``
+            expires before completion
+        '''
+        self.wait(timeout)
+        return self.value
+
 
 class RPC(Future):
     '''A representation of a single RPC request/response cycle
