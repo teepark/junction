@@ -311,7 +311,8 @@ class Dependent(Future):
             self.abort(*sys.exc_info())
         else:
             if (isinstance(value, list)
-                    and all(isinstance(v, Future) for v in value)):
+                    and all(isinstance(v, Future) for v in value)
+                    and value):
                 value = after(value, lambda *l: l)
             if isinstance(value, Future):
                 value.on_finish(self.finish)
