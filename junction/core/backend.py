@@ -27,7 +27,7 @@ __all__ = ["active", "Socket", "Queue", "Event", "schedule", "schedule_in",
         "schedule_exception", "greenlet", "end", "handle_exception", "pause",
         "getcurrent", "greenlet_class"]
 
-supported = ["greenhouse", "gevent", "eventlet"]
+_supported = ["greenhouse", "gevent", "eventlet"]
 active = None
 
 
@@ -205,6 +205,6 @@ def activate():
         activate_eventlet()
     else:
         raise RuntimeError("no supported greenlet runtime found out of (%s)" %
-                ", ".join(supported))
+                ", ".join(_supported))
 
 activate()
