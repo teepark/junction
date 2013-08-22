@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import logging
 import sys
+import time
 import weakref
 
 from .core import backend, dispatch
@@ -377,6 +378,8 @@ def wait_any(futures, timeout=None):
     :returns:
         One of the futures from the provided list -- the first one to become
         complete (or any of the ones that were already complete).
+
+    :raises WaitTimeout: if a timeout is provided and hit
     '''
     for fut in futures:
         if fut.complete:
@@ -391,6 +394,25 @@ def wait_any(futures, timeout=None):
         raise errors.WaitTimeout()
 
     return wait.completed_future
+
+
+def wait_all(futures, timeout=None):
+    '''Wait for the completion of all futures in a list
+
+    :param list future: a list of :class:`Future`\s
+    :param timeout:
+        The maximum time to wait. With ``None``, can block indefinitely.
+    :type timeout: float or None
+
+    :raises WaitTimeout: if a timeout is provided and hit
+    '''
+    if timeout is not None:
+        deadline = time.time() + timeout
+        for fut in futures:
+            fut.wait(deadline - time.time())
+    else:
+        for fut in futures:
+            fut.wait()
 
 
 class _Wait(object):
