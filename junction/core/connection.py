@@ -73,12 +73,6 @@ class Peer(object):
     def push_string(self, msg):
         self.send_queue.put(msg)
 
-    def push_udp(self, msg):
-        self.udp_sender.sendto(mummy.dumps(msg), self.ident)
-
-    def push_udp_string(self, msg):
-        self.udp_sender.sendto(msg, self.ident)
-
     ##
     ## Coroutines
     ##

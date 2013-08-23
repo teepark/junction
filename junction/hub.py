@@ -14,7 +14,7 @@ from .core import backend, connection, const, dispatch, rpc
 log = logging.getLogger("junction.hub")
 
 
-#  65535 byte IP packet (largest size representable in the 2 byte len header)
+#  65535 byte IP packet (largest representable in the 2 byte length header)
 #  -  20 byte IP header
 #  -   8 byte UDP header
 #  _____
