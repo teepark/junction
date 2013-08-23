@@ -3,8 +3,11 @@ from __future__ import absolute_import
 import collections
 import inspect
 import logging
+import socket
 import sys
 import traceback
+
+import mummy
 
 from . import backend, connection, const
 from .. import errors, hooks
@@ -29,6 +32,7 @@ class Dispatcher(object):
         self.proxying_channels = {}
         self.received_channels = {}
         self.outgoing_channels = {}
+        self.udp_sender = backend.Socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def add_local_subscription(self, msg_type, service, mask, value, method,
             handler, schedule):
@@ -137,6 +141,14 @@ class Dispatcher(object):
         for target in targets:
             if target.up:
                 target.push_string(msg)
+
+    def multipush_udp(self, targets, msg):
+        msgstr = mummy.dumps(msg)
+        for target in targets:
+            if isinstance(target, LocalTarget):
+                target.push((msg[0], msg[2]))
+            else:
+                self.udp_sender.sendto(msgstr, target.ident)
 
     def local_subscriptions(self):
         for key, value in self.local_subs.iteritems():
@@ -304,6 +316,45 @@ class Dispatcher(object):
                 msg[1][:3], len(peers)))
 
         self.multipush(targets, msg)
+
+        return bool(handler or peers)
+
+    def send_publish_udp(self, client, service, routing_id, method, args,
+            kwargs, singular=False):
+        # get the peers registered for this publish
+        peers = list(self.find_peer_routes(
+            const.MSG_TYPE_PUBLISH, service, routing_id))
+
+        # handle locally if we have a handler for it
+        handler, schedule = self.find_local_handler(
+                const.MSG_TYPE_PUBLISH, service, routing_id, method)
+
+        targets = peers[:]
+        if handler:
+            targets.append(LocalTarget(self, handler, schedule, client))
+
+        if singular:
+            targets = [self.target_selection(
+                targets, service, routing_id, method)]
+            if not isinstance(targets[0], LocalTarget):
+                handler = None
+
+        if args and hasattr(args[0], '__iter__') \
+                and not hasattr(args[0], '__len__'):
+            raise errors.IllegalMessage("UDP publishes cannot be chunked")
+
+        msg = (const.MSG_TYPE_PUBLISH, self.hub._ident,
+                (service, routing_id, method, args, kwargs))
+
+        if handler is not None:
+            log.debug("locally handling UDP publish %r %s" %
+                    (msg[1][:3], "scheduled" if schedule else "immediately"))
+
+        if peers and not (singular and handler):
+            log.debug("sending UDP publish %r to %d peers" % (
+                msg[1][:3], len(peers)))
+
+        self.multipush_udp(targets, msg)
 
         return bool(handler or peers)
 
@@ -746,6 +797,10 @@ class Dispatcher(object):
 
     # callback for peer objects to pass up a message
     def incoming(self, peer, msg):
+        if not isinstance(msg, tuple) or len(msg) != 2:
+            log.warn("malformed message from %r" % (peer.ident,))
+            return
+
         msg_type, msg = msg
         handler = self.handlers.get(msg_type, None)
 

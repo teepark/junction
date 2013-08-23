@@ -48,3 +48,8 @@ RPC_ERR_BADARGS = 8
 REVERSE = dict((val, key)
         for (key, val) in globals().items()
         if key.startswith("MSG_TYPE"))
+
+
+UDP_ALLOWED = frozenset([
+    MSG_TYPE_PUBLISH,
+])

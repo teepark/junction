@@ -67,6 +67,10 @@ class BadArguments(Exception):
     "Service client provided arguments incompatible with the handler"
 
 
+class IllegalMessage(Exception):
+    "Restrictions on message types violated"
+
+
 HANDLED_ERROR_TYPES = {}
 
 

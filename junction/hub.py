@@ -5,11 +5,20 @@ import random
 import socket
 import time
 
+import mummy
+
 from . import errors, futures
 from .core import backend, connection, const, dispatch, rpc
 
 
 log = logging.getLogger("junction.hub")
+
+
+#  65535 byte IP packet (largest size representable in the 2 byte len header)
+#  -  20 byte IP header
+#  -   8 byte UDP header
+#  _____
+MAX_UDP_PACKET_SIZE = 65507
 
 
 class Hub(object):
@@ -21,6 +30,7 @@ class Hub(object):
         self._started_peers = {}
         self._closing = False
         self._listener_coro = None
+        self._udp_listener_coro = None
 
         self._rpc_client = rpc.RPCClient()
         self._dispatcher = dispatch.Dispatcher(self._rpc_client, self, hooks)
@@ -65,6 +75,9 @@ class Hub(object):
         if self._listener_coro:
             backend.schedule_exception(
                     errors._BailOutOfListener(), self._listener_coro)
+        if self._udp_listener_coro:
+            backend.schedule_exception(
+                    errors._BailOutOfListener(), self._udp_listener_coro)
 
     def accept_publish(
             self, service, mask, value, method, handler=None, schedule=False):
@@ -163,6 +176,38 @@ class Hub(object):
         '''
         if not self._dispatcher.send_publish(None, service, routing_id, method,
                 args or (), kwargs or {}, singular=singular):
+            raise errors.Unroutable()
+
+    def publish_udp(self, service, routing_id, method, args=None, kwargs=None,
+            singular=False):
+        '''Send a 1-way message via UDP
+
+        :param service: the service name (the routing top level)
+        :type service: anything hash-able
+        :param routing_id:
+            the id used for routing within the registered handlers of the
+            service
+        :type routing_id: int
+        :param method: the method name to call
+        :type method: string
+        :param args:
+            The positional arguments to send along with the request. If the
+            first positional argument is a generator object, the publish will
+            be sent in chunks :ref:`(more info) <chunked-messages>`.
+        :type args: tuple
+        :param kwargs: keyword arguments to send along with the request
+        :type kwargs: dict
+        :param singular: if ``True``, only send the message to a single peer
+        :type singular: bool
+
+        :returns: None. use 'rpc' methods for requests with responses.
+
+        :raises:
+            :class:`Unroutable <junction.errors.Unroutable>` if no peers are
+            registered to receive the message
+        '''
+        if not self._dispatcher.send_publish_udp(None, service, routing_id,
+                method, args or (), kwargs or {}, singular=singular):
             raise errors.Unroutable()
 
     def publish_receiver_count(self, service, routing_id):
@@ -353,7 +398,9 @@ class Hub(object):
         log.info("starting")
 
         self._listener_coro = backend.greenlet(self._listener)
+        self._udp_listener_coro = backend.greenlet(self._udp_listener)
         backend.schedule(self._listener_coro)
+        backend.schedule(self._udp_listener_coro)
 
         for addr in self._peers:
             self.add_peer(addr)
@@ -395,3 +442,30 @@ class Hub(object):
             # local vars will prevent the last peer from being garbage
             # collected if it goes down in the meantime.
             del client, peer
+
+    def _udp_listener(self):
+        sock = backend.Socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(self.addr)
+
+        log.info("starting UDP listener socket on %r" % (self.addr,))
+
+        while not self._closing:
+            try:
+                msg, addr = sock.recvfrom(MAX_UDP_PACKET_SIZE)
+            except errors._BailOutOfListener:
+                log.info("closing listener socket")
+                server.close()
+                break
+
+            msg = mummy.loads(msg)
+            if not isinstance(msg, tuple) or len(msg) != 3:
+                log.warn("malformed UDP message sent from %r" % (addr,))
+            msg_type, sender_hostport, msg = msg
+            if msg_type not in const.UDP_ALLOWED:
+                log.warn("disallowed UDP message type %r from %r" %
+                        (msg_type, sender_hostport))
+                continue
+
+            peer = self._dispatcher.peers[sender_hostport]
+            self._dispatcher.incoming(peer, (msg_type, msg))
