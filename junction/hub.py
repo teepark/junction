@@ -147,26 +147,22 @@ class Hub(object):
                 const.MSG_TYPE_PUBLISH, service, mask, value)
 
     def publish(self, service, routing_id, method, args=None, kwargs=None,
-            singular=False):
+            singular=False, udp=False):
         '''Send a 1-way message
 
         :param service: the service name (the routing top level)
         :type service: anything hash-able
-        :param routing_id:
+        :param int routing_id:
             the id used for routing within the registered handlers of the
             service
-        :type routing_id: int
-        :param method: the method name to call
-        :type method: string
-        :param args:
+        :param string method: the method name to call
+        :param tuple args:
             The positional arguments to send along with the request. If the
             first positional argument is a generator object, the publish will
             be sent in chunks :ref:`(more info) <chunked-messages>`.
-        :type args: tuple
-        :param kwargs: keyword arguments to send along with the request
-        :type kwargs: dict
-        :param singular: if ``True``, only send the message to a single peer
-        :type singular: bool
+        :param dict kwargs: keyword arguments to send along with the request
+        :param bool singular: if ``True``, only send the message to a single peer
+        :param bool udp: deliver the message over UDP instead of the usual TCP
 
         :returns: None. use 'rpc' methods for requests with responses.
 
@@ -174,40 +170,12 @@ class Hub(object):
             :class:`Unroutable <junction.errors.Unroutable>` if no peers are
             registered to receive the message
         '''
-        if not self._dispatcher.send_publish(None, service, routing_id, method,
+        if udp:
+            func = self._dispatcher.send_publish_udp
+        else:
+            func = self._dispatcher.send_publish
+        if not func(None, service, routing_id, method,
                 args or (), kwargs or {}, singular=singular):
-            raise errors.Unroutable()
-
-    def publish_udp(self, service, routing_id, method, args=None, kwargs=None,
-            singular=False):
-        '''Send a 1-way message via UDP
-
-        :param service: the service name (the routing top level)
-        :type service: anything hash-able
-        :param routing_id:
-            the id used for routing within the registered handlers of the
-            service
-        :type routing_id: int
-        :param method: the method name to call
-        :type method: string
-        :param args:
-            The positional arguments to send along with the request. If the
-            first positional argument is a generator object, the publish will
-            be sent in chunks :ref:`(more info) <chunked-messages>`.
-        :type args: tuple
-        :param kwargs: keyword arguments to send along with the request
-        :type kwargs: dict
-        :param singular: if ``True``, only send the message to a single peer
-        :type singular: bool
-
-        :returns: None. use 'rpc' methods for requests with responses.
-
-        :raises:
-            :class:`Unroutable <junction.errors.Unroutable>` if no peers are
-            registered to receive the message
-        '''
-        if not self._dispatcher.send_publish_udp(None, service, routing_id,
-                method, args or (), kwargs or {}, singular=singular):
             raise errors.Unroutable()
 
     def publish_receiver_count(self, service, routing_id):
