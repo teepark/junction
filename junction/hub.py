@@ -147,7 +147,7 @@ class Hub(object):
                 const.MSG_TYPE_PUBLISH, service, mask, value)
 
     def publish(self, service, routing_id, method, args=None, kwargs=None,
-            singular=False, udp=False):
+            broadcast=False, udp=False):
         '''Send a 1-way message
 
         :param service: the service name (the routing top level)
@@ -161,7 +161,8 @@ class Hub(object):
             first positional argument is a generator object, the publish will
             be sent in chunks :ref:`(more info) <chunked-messages>`.
         :param dict kwargs: keyword arguments to send along with the request
-        :param bool singular: if ``True``, only send the message to a single peer
+        :param bool broadcast:
+            if ``True``, send to every peer with a matching subscription.
         :param bool udp: deliver the message over UDP instead of the usual TCP
 
         :returns: None. use 'rpc' methods for requests with responses.
@@ -175,7 +176,7 @@ class Hub(object):
         else:
             func = self._dispatcher.send_publish
         if not func(None, service, routing_id, method,
-                args or (), kwargs or {}, singular=singular):
+                args or (), kwargs or {}, singular=not broadcast):
             raise errors.Unroutable()
 
     def publish_receiver_count(self, service, routing_id):
@@ -262,7 +263,7 @@ class Hub(object):
                 const.MSG_TYPE_RPC_REQUEST, service, mask, value)
 
     def send_rpc(self, service, routing_id, method, args=None, kwargs=None,
-            singular=False):
+            broadcast=False):
         '''Send out an RPC request
 
         :param service: the service name (the routing top level)
@@ -280,8 +281,9 @@ class Hub(object):
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
-        :param singular: if ``True``, only send the request to a single peer
-        :type singular: bool
+        :param broadcast:
+            if ``True``, send to every peer with a matching subscription
+        :type broadcast: bool
 
         :returns:
             a :class:`RPC <junction.futures.RPC>` object representing the
@@ -292,7 +294,7 @@ class Hub(object):
             registered to receive the message
         '''
         rpc = self._dispatcher.send_rpc(service, routing_id, method,
-                args or (), kwargs or {}, singular)
+                args or (), kwargs or {}, not broadcast)
 
         if not rpc:
             raise errors.Unroutable()
@@ -300,7 +302,7 @@ class Hub(object):
         return rpc
 
     def rpc(self, service, routing_id, method, args=None, kwargs=None,
-            timeout=None, singular=False):
+            timeout=None, broadcast=False):
         '''Send an RPC request and return the corresponding response
 
         This will block waiting until the response has been received.
@@ -324,8 +326,9 @@ class Hub(object):
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
         :type timeout: float or None
-        :param singular: if ``True``, only send the request to a single peer
-        :type singular: bool
+        :param broadcast:
+            if ``True``, send to every peer with a matching subscription
+        :type broadcast: bool
 
         :returns:
             a list of the objects returned by the RPC's targets. these could be
@@ -338,9 +341,8 @@ class Hub(object):
               was provided and it expires
         '''
         rpc = self.send_rpc(service, routing_id, method,
-                args or (), kwargs or {}, singular)
-        rpc.wait(timeout)
-        return rpc.value
+                args or (), kwargs or {}, broadcast)
+        return rpc.get(timeout)
 
     def rpc_receiver_count(self, service, routing_id):
         '''Get the number of peers that would handle a particular RPC
@@ -429,11 +431,19 @@ class Hub(object):
             msg = mummy.loads(msg)
             if not isinstance(msg, tuple) or len(msg) != 3:
                 log.warn("malformed UDP message sent from %r" % (addr,))
+
             msg_type, sender_hostport, msg = msg
             if msg_type not in const.UDP_ALLOWED:
                 log.warn("disallowed UDP message type %r from %r" %
                         (msg_type, sender_hostport))
                 continue
+
+            if sender_hostport not in self._dispatcher.peers:
+                log.warn("UDP message from unknown sender: %r" %
+                        (sender_hostport,))
+                continue
+
+            log.debug("UDP message received from %r" % (sender_hostport,))
 
             peer = self._dispatcher.peers[sender_hostport]
             self._dispatcher.incoming(peer, (msg_type, msg))

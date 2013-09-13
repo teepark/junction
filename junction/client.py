@@ -70,7 +70,7 @@ class Client(object):
         self._peer.go_down(reconnect=False, expected=True)
 
     def publish(self, service, routing_id, method, args=None, kwargs=None,
-            singular=False):
+            broadcast=False):
         '''Send a 1-way message
 
         :param service: the service name (the routing top level)
@@ -85,8 +85,9 @@ class Client(object):
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
-        :param singular: if ``True``, only send the message to a single peer
-        :type singular: bool
+        :param broadcast:
+            if ``True``, send to every peer with a matching subscription
+        :type broadcast: bool
 
         :returns: None. use 'rpc' methods for requests with responses.
 
@@ -98,7 +99,7 @@ class Client(object):
             raise errors.Unroutable()
 
         self._dispatcher.send_proxied_publish(service, routing_id, method,
-                args or (), kwargs or {}, singular=singular)
+                args or (), kwargs or {}, singular=not broadcast)
 
     def publish_receiver_count(
             self, service, routing_id, method, timeout=None):
@@ -130,7 +131,7 @@ class Client(object):
                         timeout)[0]
 
     def send_rpc(self, service, routing_id, method, args=None, kwargs=None,
-            singular=False):
+            broadcast=False):
         '''Send out an RPC request
 
         :param service: the service name (the routing top level)
@@ -145,8 +146,9 @@ class Client(object):
         :type args: tuple
         :param kwargs: keyword arguments to send along with the request
         :type kwargs: dict
-        :param singular: if ``True``, only send the request to a single peer
-        :type singular: bool
+        :param broadcast:
+            if ``True``, send to all peers with matching subscriptions
+        :type broadcast: bool
 
         :returns:
             a :class:`RPC <junction.futures.RPC>` object representing the
@@ -160,10 +162,10 @@ class Client(object):
             raise errors.Unroutable()
 
         return self._dispatcher.send_proxied_rpc(service, routing_id, method,
-                args or (), kwargs or {}, singular)
+                args or (), kwargs or {}, not broadcast)
 
     def rpc(self, service, routing_id, method, args=None, kwargs=None,
-            timeout=None, singular=False):
+            timeout=None, broadcast=False):
         '''Send an RPC request and return the corresponding response
 
         This will block waiting until the response has been received.
@@ -184,8 +186,9 @@ class Client(object):
             maximum time to wait for a response in seconds. with None, there is
             no timeout.
         :type timeout: float or None
-        :param singular: if ``True``, only send the request to a single peer
-        :type singular: bool
+        :param broadcast:
+            if ``True``, send to all peers with matching subscriptions
+        :type broadcast: bool
 
         :returns:
             a list of the objects returned by the RPC's targets. these could be
@@ -198,10 +201,8 @@ class Client(object):
               was provided and it expires
         '''
         rpc = self.send_rpc(service, routing_id, method,
-                args or (), kwargs or {}, singular=singular)
-        rpc.wait(timeout)
-        results = rpc.value
-        return results
+                args or (), kwargs or {}, broadcast=broadcast)
+        return rpc.get(timeout)
 
     def rpc_receiver_count(self, service, routing_id, method, timeout=None):
         '''Get the number of peers that would handle a particular RPC

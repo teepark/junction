@@ -47,7 +47,7 @@ in a minute), and that the function used to handle those RPCs is the
 
 Then we start the hub. This will start up the server accepting
 connections on ``("127.0.0.1", 9000)`` and initiate all of the
-connections we asked it to (none, this time).
+connections we asked it to (an empty list this time).
 
 The wait at the end is just to get the main greenlet to block - nothing
 else has a reference to this ``Event``, so nothing will be waking it
@@ -62,11 +62,11 @@ Here's the part where we talk about the mask and value. Every
 RPC and publish subscription in junction is made with a service name,
 mask and value integers, and a method name in order to specify precisely
 which messages it should be receiving. The service and method are easy,
-they just have to match what is in the message exactly. The mask and
-value however are different. The corresponding component in an RPC
+they just have to match exactly what is in the message. The mask and
+value however are different: the corresponding component in an RPC
 request is an integer "routing id" which, when bitwise-ANDed against a
-subscription's mask, must be equal to the subscription's value to be a
-match. So in this case the mask of 0 will always produce 0 when it is
+subscription's mask, must be equal to the subscription's value in order
+to match. So in this case the mask of 0 will always produce 0 when it is
 ANDed with any routing id, meaning the ``(mask, value)`` pair of ``(0,
 0)`` will always match (in this case we don't care to shard the ECHO
 service).
@@ -86,7 +86,8 @@ every message would have to be broadcast to every peer for filtering on
 the remote end. But this approach with a mask and value allows
 hubs to raise :class:`Unroutable <junction.errors.Unroutable>` from
 rpc-sending client methods, or to return from :meth:`rpc_receiver_count
-<junction.hub.Hub.rpc_receiver_count>` without ever blocking.
+<junction.hub.Hub.rpc_receiver_count>` without having to initiate any
+I/O, or block.
 
 
 A Hub as a Client
@@ -110,14 +111,15 @@ First the code.
         rpcs.append(hub.send_rpc("ECHO", 0, "echo", (msg,), {}))
 
     for rpc in rpcs:
-        print rpc.wait()[0]
+        rpc.wait()
+        print rpc.value
 
 We get started in a similar way, creating a hub. Even though this hub
 won't be accepting any connections from peers, it still has to start up
 a server. All :class:`Hubs <junction.hub.Hub>` are created equal, and
 they all accept connections from peers. This time we do provide a peer
 for it to make a connection to; we give it the ``(host, port)`` of the
-service we created before.
+service's hub we created before.
 
 :meth:`wait_connected <junction.hub.Hub.wait_connected>`
 will block until it has finished connecting to the list of peers we gave
@@ -130,28 +132,27 @@ haven't met anyone that accepts RPCs to ECHO/0/echo").
 
 Once connected, we can call :meth:`rpc <junction.hub.Hub.rpc>` with
 the service, routing id, method, positional arguments and keyword
-arguments. This method will block until all responses come back, and
-then return them. Because it is possible that more than one peer might
-have had a subscription matching the RPC, the method always returns a
-list. In this case we know it is only connected to one peer and that the
-peer accepts this message, so we safely just index the first result.
+arguments. This method will block until the response comes back, and
+then return it. It is possible that more than one peer might have had a
+subscription matching the RPC; in that case the method would select a
+random matching subscription and use that one.
 
-You already have everything you need to know to do synchronous RPCs with
-junction. Junction hubs are coroutine-safe, so using greenhouse_ you
-can always create multiple coroutines to run multiple RPCs in parallel.
+Now you have everything you need to do synchronous RPCs with junction.
+Junction hubs are coroutine-safe, so using greenhouse_ you can always
+create coroutines to run multiple RPCs in parallel.
 
 .. _greenhouse: https://teepark.github.com/greenhouse
 
-But there is also an async client API, and that is what is demonstrated
-next. The :meth:`send_rpc <junction.hub.Hub.send_rpc>` method does
-just what its name says and *only sends*, so it returns immediately.
-Exactly what it returns is an :class:`RPC <junction.futures.RPC>`
-instance, which represents an asynchronous in-flight RPC. The code in
-the example sends 3 RPCs at once, collecting the RPC objects in a list,
-then calls :meth:`wait <junction.futures.RPC.wait>` on them each to
-block and get the RPC results. For more advanced usage of RPC objects
-and the asynchronous API, hop over to :ref:`Programming With Futures
-<programming-with-futures>`.
+But there is also an async client API, which will be demonstrated next.
+The :meth:`send_rpc <junction.hub.Hub.send_rpc>` method does just what
+its name says and *only sends*, so it returns immediately. What it
+returns exactly is an :class:`RPC <junction.futures.RPC>` instance,
+which represents an asynchronous in-flight RPC. The code in the example
+sends 3 RPCs at once, collecting the RPC objects in a list, then calls
+:meth:`wait <junction.futures.RPC.wait>` on them each to block and get
+the RPC results. For more advanced usage of RPC objects and the
+asynchronous API, hop over to
+:ref:`Programming With Futures <programming-with-futures>`.
 
 With the service code running in one terminal, running the client in
 another (on the same machine) should print::
@@ -182,21 +183,22 @@ client-only hub.
 
     client.wait_connected()
 
-    print client.rpc("ECHO", 0, "echo", ("first request",), {})[0]
+    print client.rpc("ECHO", 0, "echo", ("first request",), {})
 
     rpcs = []
     for msg in ("second", "third", "fourth"):
         rpcs.append(client.send_rpc("ECHO", 0, "echo", (msg,), {}))
 
     for rpc in rpcs:
-        print rpc.wait()[0]
+        rpc.wait()
+        print rpc.value
 
 The first thing that should strike you about this code is how similar it
 is to the Hub-based client. :class:`Client <junction.client.Client>`
-has *exactly* the same interface as :class:`Hub <junction.hub.Hub>`
-for the client side of RPCs and publishes, so that it is easy to
-substitute one for the other, or write utility methods or higher level
-APIs that will work with either.
+has *almost exactly* the same interface as
+:class:`Hub <junction.hub.Hub>` for the client side of RPCs and
+publishes, so that it is easy to substitute one for the other, or write
+utility methods or higher level APIs that will work with either.
 
 But there is a difference in how we create them. A Client doesn't create
 a peer-accepting server, and it doesn't connect to every Hub in the
@@ -211,33 +213,33 @@ to the hub acting as the proxy. Generally :class:`Hubs
 <junction.hub.Hub>` with their slower startup time, static list of
 all the Hubs in the system and ability to act as receivers of RPCs and
 publishes are more suited for long-running servers, while
-:class:`Clients <junction.client.Client>` are more well-suited to
-scripts, interactive interpreter use, and environments that don't have a
+:class:`Clients <junction.client.Client>` are better suited to scripts,
+interactive interpreter use, and environments that don't have a
 long-running process (for instance a webserver that is stuck on mod_wsgi
-or something else that doesn't allow long-lived module global state).
+or something else that doesn't allow long-lived module-global state).
 
-In this very simple case the extra latency we would expect to see from
-Client usage doesn't come into play because the hub to which we are
-directly connecting is also the only one to which we will make RPC
-requests.
+In this simple case the extra latency we would expect to see from Client
+usage doesn't come into play because the hub to which we are directly
+connecting is the same one handling the requests, so there is no extra
+hop involved.
 
 We'll just make one final change to the client code for the purpose of
-explaining a useful API. Replace the last two lines with the following:
+explaining a useful API. Replace the last three lines with the
+following:
 
 .. sourcecode:: python
 
     while rpcs:
-        rpc = client.wait_any(rpcs)
-        print rpc.results[0]
+        rpc = junction.wait_any(rpcs)
+        print rpc.results
         rpcs.remove(rpc)
 
-The :meth:`Hub.wait_any <junction.hub.Hub.wait_any>` and
-:meth:`Client.wait_any <junction.client.Client.wait_any>` methods accept
+The :func:`junction.wait_any <junction.futures.wait_any>` method accepts
 a list of RPCs and return one of them that is complete. If none of them
 are complete already, then it blocks until the first one completes.
 
 This way of collecting parallel RPCs will handle them in the order in
-which their resopnses come back, rather than our pre-defined order. If
+which their responses come back, rather than our pre-defined order. If
 there were a little more variance in the response times than an echo
 server, and especially if we were doing CPU-intensive work on the
 response values, it would be handy to be able to deal with the fastest

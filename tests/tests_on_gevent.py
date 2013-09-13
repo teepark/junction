@@ -185,7 +185,7 @@ class JunctionTests(object):
             timeout=TIMEOUT))
 
         self.assertEqual(handler_results, [1, 2, 3, 4])
-        self.assertEqual(sender_results, [[1], [4], [9], [16]])
+        self.assertEqual(sender_results, [1, 4, 9, 16])
 
     def test_rpc_ruled_out_by_service(self):
         results = []
@@ -212,12 +212,8 @@ class JunctionTests(object):
 
         backend.pause_for(TIMEOUT)
 
-        result = self.sender.rpc("service", 0, "method2", (1,), {}, TIMEOUT)
-        assert isinstance(result, list)
-        assert len(result) == 1
-        assert isinstance(result[0], junction.errors.UnsupportedRemoteMethod)
-
-        self.assertEqual(results, [])
+        self.assertRaises(junction.errors.UnsupportedRemoteMethod,
+                self.sender.rpc, "service", 0, "method2", (1,), {}, TIMEOUT)
 
     def test_rpc_ruled_out_by_routing_id(self):
         results = []
@@ -242,12 +238,15 @@ class JunctionTests(object):
 
         backend.pause_for(TIMEOUT)
 
-        result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
+        try:
+            self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
+        except CustomError, exc:
+            result = exc
+        else:
+            assert 0, "should have raised CustomError"
 
-        self.assertEqual(len(result), 1)
-        self.assert_(isinstance(result[0], CustomError), junction.errors.HANDLED_ERROR_TYPES)
-        self.assertEqual(result[0].args[0], self.connection.addr)
-        self.assertEqual(result[0].args[1], "gaah")
+        self.assertEqual(result.args[0], self.connection.addr)
+        self.assertEqual(result.args[1], "gaah")
 
     def test_rpc_handler_unknown_exception(self):
         class CustomError(Exception):
@@ -260,12 +259,15 @@ class JunctionTests(object):
 
         backend.pause_for(TIMEOUT)
 
-        result = self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
+        try:
+            self.sender.rpc("service", 0, "method", (), {}, TIMEOUT)
+        except junction.errors.RemoteException, exc:
+            result = exc
+        else:
+            assert 0, "should have raised RemoteException"
 
-        self.assertEqual(len(result), 1)
-        self.assert_(isinstance(result[0], junction.errors.RemoteException))
-        self.assertEqual(result[0].args[0], self.connection.addr)
-        self.assertEqual(result[0].args[1].splitlines()[-1], "CustomError: WOOPS")
+        self.assertEqual(result.args[0], self.connection.addr)
+        self.assertEqual(result.args[1].splitlines()[-1], "CustomError: WOOPS")
 
     def test_async_rpc_success(self):
         handler_results = []
@@ -292,7 +294,7 @@ class JunctionTests(object):
             sender_results.append(rpc.value)
 
         self.assertEqual(handler_results, [1, 2, 3, 4])
-        self.assertEqual(sender_results, [[1], [4], [9], [16]])
+        self.assertEqual(sender_results, [1, 4, 9, 16])
 
     def test_singular_rpc(self):
         handler_results = []
@@ -306,13 +308,13 @@ class JunctionTests(object):
         backend.pause_for(TIMEOUT)
 
         sender_results.append(self.sender.rpc("service", 0, "method", (1,), {},
-            timeout=TIMEOUT, singular=True))
+            timeout=TIMEOUT))
         sender_results.append(self.sender.rpc("service", 0, "method", (2,), {},
-            timeout=TIMEOUT, singular=True))
+            timeout=TIMEOUT))
         sender_results.append(self.sender.rpc("service", 0, "method", (3,), {},
-            timeout=TIMEOUT, singular=True))
+            timeout=TIMEOUT))
         sender_results.append(self.sender.rpc("service", 0, "method", (4,), {},
-            timeout=TIMEOUT, singular=True))
+            timeout=TIMEOUT))
 
         self.assertEqual(handler_results, [1,2,3,4])
         self.assertEqual(sender_results, [1,4,9,16])
@@ -335,7 +337,7 @@ class JunctionTests(object):
         self.assertEqual(
                 self.sender.rpc('service', 0, 'method', (gen(),),
                     timeout=TIMEOUT),
-                [5])
+                5)
 
         self.assertEqual(results, [1,2])
 
@@ -452,7 +454,7 @@ class DownedConnectionTests(GeventTestCase):
         backend.schedule(self.kill_client, (client,))
 
         # hub does a self-rpc during which the client connection goes away
-        result = peer.rpc('service', 0, 'method', singular=1)
+        result = peer.rpc('service', 0, 'method')
 
         self.assertEqual(result, 1)
 
@@ -480,7 +482,7 @@ class DownedConnectionTests(GeventTestCase):
             cli._peer.sock.close()
 
         # hub does a self-rpc during which the client connection goes away
-        result = hub.rpc('service', 0, 'method', singular=1)
+        result = hub.rpc('service', 0, 'method')
 
         self.assertEqual(result, 1)
 

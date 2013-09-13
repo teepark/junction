@@ -21,10 +21,10 @@ greenhouse.global_exception_handler(traceback.print_exception)
 
 
 def second_call(client, results):
-    return client.send_rpc(SERVICE, 0, "echo", (results[0],), {})
+    return client.send_rpc(SERVICE, 0, "echo", (results,), {})
 
 def third_call(results):
-    return results[0]
+    return results
 
 
 def main():
@@ -38,7 +38,7 @@ def main():
 
     print client.rpc(SERVICE, 0, "echo", ('one',), {})
 
-    rpcs = map(lambda msg: client.send_rpc(SERVICE, 0, "echo", (msg,), {}),
+    rpcs = map(lambda num: client.send_rpc(SERVICE, 0, "echo", (num,)),
             ('two', 'three', 'four', 'five'))
 
     dependents = [
@@ -46,7 +46,7 @@ def main():
             for rpc in rpcs]
 
     while dependents:
-        dep = client.wait_any(dependents)
+        dep = junction.wait_any(dependents)
         dependents.remove(dep)
         print dep.value
 

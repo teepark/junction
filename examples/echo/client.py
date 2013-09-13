@@ -33,7 +33,7 @@ def main():
     rpcs = map(lambda msg: client.send_rpc(SERVICE, 0, "echo", (msg,), {}),
             ('two', 'three', 'four', 'five'))
     while rpcs:
-        rpc = client.wait_any(rpcs)
+        rpc = junction.wait_any(rpcs)
         rpcs.remove(rpc)
         print rpc.value
 

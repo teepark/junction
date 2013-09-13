@@ -7,7 +7,7 @@ from .hub import Hub
 from .client import Client
 from .core.backend import \
         activate_greenhouse, activate_gevent, activate_eventlet
-from .futures import Future, after, wait_any
+from .futures import Future, after, wait_any, wait_all
 
 
 VERSION = (2, 0, 0, "")

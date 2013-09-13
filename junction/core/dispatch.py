@@ -287,6 +287,9 @@ class Dispatcher(object):
         if handler:
             targets.append(LocalTarget(self, handler, schedule, client))
 
+        if not targets:
+            return False
+
         if singular:
             targets = [self.target_selection(
                 targets, service, routing_id, method)]
@@ -802,15 +805,13 @@ class Dispatcher(object):
             return
 
         msg_type, msg = msg
-        handler = self.handlers.get(msg_type, None)
-
-        if handler is None:
+        if msg_type not in self.handlers:
             # drop unrecognized messages
             log.warn("received unrecognized message type %r from %r" %
                     (msg_type, peer.ident))
             return
 
-        handler(self, peer, msg)
+        self.handlers[msg_type](self, peer, msg)
 
     def incoming_publish(self, peer, msg):
         if not isinstance(msg, tuple) or len(msg) != 5:

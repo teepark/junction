@@ -21,16 +21,19 @@ def main(environ, argv):
     greenhouse.global_exception_handler(traceback.print_exception)
     junction.configure_logging(level=1)
 
-    port = 9057
+    port = 9056
     if argv[1:] and argv[1] == 'relay':
         port += 1
 
-    client = junction.Client(("", port))
-    client.connect()
+    #client = junction.Client(("", port))
+    #client.connect()
+    client = junction.Hub(("", port+1), [("", port)])
+    client.start()
+
     client.wait_connected()
 
     for line in client.rpc(
-            'service', 0, 'echostream', (gen_input(),), singular=1):
+            'service', 0, 'echostream', (gen_input(),)):
         print 'line:', line
 
 

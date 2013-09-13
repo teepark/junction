@@ -20,18 +20,18 @@ def main():
     client.wait_connected()
 
     print "wait 2"
-    client.rpc(WAIT_SERVICE, 0, "wait", (2,), {})
+    client.rpc(WAIT_SERVICE, 0, "wait", (2,))
 
     rpcs = []
     for i in xrange(5):
         wait = random.random() * 5
-        rpc = client.send_rpc(WAIT_SERVICE, 0, "wait", (wait,), {})
+        rpc = client.send_rpc(WAIT_SERVICE, 0, "wait", (wait,))
         rpc.counter = i
         rpcs.append(rpc)
         print "queued a wait %r: %r" % (rpcs[-1].counter, wait)
 
     while rpcs:
-        rpc = client.wait_any(rpcs)
+        rpc = junction.wait_any(rpcs)
         print "got back %r" % rpc.counter
         rpcs.remove(rpc)
 

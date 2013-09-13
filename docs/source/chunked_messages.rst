@@ -37,7 +37,8 @@ RPC's result for that server will be a generator object, which can block
 
 The APIs around blocking on the results of an RPC
 (:meth:`rpc <junction.hub.Hub.rpc>`,
-:meth:`wait_any <junction.hub.Hub.wait_any>`,
+:func:`wait_any <junction.futures.wait_any>`,
+:func:`wait_all <junction.futures.wait_all>`,
 :meth:`RPC.wait <junction.futures.RPC.wait>`,
 :meth:`RPC.after <junction.futures.RPC.after>`) will stop blocking as
 soon as the message *indicating that the response is chunked* is

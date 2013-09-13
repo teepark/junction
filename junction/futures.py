@@ -5,11 +5,13 @@ import sys
 import time
 import weakref
 
+import mummy
+
 from .core import backend, dispatch
 from . import errors
 
 
-__all__ = ["Future", "after", "wait_any"]
+__all__ = ["Future", "after", "wait_any", "wait_all"]
 
 
 log = logging.getLogger("junction.futures")
@@ -278,6 +280,9 @@ class RPC(Future):
         self._results = None
         if self._singular:
             final = final[0]
+            if isinstance(final, Exception):
+                self.abort(type(final), final)
+                return
         self.finish(final)
 
 
