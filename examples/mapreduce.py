@@ -76,7 +76,7 @@ class Coordinator(object):
             "setup",
             (dumped_reducer, mappers, self._value,
                 reduce_base, base_case_provided),
-            {})[0]
+            {})
 
         self._hub.publish(
             "%s-mapper" % (self._service,),
@@ -223,7 +223,12 @@ def load_func(s):
 
 if __name__ == '__main__':
     greenhouse.global_exception_handler(traceback.print_exception)
-    junction.configure_logging(level=1)
+    level = 1
+    if sys.argv[1] == 'client':
+        level = logging.ERROR
+        if '-v' in sys.argv:
+            level = 1
+    junction.configure_logging(level=level)
 
     if sys.argv[1] == "mapper":
         hub = junction.Hub(("", 9090), [("", 9091), ("", 9092)])
