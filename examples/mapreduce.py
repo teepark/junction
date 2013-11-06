@@ -9,25 +9,6 @@ import junction
 import mummy
 
 
-'''
-Todo
-----
-
-- mapper function should be called once for a given piece of
-  input and yield zero or more (key, val) pairs
-- the mapper node should pick the reducer to send a yielded key/val
-  pair to with `reducers[hash(key) % num_reducers]`, where reducers
-  is *the same* list that was sent to all mappers by the coordinator.
-- no failure case should cause the client to indefinitely hang
-
-Done
-----
-
-- mapper's data source is provided at job-start time
-- data source takes a 'mapper id' which the mapper was instantiated with
-- job config should specify a base case for reduction
-'''
-
 _MISSING = object()
 
 def map_reduce(hub, service, source, mapper, reducer, reduce_base=_MISSING):
