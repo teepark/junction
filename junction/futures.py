@@ -99,13 +99,13 @@ class Future(object):
 
         self._failure = (klass, exc, tb)
 
-        for wait in self._waits:
-            wait.finish(self)
-        self._waits = None
-
         for eb in self._errbacks:
             backend.schedule(eb, args=(klass, exc, tb))
         self._errbacks = None
+
+        for wait in list(self._waits):
+            wait.finish(self)
+        self._waits = None
 
         for child in self._children:
             child = child()
@@ -130,7 +130,7 @@ class Future(object):
             self._cbacks.append(func)
 
     def on_abort(self, func):
-        '''Assigna a callback function to be run when :meth:`abort`\ed
+        '''Assign a callback function to be run when :meth:`abort`\ed
 
         :param function func:
             A callback to run when aborted. It will be given three arguments:
